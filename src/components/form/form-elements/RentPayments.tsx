@@ -125,7 +125,7 @@ export default function RentPaymentForm({ siteId, owners, currentMonthlyRent }: 
                 form.append('image', imageFile);
             }
 
-            const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/rent-payments`, {
+            const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/rent`, {
                 method: 'POST',
                 headers: {
                     'Authorization': `Bearer ${localStorage.getItem('token')}`
@@ -133,6 +133,10 @@ export default function RentPaymentForm({ siteId, owners, currentMonthlyRent }: 
                 },
                 body: form
             });
+
+            console.log("API Response:", response);
+            console.log("API Status:", response.status);
+
 
             const data = await response.json();
 
