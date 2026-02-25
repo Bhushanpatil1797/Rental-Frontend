@@ -15,22 +15,29 @@ import {
 import Badge from "../ui/badge/Badge";
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
+
 interface RentTransaction {
-  month_year: unknown;
-  monthly_rent: number;
-  id: number;
-  tenant_id: string;
-  owner_name: string;
-  payment_amount: string;
-  payment_date: string;
-  payment_type: string;
-  paid_status: string;
-  utr_number: string;
-  rent_month: string;
-  rent_year: string;
-  remarks: string;
-  image?: string;
-  site: {
+  id: string;
+  siteOwnerId: string;
+  siteId: string | null;
+  siteCode: string;
+  siteName: string;
+  category: string;
+  monthYear: string;
+  paymentDate: string;
+  paymentAmount: string;
+  paidStatus: string;
+  paymentType: string;
+  utrNumber: string;
+  image: string | null;
+  monthlyRent: string;
+  electricityConsumerId: string | null;
+  units: number | null;
+  electricityCharges: number | null;
+  isDeleted: boolean;
+  createdAt: string;
+  updatedAt: string;
+  site?: {
     property_location: string;
     property_address: string;
     location: any;
@@ -44,11 +51,11 @@ interface RentTransaction {
 interface FilterParams {
   site_id?: string;
   owner_name?: string;
-  paid_status?: string;
+  paidStatus?: string;
   start_date?: string;
   end_date?: string;
-  payment_type?: string;
-  payment_amount?: string;
+  paymentType?: string;
+  paymentAmount?: string;
   utr_number?: string;
 }
 
@@ -63,18 +70,18 @@ export default function RentTransactionsTable() {
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [selectedTransaction, setSelectedTransaction] = useState<RentTransaction | null>(null);
   const [updateFormData, setUpdateFormData] = useState({
-    monthly_rent: "",
-    payment_type: "",
-    paid_status: "",
-    payment_date: "",
-    payment_amount: "",
-    utr_number: "",
-    month_year: ""
+    monthlyRent: "",
+    paymentType: "",
+    paidStatus: "",
+    paymentDate: "",
+    paymentAmount: "",
+    utrNumber: "",
+    monthYear: "",
   });
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
   const [updateLoading, setUpdateLoading] = useState(false);
   const [deleteLoading, setDeleteLoading] = useState(false);
-  const [selectedFormat, setSelectedFormat] = useState<'excel' | 'pdf'>('excel');
+  const [selectedFormat, setSelectedFormat] = useState<"excel" | "pdf">("excel");
   const [viewProofTransaction, setViewProofTransaction] = useState<RentTransaction | null>(null);
   const [newImageFile, setNewImageFile] = useState<File | null>(null);
   const [removeImageFlag, setRemoveImageFlag] = useState(false);
@@ -89,14 +96,13 @@ export default function RentTransactionsTable() {
       const token = localStorage.getItem("token");
       if (!token) throw new Error("Authentication token not found");
 
-      // Build query params
       const queryParams = new URLSearchParams();
       Object.entries(filters).forEach(([key, value]) => {
         if (value) queryParams.append(key, value);
       });
 
       const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/api/rent-payments?${queryParams}`,
+        `${process.env.NEXT_PUBLIC_API_URL}/api/rent/`,
         {
           headers: {
             Authorization: `Bearer ${token}`,
@@ -123,33 +129,37 @@ export default function RentTransactionsTable() {
     }
   };
 
-
   const handleFilterChange = (filterKey: keyof FilterParams, value: string) => {
-    setFilters(prev => ({
+    setFilters((prev) => ({
       ...prev,
-      [filterKey]: value
+      [filterKey]: value,
     }));
   };
 
-  const getTransactionMonthYear = (item: RentTransaction) => {
-    // Try to use month_year if it's a string like "2024-06-01"
-    if (typeof item.month_year === "string" && item.month_year.length >= 7) {
-      return item.month_year.slice(0, 7); // "YYYY-MM"
-    }
-    // Fallback to rent_year and rent_month
-    if (item.rent_year && item.rent_month) {
-      const months = {
-        "January": "01", "February": "02", "March": "03", "April": "04",
-        "May": "05", "June": "06", "July": "07", "August": "08",
-        "September": "09", "October": "10", "November": "11", "December": "12"
+  // Parse "April-2026" or "2024-06" style monthYear strings for sorting
+  const getTransactionMonthYear = (item: RentTransaction): string => {
+    if (!item.monthYear) return "";
+
+    // Format: "April-2026"
+    const namedMonthMatch = item.monthYear.match(/^([A-Za-z]+)-(\d{4})$/);
+    if (namedMonthMatch) {
+      const months: Record<string, string> = {
+        January: "01", February: "02", March: "03", April: "04",
+        May: "05", June: "06", July: "07", August: "08",
+        September: "09", October: "10", November: "11", December: "12",
       };
-      const monthNum = months[item.rent_month as keyof typeof months] || "01";
-      return `${item.rent_year}-${monthNum}`;
+      const monthNum = months[namedMonthMatch[1]] || "01";
+      return `${namedMonthMatch[2]}-${monthNum}`;
     }
+
+    // Format: "2024-06-01" or "2024-06"
+    if (item.monthYear.length >= 7) {
+      return item.monthYear.slice(0, 7);
+    }
+
     return "";
   };
 
-  // Get current month in "YYYY-MM" format
   const currentMonthYear = (() => {
     const now = new Date();
     return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
@@ -162,104 +172,89 @@ export default function RentTransactionsTable() {
         (item.site?.site_name?.toLowerCase() || "").includes(searchString) ||
         (item.site?.property_location?.toLowerCase() || "").includes(searchString) ||
         (item.site?.code?.toLowerCase() || "").includes(searchString) ||
-        (item.owner_name?.toLowerCase() || "").includes(searchString) ||
-        (item.payment_type?.toLowerCase() || "").includes(searchString) ||
-        (item.paid_status?.toLowerCase() || "").includes(searchString) ||
-        (item.utr_number?.toLowerCase() || "").includes(searchString)
+        (item.paymentType?.toLowerCase() || "").includes(searchString) ||
+        (item.paidStatus?.toLowerCase() || "").includes(searchString) ||
+        (item.utrNumber?.toLowerCase() || "").includes(searchString) ||
+        (item.monthYear?.toLowerCase() || "").includes(searchString)
       );
     })
     .sort((a, b) => {
-      // Sort: current month records first, then by payment_date descending
       const aMonth = getTransactionMonthYear(a);
       const bMonth = getTransactionMonthYear(b);
 
       if (aMonth === currentMonthYear && bMonth !== currentMonthYear) return -1;
       if (bMonth === currentMonthYear && aMonth !== currentMonthYear) return 1;
 
-      // If both are current month or both are not, sort by payment_date descending
-      const dateA = a.payment_date ? new Date(a.payment_date).getTime() : 0;
-      const dateB = b.payment_date ? new Date(b.payment_date).getTime() : 0;
+      const dateA = a.paymentDate ? new Date(a.paymentDate).getTime() : 0;
+      const dateB = b.paymentDate ? new Date(b.paymentDate).getTime() : 0;
       return dateB - dateA;
     });
 
   const formatDate = (dateString: string) => {
-    if (!dateString) return '-';
+    if (!dateString) return "-";
     return new Date(dateString).toLocaleDateString();
   };
 
   const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-IN', {
-      style: 'currency',
-      currency: 'INR'
+    return new Intl.NumberFormat("en-IN", {
+      style: "currency",
+      currency: "INR",
     }).format(amount);
+  };
+
+  const formatDateForInput = (dateString: string) => {
+    if (!dateString) return "";
+    const date = new Date(dateString);
+    return date.toISOString().split("T")[0];
   };
 
   const handleUpdateClick = (transaction: RentTransaction) => {
     setSelectedTransaction(transaction);
-    // Format date to YYYY-MM-DD for input type="date"
-    const formatDateForInput = (dateString: string) => {
-      if (!dateString) return '';
-      const date = new Date(dateString);
-      return date.toISOString().split('T')[0];
-    };
-
-    // Set month_year based on rent_month and rent_year
-    const monthYear = transaction.rent_month && transaction.rent_year
-      ? `${transaction.rent_year}-${getMonthNumber(transaction.rent_month)}-01`
-      : '';
-
     setUpdateFormData({
-      monthly_rent: transaction.monthly_rent.toString(),
-      payment_type: transaction.payment_type || "",
-      paid_status: transaction.paid_status || "",
-      payment_date: formatDateForInput(transaction.payment_date),
-      payment_amount: transaction.payment_amount || "",
-      utr_number: transaction.utr_number || "",
-      month_year: monthYear
+      monthlyRent: transaction.monthlyRent?.toString() || "",
+      paymentType: transaction.paymentType || "",
+      paidStatus: transaction.paidStatus || "",
+      paymentDate: formatDateForInput(transaction.paymentDate),
+      paymentAmount: transaction.paymentAmount || "",
+      utrNumber: transaction.utrNumber || "",
+      monthYear: transaction.monthYear || "",
     });
+    setNewImageFile(null);
+    setRemoveImageFlag(false);
     setIsUpdateModalOpen(true);
-  };
-
-  const getMonthNumber = (monthName: string) => {
-    const months = {
-      "January": "01", "February": "02", "March": "03", "April": "04",
-      "May": "05", "June": "06", "July": "07", "August": "08",
-      "September": "09", "October": "10", "November": "11", "December": "12"
-    };
-    return months[monthName as keyof typeof months] || "01";
   };
 
   const handleDeleteClick = (transaction: RentTransaction) => {
     setSelectedTransaction(transaction);
     setIsDeleteModalOpen(true);
   };
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+
+  const handleInputChange = (
+    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
+  ) => {
     const { name, value } = e.target;
-    setUpdateFormData(prev => ({
-      ...prev,
-      [name]: value
-    }));
-    // Clear the error for this field
+    setUpdateFormData((prev) => ({ ...prev, [name]: value }));
     if (formErrors[name]) {
-      setFormErrors(prev => {
+      setFormErrors((prev) => {
         const newErrors = { ...prev };
         delete newErrors[name];
         return newErrors;
       });
     }
   };
+
   const validateForm = () => {
     const errors: Record<string, string> = {};
-    if (!updateFormData.monthly_rent) {
-      errors.monthly_rent = "Monthly rent is required";
-    } else if (isNaN(Number(updateFormData.monthly_rent))) {
-      errors.monthly_rent = "Monthly rent must be a number";
+    if (!updateFormData.monthlyRent) {
+      errors.monthlyRent = "Monthly rent is required";
+    } else if (isNaN(Number(updateFormData.monthlyRent))) {
+      errors.monthlyRent = "Monthly rent must be a number";
     }
-    if (!updateFormData.paid_status) {
-      errors.paid_status = "Payment status is required";
+    if (!updateFormData.paidStatus) {
+      errors.paidStatus = "Payment status is required";
     }
-    if (!updateFormData.payment_type) {
-      errors.payment_type = "Payment type is required";
+    if (!updateFormData.paymentType) {
+      errors.paymentType = "Payment type is required";
     }
     setFormErrors(errors);
     return Object.keys(errors).length === 0;
@@ -276,46 +271,40 @@ export default function RentTransactionsTable() {
       if (!token) throw new Error("Authentication token not found");
 
       const formData = new FormData();
-      formData.append('monthly_rent', updateFormData.monthly_rent);
-      formData.append('payment_type', updateFormData.payment_type);
-      formData.append('paid_status', updateFormData.paid_status);
-      formData.append('payment_date', updateFormData.payment_date);
-      formData.append('payment_amount', updateFormData.payment_amount);
-      formData.append('utr_number', updateFormData.utr_number);
-      formData.append('month_year', updateFormData.month_year);
-      // Append removeImage flag as string 'true' or 'false'
-      formData.append('removeImage', removeImageFlag ? 'true' : 'false');
-      // Append new image file if selected
+      formData.append("monthlyRent", updateFormData.monthlyRent);
+      formData.append("paymentType", updateFormData.paymentType);
+      formData.append("paidStatus", updateFormData.paidStatus);
+      formData.append("paymentDate", updateFormData.paymentDate);
+      formData.append("paymentAmount", updateFormData.paymentAmount);
+      formData.append("utrNumber", updateFormData.utrNumber);
+      formData.append("monthYear", updateFormData.monthYear);
+      formData.append("removeImage", removeImageFlag ? "true" : "false");
       if (newImageFile) {
-        formData.append('image', newImageFile);
+        formData.append("image", newImageFile);
       }
 
       const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/api/rent-payments/${selectedTransaction.id}`, {
-        method: 'PUT',
-        headers: {
-          Authorization: `Bearer ${token}`,
-          // IMPORTANT: Do NOT set Content-Type header for multipart/form-data.
-          // Let the browser set it automatically with proper boundary.
-        },
-        body: formData,
-      }
+        `${process.env.NEXT_PUBLIC_API_URL}/api/rent/${selectedTransaction.id}`,
+        {
+          method: "PUT",
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+          body: formData,
+        }        
       );
 
+      console.log("Response:", response)
       if (!response.ok) {
         const errorData = await response.json();
         throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
       }
 
-      // Refresh the data
       await fetchRentTransactions();
-
-      // Reset image states
       setNewImageFile(null);
       setRemoveImageFlag(false);
       setSelectedTransaction(null);
       setIsUpdateModalOpen(false);
-
       alert("Rent payment updated successfully");
     } catch (error) {
       console.error("Error updating rent payment:", error);
@@ -326,14 +315,31 @@ export default function RentTransactionsTable() {
   };
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
   const handleDeleteSubmit = async () => {
     if (!selectedTransaction) return;
     try {
       setDeleteLoading(true);
       const token = localStorage.getItem("token");
       if (!token) throw new Error("Authentication token not found");
+
       const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/api/rent-payments/${selectedTransaction.id}`,
+        `${process.env.NEXT_PUBLIC_API_URL}/api/rent/${selectedTransaction.id}`,
         {
           method: "DELETE",
           headers: {
@@ -342,16 +348,15 @@ export default function RentTransactionsTable() {
           },
         }
       );
+
       if (!response.ok) {
         const errorData = await response.json();
         throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
       }
-      // Refresh the data
+
       await fetchRentTransactions();
-      // Close the modal
       setIsDeleteModalOpen(false);
       setSelectedTransaction(null);
-      // Show success toast or notification here (if you have a toast system)
       alert("Rent payment deleted successfully");
     } catch (error) {
       console.error("Error deleting rent payment:", error);
@@ -360,13 +365,7 @@ export default function RentTransactionsTable() {
       setDeleteLoading(false);
     }
   };
-  if (loading) {
-    return <div className="p-4 text-center">Loading...</div>;
-  }
-  if (error) {
-    return <div className="p-4 text-center text-red-500">Error: {error}</div>;
-  }
-  // Function to handle Excel download
+
   const handleDownloadExcel = async () => {
     try {
       const token = localStorage.getItem("token");
@@ -376,17 +375,16 @@ export default function RentTransactionsTable() {
       Object.entries(filters).forEach(([key, value]) => {
         if (value) queryParams.append(key, value);
       });
+
       const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/api/rent-payments/download-ledger?${queryParams}`,
+        `${process.env.NEXT_PUBLIC_API_URL}/api/rent/ledger?${queryParams.toString()}`,
         {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
+          headers: { Authorization: `Bearer ${token}` },
         }
       );
-      if (!response.ok) {
-        throw new Error(`Failed to download Excel file: ${response.status}`);
-      }
+
+      if (!response.ok) throw new Error(`Failed to download Excel file: ${response.status}`);
+
       const blob = await response.blob();
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement("a");
@@ -403,19 +401,20 @@ export default function RentTransactionsTable() {
 
   const handleDownloadPDF = async () => {
     try {
-      const token = localStorage.getItem('token');
+      const token = localStorage.getItem("token");
       const queryParams = new URLSearchParams(filters as any).toString();
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/rent-payments/download-ledger-pdf?${queryParams}`, {
-        headers: {
-          Authorization: `Bearer ${token}`
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL}/api/rent/ledger.pdf?${queryParams}`,
+        {
+          headers: { Authorization: `Bearer ${token}` },
         }
-      });
+      );
 
-      if (!response.ok) throw new Error('Failed to download PDF');
+      if (!response.ok) throw new Error("Failed to download PDF");
 
       const blob = await response.blob();
       const url = window.URL.createObjectURL(blob);
-      const link = document.createElement('a');
+      const link = document.createElement("a");
       link.href = url;
       link.download = `RentPayments_${Date.now()}.pdf`;
       document.body.appendChild(link);
@@ -423,21 +422,25 @@ export default function RentTransactionsTable() {
       link.remove();
       window.URL.revokeObjectURL(url);
     } catch (error) {
-      console.error('PDF download failed:', error);
-      alert('PDF download failed');
+      console.error("PDF download failed:", error);
+      alert("PDF download failed");
     }
   };
 
   const handleDownload = () => {
-    if (selectedFormat === 'excel') {
+    if (selectedFormat === "excel") {
       handleDownloadExcel();
     } else {
       handleDownloadPDF();
     }
   };
 
+  if (loading) return <div className="p-4 text-center">Loading...</div>;
+  if (error) return <div className="p-4 text-center text-red-500">Error: {error}</div>;
+
   return (
     <div className="space-y-4">
+      {/* ── Top Bar ── */}
       <div className="flex items-center justify-between gap-2 px-3 sticky top-0 z-20 py-2 border-b border-gray-200 dark:border-gray-700">
         <p className="text-sm text-gray-500 dark:text-gray-400">
           Showing {filteredTransactions.length} of {totalCount} transactions
@@ -451,53 +454,55 @@ export default function RentTransactionsTable() {
             onChange={(e) => setSearchTerm(e.target.value)}
             className="w-40 px-2 py-1 text-sm rounded border border-gray-300 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:bg-white/[0.05] dark:border-white/[0.1] dark:text-white"
           />
+
           <select
-            value={filters.paid_status || ""}
-            onChange={(e) => handleFilterChange("paid_status", e.target.value)}
-            className="w-32 px-2 py-1 text-sm rounded border border-gray-300 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:bg-white/[0.05] dark:border-white/[0.1] dark:text-white [&>option]:dark:text-black">
+            value={filters.paidStatus || ""}
+            onChange={(e) => handleFilterChange("paidStatus", e.target.value)}
+            className="w-32 px-2 py-1 text-sm rounded border border-gray-300 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:bg-white/[0.05] dark:border-white/[0.1] dark:text-white [&>option]:dark:text-black"
+          >
             <option value="">All Status</option>
             <option value="paid">Paid</option>
             <option value="pending">Pending</option>
             <option value="failed">Partial</option>
           </select>
+
           <select
-            value={filters.payment_type || ""}
-            onChange={(e) => handleFilterChange("payment_type", e.target.value)}
-            className="w-32 px-2 py-1 text-sm rounded border border-gray-300 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:bg-white/[0.05] dark:border-white/[0.1] dark:text-white [&>option]:dark:text-black">
+            value={filters.paymentType || ""}
+            onChange={(e) => handleFilterChange("paymentType", e.target.value)}
+            className="w-32 px-2 py-1 text-sm rounded border border-gray-300 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:bg-white/[0.05] dark:border-white/[0.1] dark:text-white [&>option]:dark:text-black"
+          >
             <option value="">All Types</option>
             <option value="Rent">Rent</option>
             <option value="Electricity">Electricity</option>
           </select>
+
           <DatePicker
             selected={filters.start_date ? new Date(filters.start_date) : null}
             onChange={(date: Date | null) =>
-              handleFilterChange(
-                "start_date",
-                date ? date.toLocaleDateString("en-CA") : ""
-              )
+              handleFilterChange("start_date", date ? date.toLocaleDateString("en-CA") : "")
             }
             dateFormat="yyyy-MM-dd"
             placeholderText="Start Date"
             className="w-32 px-2 py-1 text-sm rounded border border-gray-300 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:bg-white/[0.05] dark:border-white/[0.1] dark:text-white"
           />
+
           <DatePicker
             selected={filters.end_date ? new Date(filters.end_date) : null}
             onChange={(date: Date | null) =>
-              handleFilterChange(
-                "end_date",
-                date ? date.toLocaleDateString("en-CA") : ""
-              )
+              handleFilterChange("end_date", date ? date.toLocaleDateString("en-CA") : "")
             }
             dateFormat="yyyy-MM-dd"
             placeholderText="End Date"
             className="w-32 px-2 py-1 text-sm rounded border border-gray-300 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:bg-white/[0.05] dark:border-white/[0.1] dark:text-white"
           />
+
           <button
             onClick={() => setFilters({})}
             className="px-2 py-1 text-sm bg-gray-200 hover:bg-gray-300 rounded dark:bg-gray-700 dark:hover:bg-gray-600 transition-colors"
           >
             Clear
           </button>
+
           <div className="relative inline-block text-left">
             <button
               onClick={handleDownload}
@@ -507,7 +512,7 @@ export default function RentTransactionsTable() {
             </button>
             <select
               value={selectedFormat}
-              onChange={(e) => setSelectedFormat(e.target.value as 'excel' | 'pdf')}
+              onChange={(e) => setSelectedFormat(e.target.value as "excel" | "pdf")}
               className="absolute top-0 right-0 h-full opacity-0 cursor-pointer"
             >
               <option value="excel">excel</option>
@@ -516,6 +521,8 @@ export default function RentTransactionsTable() {
           </div>
         </div>
       </div>
+
+      {/* ── Table ── */}
       <div className="relative rounded-xl border border-gray-200 bg-white dark:border-white/[0.05] dark:bg-white/[0.03]">
         <div className="overflow-x-auto">
           <div className="inline-block min-w-full align-middle">
@@ -525,18 +532,18 @@ export default function RentTransactionsTable() {
                   <TableHeader className="sticky top-0 z-10 bg-white dark:bg-[#121212] border-b border-gray-200 dark:border-gray-700">
                     <TableRow>
                       {[
-                        { width: "w-10", label: "ID" },
-                        { width: "w-16", label: "Site Code" },
-                        { width: "w-24", label: "Site Name" },
-                        { width: "w-20", label: "Owner Name" },
-                        { width: "w-32", label: "Rent Amount" },
-                        { width: "w-32", label: "Payment Date" },
-                        { width: "w-32", label: "Rent Period" },
-                        { width: "w-12", label: "Payment Type" },
-                        { width: "w-10", label: "Status" },
-                        { width: "w-24", label: "UTR Number" },
-                        { width: "w-24", label: "Image" },
-                        { width: "w-28", label: "Actions" }
+                        // { width: "w-10",  label: "ID" },
+                        { width: "w-16",  label: "Site Code" },
+                        { width: "w-24",  label: "Site Name" },
+                        { width: "w-20",  label: "Category" },
+                        { width: "w-32",  label: "Rent Amount" },
+                        { width: "w-32",  label: "Payment Date" },
+                        { width: "w-32",  label: "Rent Period" },
+                        { width: "w-12",  label: "Payment Type" },
+                        { width: "w-10",  label: "Status" },
+                        { width: "w-24",  label: "UTR Number" },
+                        { width: "w-24",  label: "Image" },
+                        { width: "w-28",  label: "Actions" },
                       ].map(({ width, label }) => (
                         <TableCell
                           key={label}
@@ -547,47 +554,77 @@ export default function RentTransactionsTable() {
                       ))}
                     </TableRow>
                   </TableHeader>
+
                   <TableBody className="divide-y divide-gray-200 dark:divide-gray-700">
                     {filteredTransactions.map((item) => (
                       <TableRow
                         key={item.id}
                         className="hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors"
                       >
-                        <TableCell className="w-16 px-6 py-4 text-gray-900  dark:text-gray-100">{item.id}</TableCell>
-                        <TableCell className="w-16 px-6 py-4 text-gray-900 dark:text-gray-100">{item.site?.code || '-'}</TableCell>
+                        {/* ID */}
+                        {/* <TableCell className="w-16 px-6 py-4 text-gray-900 dark:text-gray-100 text-xs break-all">
+                          {item.id}
+                        </TableCell> */}
+
+                        {/* Site Code */}
+                        <TableCell className="w-16 px-6 py-4 text-gray-900 dark:text-gray-100">
+                          {item.siteCode || item.site?.code || "-"}
+                        </TableCell>
+
+                        {/* Site Name */}
                         <TableCell className="w-24 px-6 py-4 text-gray-900 dark:text-gray-100">
                           {item.site
-                            ? `${item.site.site_name} (${item.site.property_location || 'No location'})`
-                            : '-'}
+                            ? (item.site.site_name|| "-")
+                            : (item.siteName || "-")}
                         </TableCell>
-                        <TableCell className="w-20 px-6 py-4 text-gray-900 truncate max-w-48 dark:text-gray-100">{item.owner_name || '-'}</TableCell>
+
+                        {/* Category */}
+                        <TableCell className="w-20 px-6 py-4 text-gray-900 dark:text-gray-100 capitalize">
+                          {item.category || "-"}
+                        </TableCell>
+
+                        {/* Payment Amount */}
                         <TableCell className="w-32 px-6 py-4 text-gray-900 dark:text-gray-100 font-medium">
-                          {formatCurrency(Number(item.payment_amount))}
+                          {formatCurrency(Number(item.paymentAmount))}
                         </TableCell>
+
+                        {/* Payment Date */}
                         <TableCell className="w-32 px-6 py-4 text-gray-900 dark:text-gray-100">
-                          {formatDate(item.payment_date)}
+                          {formatDate(item.paymentDate)}
                         </TableCell>
+
+                        {/* Rent Period */}
                         <TableCell className="w-32 px-6 py-4 text-gray-900 dark:text-gray-100">
-                          {`${item.month_year || '-'}`}
+                          {item.monthYear || "-"}
                         </TableCell>
+
+                        {/* Payment Type */}
                         <TableCell className="w-12 px-6 py-4 text-center text-gray-900 dark:text-gray-100">
-                          {item.payment_type || '-'}
+                          {item.paymentType || "-"}
                         </TableCell>
+
+                        {/* Status */}
                         <TableCell className="w-10 px-6 py-4 text-gray-900 dark:text-gray-100">
                           <Badge
                             size="sm"
                             color={
-                              item.paid_status?.toLowerCase() === "paid"
+                              item.paidStatus?.toLowerCase() === "paid"
                                 ? "success"
-                                : item.paid_status?.toLowerCase() === "pending"
-                                  ? "warning"
-                                  : "error"
+                                : item.paidStatus?.toLowerCase() === "pending"
+                                ? "warning"
+                                : "error"
                             }
                           >
-                            {item.paid_status || 'Unknown'}
+                            {item.paidStatus || "Unknown"}
                           </Badge>
                         </TableCell>
-                        <TableCell className="w-32 px-6 py-4 text-gray-900 dark:text-gray-100">{item.utr_number || '-'}</TableCell>
+
+                        {/* UTR Number */}
+                        <TableCell className="w-32 px-6 py-4 text-gray-900 dark:text-gray-100">
+                          {item.utrNumber || "-"}
+                        </TableCell>
+
+                        {/* Image / Proof */}
                         <TableCell className="w-24 px-6 py-4 text-gray-900 dark:text-gray-100">
                           {item.image ? (
                             <>
@@ -599,7 +636,7 @@ export default function RentTransactionsTable() {
                               >
                                 View Proof
                               </button>
-                              {/* Popup: Shows Image OR PDF File */}
+
                               {viewProofTransaction?.id === item.id && viewProofTransaction.image && (
                                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
                                   <div className="bg-white dark:bg-[#121212] rounded-lg p-4 shadow-lg relative max-w-xs w-full">
@@ -610,7 +647,7 @@ export default function RentTransactionsTable() {
                                     >
                                       &times;
                                     </button>
-                                    {viewProofTransaction.image.endsWith('.pdf') ? (
+                                    {viewProofTransaction.image.endsWith(".pdf") ? (
                                       <iframe
                                         src={viewProofTransaction.image}
                                         title="PDF Proof"
@@ -627,7 +664,7 @@ export default function RentTransactionsTable() {
                                         src={viewProofTransaction.image}
                                         alt="Rent Proof"
                                         className="max-h-80 w-auto mx-auto rounded"
-                                        onError={e => (e.currentTarget.style.display = 'none')}
+                                        onError={(e) => (e.currentTarget.style.display = "none")}
                                       />
                                     )}
                                   </div>
@@ -638,7 +675,9 @@ export default function RentTransactionsTable() {
                             "-"
                           )}
                         </TableCell>
-                        <TableCell className="w-28 px-6 py-4 text-gray-900  dark:text-gray-100">
+
+                        {/* Actions */}
+                        <TableCell className="w-28 px-6 py-4 text-gray-900 dark:text-gray-100">
                           <div className="flex space-x-2">
                             <button
                               onClick={() => handleUpdateClick(item)}
@@ -648,7 +687,7 @@ export default function RentTransactionsTable() {
                             </button>
                             <button
                               onClick={() => handleDeleteClick(item)}
-                              className="px-2 py-1 text-xs font-medium text-white  bg-red-600 rounded-md hover:bg-red-700"
+                              className="px-2 py-1 text-xs font-medium text-white bg-red-600 rounded-md hover:bg-red-700"
                             >
                               Delete
                             </button>
@@ -662,15 +701,15 @@ export default function RentTransactionsTable() {
             </div>
           </div>
         </div>
+
         {filteredTransactions.length === 0 && (
           <div className="p-4 text-center text-gray-500">
-            {searchTerm
-              ? `No results found for "${searchTerm}"`
-              : "No rent transactions found"
-            }
+            {searchTerm ? `No results found for "${searchTerm}"` : "No rent transactions found"}
           </div>
         )}
       </div>
+
+      {/* ── Update Modal ── */}
       {isUpdateModalOpen && selectedTransaction && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
           <div className="bg-white dark:bg-[#1f1f1f] rounded-lg max-w-md w-full max-h-[90vh] overflow-y-auto p-6">
@@ -687,14 +726,15 @@ export default function RentTransactionsTable() {
                     </label>
                     <input
                       type="text"
-                      name="monthly_rent"
-                      value={updateFormData.monthly_rent}
+                      name="monthlyRent"
+                      value={updateFormData.monthlyRent}
                       onChange={handleInputChange}
-                      className={`w-full px-3 py-2 border ${formErrors.monthly_rent ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'
-                        } rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white`}
+                      className={`w-full px-3 py-2 border ${
+                        formErrors.monthlyRent ? "border-red-500" : "border-gray-300 dark:border-gray-600"
+                      } rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white`}
                     />
-                    {formErrors.monthly_rent && (
-                      <p className="mt-1 text-sm text-red-500">{formErrors.monthly_rent}</p>
+                    {formErrors.monthlyRent && (
+                      <p className="mt-1 text-sm text-red-500">{formErrors.monthlyRent}</p>
                     )}
                   </div>
                   <div className="flex-1">
@@ -702,18 +742,20 @@ export default function RentTransactionsTable() {
                       Payment Type
                     </label>
                     <select
-                      name="payment_type"
-                      value={updateFormData.payment_type}
+                      name="paymentType"
+                      value={updateFormData.paymentType}
                       onChange={handleInputChange}
-                      className={`w-full px-3 py-2 border ${formErrors.payment_type ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'
-                        } rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white`}
+                      className={`w-full px-3 py-2 border ${
+                        formErrors.paymentType ? "border-red-500" : "border-gray-300 dark:border-gray-600"
+                      } rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white`}
                     >
                       <option value="">Select Payment Type</option>
                       <option value="Rent">Rent</option>
                       <option value="Electricity">Electricity</option>
+                      <option value="Bank Transfer">Bank Transfer</option>
                     </select>
-                    {formErrors.payment_type && (
-                      <p className="mt-1 text-sm text-red-500">{formErrors.payment_type}</p>
+                    {formErrors.paymentType && (
+                      <p className="mt-1 text-sm text-red-500">{formErrors.paymentType}</p>
                     )}
                   </div>
                 </div>
@@ -725,19 +767,20 @@ export default function RentTransactionsTable() {
                       Payment Status
                     </label>
                     <select
-                      name="paid_status"
-                      value={updateFormData.paid_status}
+                      name="paidStatus"
+                      value={updateFormData.paidStatus}
                       onChange={handleInputChange}
-                      className={`w-full px-3 py-2 border ${formErrors.paid_status ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'
-                        } rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white`}
+                      className={`w-full px-3 py-2 border ${
+                        formErrors.paidStatus ? "border-red-500" : "border-gray-300 dark:border-gray-600"
+                      } rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white`}
                     >
                       <option value="">Select Status</option>
                       <option value="paid">Paid</option>
                       <option value="pending">Pending</option>
                       <option value="failed">Partial</option>
                     </select>
-                    {formErrors.paid_status && (
-                      <p className="mt-1 text-sm text-red-500">{formErrors.paid_status}</p>
+                    {formErrors.paidStatus && (
+                      <p className="mt-1 text-sm text-red-500">{formErrors.paidStatus}</p>
                     )}
                   </div>
                   <div className="flex-1">
@@ -745,21 +788,17 @@ export default function RentTransactionsTable() {
                       Payment Date
                     </label>
                     <DatePicker
-                      selected={
-                        updateFormData.payment_date
-                          ? new Date(updateFormData.payment_date)
-                          : null
-                      }
+                      selected={updateFormData.paymentDate ? new Date(updateFormData.paymentDate) : null}
                       onChange={(date: Date | null) => {
-                        setUpdateFormData(prev => ({
+                        setUpdateFormData((prev) => ({
                           ...prev,
-                          payment_date: date
+                          paymentDate: date
                             ? [
-                              date.getFullYear(),
-                              String(date.getMonth() + 1).padStart(2, '0'),
-                              String(date.getDate()).padStart(2, '0')
-                            ].join('-')
-                            : ""
+                                date.getFullYear(),
+                                String(date.getMonth() + 1).padStart(2, "0"),
+                                String(date.getDate()).padStart(2, "0"),
+                              ].join("-")
+                            : "",
                         }));
                       }}
                       dateFormat="yyyy-MM-dd"
@@ -778,8 +817,8 @@ export default function RentTransactionsTable() {
                     </label>
                     <input
                       type="text"
-                      name="payment_amount"
-                      value={updateFormData.payment_amount}
+                      name="paymentAmount"
+                      value={updateFormData.paymentAmount}
                       onChange={handleInputChange}
                       className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
                     />
@@ -790,8 +829,8 @@ export default function RentTransactionsTable() {
                     </label>
                     <input
                       type="text"
-                      name="utr_number"
-                      value={updateFormData.utr_number}
+                      name="utrNumber"
+                      value={updateFormData.utrNumber}
                       onChange={handleInputChange}
                       className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
                     />
@@ -802,14 +841,14 @@ export default function RentTransactionsTable() {
                 <div className="flex space-x-4">
                   <div className="flex-1">
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                      Rent Period (Month/Year)
+                      Rent Period (e.g. April-2026)
                     </label>
                     <input
                       type="text"
-                      name="month_year"
-                      value={updateFormData.month_year}
+                      name="monthYear"
+                      value={updateFormData.monthYear}
                       onChange={handleInputChange}
-                      placeholder="e.g. January 2024"
+                      placeholder="e.g. April-2026"
                       className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
                     />
                   </div>
@@ -818,7 +857,6 @@ export default function RentTransactionsTable() {
                       Proof File
                     </label>
 
-                    {/* Show existing file preview or filename if available and not marked for removal */}
                     {!removeImageFlag && selectedTransaction?.image ? (
                       <div className="mb-2">
                         {selectedTransaction.image.match(/\.(jpeg|jpg|gif|png|svg|webp|bmp)$/i) ? (
@@ -842,7 +880,6 @@ export default function RentTransactionsTable() {
                       <p className="text-sm text-gray-500 dark:text-gray-400">No file available</p>
                     )}
 
-                    {/* Checkbox to remove existing file */}
                     {selectedTransaction?.image && (
                       <label className="inline-flex items-center space-x-2 text-gray-700 dark:text-gray-300">
                         <input
@@ -850,7 +887,7 @@ export default function RentTransactionsTable() {
                           checked={removeImageFlag}
                           onChange={(e) => {
                             setRemoveImageFlag(e.target.checked);
-                            if (e.target.checked) setNewImageFile(null); // clear new file if removing existing
+                            if (e.target.checked) setNewImageFile(null);
                           }}
                           className="form-checkbox"
                         />
@@ -858,7 +895,6 @@ export default function RentTransactionsTable() {
                       </label>
                     )}
 
-                    {/* Upload new file input accepting any file type */}
                     <div className="mt-2">
                       <input
                         type="file"
@@ -873,7 +909,9 @@ export default function RentTransactionsTable() {
                         className="block w-full text-sm text-gray-500 dark:text-gray-300 file:border file:border-gray-300 file:rounded-md file:bg-gray-50 dark:file:bg-gray-800 file:p-2 file:cursor-pointer"
                       />
                       {newImageFile && (
-                        <p className="mt-1 text-sm text-gray-700 dark:text-gray-400">Selected file: {newImageFile.name}</p>
+                        <p className="mt-1 text-sm text-gray-700 dark:text-gray-400">
+                          Selected file: {newImageFile.name}
+                        </p>
                       )}
                     </div>
                   </div>
@@ -883,7 +921,7 @@ export default function RentTransactionsTable() {
               <div className="mt-6 flex justify-end space-x-3">
                 <button
                   type="button"
-                  onClick={() => setIsUpdateModalOpen(false)}
+                  onClick={() => setIsUpdateModalOpen(true)}
                   className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200 dark:text-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600"
                 >
                   Cancel
@@ -901,12 +939,11 @@ export default function RentTransactionsTable() {
         </div>
       )}
 
+      {/* ── Delete Modal ── */}
       {isDeleteModalOpen && selectedTransaction && (
-        <div className="fixed inset-0 bg-black/50  flex items-center justify-center p-4 z-50">
-          <div className="bg-white dark:bg-[#1f1f1f] rounded-lg max-w-md w-full max-h-[90vh] overflow-y-auto p-6 ">
-            <h2 className="text-xl font-bold mb-4 text-gray-900 dark:text-white">
-              Confirm Delete
-            </h2>
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white dark:bg-[#1f1f1f] rounded-lg max-w-md w-full max-h-[90vh] overflow-y-auto p-6">
+            <h2 className="text-xl font-bold mb-4 text-gray-900 dark:text-white">Confirm Delete</h2>
             <p className="text-gray-600 dark:text-gray-300 mb-6">
               Are you sure you want to delete this rent payment? This action cannot be undone.
             </p>
