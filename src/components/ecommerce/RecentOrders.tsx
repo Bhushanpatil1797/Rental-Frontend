@@ -32,8 +32,10 @@ export default function UpcomingRentSitesTable() {
       setError(null);
       try {
         const res = await fetch(
-          `${process.env.NEXT_PUBLIC_API_URL}/api/dashboard/stats?daysAhead=10`
+          `${process.env.NEXT_PUBLIC_API_URL}/api/rental-dashboard/stats`
         );
+        console.log("API Response:", res);
+        console.log("API Response Status:", res.status);
         if (!res.ok) throw new Error("Failed to fetch data");
         const data = await res.json();
         setRentSites(data.upcomingRentSites || []);
@@ -42,11 +44,11 @@ export default function UpcomingRentSitesTable() {
       } finally {
         setLoading(false);
       }
+
     };
 
     fetchRentSites();
   }, []);
-
   const filteredRentSites = useMemo(() => {
     if (!searchTerm) return rentSites;
     return rentSites.filter((site) =>
