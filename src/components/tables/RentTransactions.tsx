@@ -271,13 +271,13 @@ export default function RentTransactionsTable() {
       if (!token) throw new Error("Authentication token not found");
 
       const formData = new FormData();
-      formData.append("monthlyRent", updateFormData.monthlyRent);
-      formData.append("paymentType", updateFormData.paymentType);
-      formData.append("paidStatus", updateFormData.paidStatus);
-      formData.append("paymentDate", updateFormData.paymentDate);
-      formData.append("paymentAmount", updateFormData.paymentAmount);
-      formData.append("utrNumber", updateFormData.utrNumber);
-      formData.append("monthYear", updateFormData.monthYear);
+      formData.append("monthly_rent", updateFormData.monthlyRent);
+      formData.append("payment_type", updateFormData.paymentType);
+      formData.append("paid_status", updateFormData.paidStatus);
+      formData.append("payment_date", updateFormData.paymentDate);
+      formData.append("payment_amount", updateFormData.paymentAmount);
+      formData.append("utr_number", updateFormData.utrNumber);
+      formData.append("month_year", updateFormData.monthYear);
       formData.append("removeImage", removeImageFlag ? "true" : "false");
       if (newImageFile) {
         formData.append("image", newImageFile);
