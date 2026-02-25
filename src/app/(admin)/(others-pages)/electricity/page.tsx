@@ -43,7 +43,7 @@ const Page = () => {
                 const token = localStorage.getItem("token")
                 if (!token) throw new Error("Token not found in localStorage")
 
-                const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/sites/`, {
+                const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/sites/all-sites`, {
                     headers: {
                         Authorization: `Bearer ${token}`,
                         "Content-Type": "application/json",
