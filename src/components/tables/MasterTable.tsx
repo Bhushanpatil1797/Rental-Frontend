@@ -388,6 +388,8 @@ export default function MasterTable() {
       // Use Sr_No for the API call if id isn't available
       const recordId = updatedData.id || updatedData.srNo;
 
+      console.log("Record ID:", updatedData.id, updatedData.srNo);
+
       const response = await fetch(
         `${process.env.NEXT_PUBLIC_API_URL}/api/masters/${recordId}`,
         {
@@ -396,15 +398,19 @@ export default function MasterTable() {
             Authorization: `Bearer ${token}`,
             "Content-Type": "application/json",
           },
-          body: JSON.stringify(updatedData),
+          body: JSON.stringify({ data: updatedData }),
         }
       );
+
+      console.log("API Response Status:", response);
 
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
 
       const result = await response.json();
+      console.log("API Response :", result);
+      console.log("API Response Status :", response.status)
 
       // Update the local data
       setMasterData((prevData) =>
@@ -431,6 +437,9 @@ export default function MasterTable() {
       });
     }
   };
+
+
+
   const handleDelete = async (record: MasterData) => {
     if (!window.confirm(`Are you sure you want to delete "${record.spaName}"?`)) return;
     try {
@@ -448,6 +457,9 @@ export default function MasterTable() {
           },
         }
       );
+
+      console.log("API Response :", response);
+      console.log("API Response Status :", response.status);
 
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
