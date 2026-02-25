@@ -64,7 +64,7 @@ export default function StatisticsChart() {
 
       try {
         const response = await fetch(
-          `${process.env.NEXT_PUBLIC_API_URL}/api/rent-payments/summary`,
+          `${process.env.NEXT_PUBLIC_API_URL}/api/rent/summary`,
           {
             headers: {
               "Content-Type": "application/json",
@@ -72,6 +72,7 @@ export default function StatisticsChart() {
             },
           }
         );
+        console.log("API Response:", response);
 
         console.log("API Response Status:", response.status);
 
