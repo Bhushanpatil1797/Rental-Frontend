@@ -17,24 +17,24 @@ import { Pencil, Trash2 } from "lucide-react";
 import Button from "../ui/button/Button";
 
 interface MasterData {
-  Sr_No: number;
+  srNo: number;
   id?: number; // Adding id field for API operations
-  CITY_NAME: string;
-  SPA_NAME: string;
-  AREA: string;
-  SPA_CODE: string;
-  OWNER_NAME: string;
-  OPENING_DATE: string;
-  STATUS: string;
-  LINE_TRACK: string;
-  LOCATION: string;
-  MOBILE_1: string;
-  MOBILE_2: string;
-  MOBILE_3: string;
-  EMAIL: string;
-  ADDRESS: string;
-  Agreement: string;
-  Remark: string;
+  cityName: string;
+  spaName: string;
+  area: string;
+  spaCode: string;
+  ownerName: string;
+  openingDate: string;
+  status: string;
+  lineTrack: string;
+  location: string;
+  mobile1: string;
+  mobile2: string;
+  mobile3: string;
+  email: string;
+  address: string;
+  agreement: string;
+  remark: string;
 }
 
 // Modal for editing record
@@ -55,23 +55,23 @@ const EditModal: React.FC<EditModalProps> = ({ isOpen, onClose, data, onSave, mo
       setFormData({ ...data });
     } else if (mode === "add") {
       setFormData({
-        Sr_No: 0,
-        CITY_NAME: "",
-        SPA_NAME: "",
-        AREA: "",
-        SPA_CODE: "",
-        OWNER_NAME: "",
-        OPENING_DATE: "",
-        STATUS: "Open",
-        LINE_TRACK: "",
-        LOCATION: "",
-        MOBILE_1: "",
-        MOBILE_2: "",
-        MOBILE_3: "",
-        EMAIL: "",
-        ADDRESS: "",
-        Agreement: "",
-        Remark: "",
+        srNo: 0,
+        cityName: "",
+        spaName: "",
+        area: "",
+        spaCode: "",
+        ownerName: "",
+        openingDate: "",
+        status: "Open",
+        lineTrack: "",
+        location: "",
+        mobile1: "",
+        mobile2: "",
+        mobile3: "",
+        email: "",
+        address: "",
+        agreement: "",
+        remark: "",
       });
     }
   }, [data, mode]);
@@ -102,8 +102,8 @@ const EditModal: React.FC<EditModalProps> = ({ isOpen, onClose, data, onSave, mo
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">SPA Name</label>
               <input
-                name="SPA_NAME"
-                value={formData.SPA_NAME}
+                name="spaName"
+                value={formData.spaName}
                 onChange={handleChange}
                 className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600"
               />
@@ -111,8 +111,8 @@ const EditModal: React.FC<EditModalProps> = ({ isOpen, onClose, data, onSave, mo
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">SPA Code</label>
               <input
-                name="SPA_CODE"
-                value={formData.SPA_CODE}
+                name="spaCode"
+                value={formData.spaCode}
                 onChange={handleChange}
                 className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600"
               />
@@ -120,8 +120,8 @@ const EditModal: React.FC<EditModalProps> = ({ isOpen, onClose, data, onSave, mo
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">City</label>
               <input
-                name="CITY_NAME"
-                value={formData.CITY_NAME}
+                name="cityName"
+                value={formData.cityName}
                 onChange={handleChange}
                 className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600"
               />
@@ -129,8 +129,8 @@ const EditModal: React.FC<EditModalProps> = ({ isOpen, onClose, data, onSave, mo
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Area</label>
               <input
-                name="AREA"
-                value={formData.AREA}
+                name="area"
+                value={formData.area}
                 onChange={handleChange}
                 className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600"
               />
@@ -138,8 +138,8 @@ const EditModal: React.FC<EditModalProps> = ({ isOpen, onClose, data, onSave, mo
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Owner Name</label>
               <input
-                name="OWNER_NAME"
-                value={formData.OWNER_NAME}
+                name="ownerName"
+                value={formData.ownerName}
                 onChange={handleChange}
                 className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600"
               />
@@ -148,8 +148,8 @@ const EditModal: React.FC<EditModalProps> = ({ isOpen, onClose, data, onSave, mo
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Opening Date</label>
               <input
                 type="date"
-                name="OPENING_DATE"
-                value={formData.OPENING_DATE ? formData.OPENING_DATE.split('T')[0] : ''}
+                name="openingDate"
+                value={formData.openingDate ? formData.openingDate.split('T')[0] : ''}
                 onChange={handleChange}
                 className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600"
               />
@@ -157,8 +157,8 @@ const EditModal: React.FC<EditModalProps> = ({ isOpen, onClose, data, onSave, mo
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Status</label>
               <select
-                name="STATUS"
-                value={formData.STATUS}
+                name="status"
+                value={formData.status}
                 onChange={handleChange}
                 className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600"
               >
@@ -172,8 +172,8 @@ const EditModal: React.FC<EditModalProps> = ({ isOpen, onClose, data, onSave, mo
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Line Track</label>
               <input
-                name="LINE_TRACK"
-                value={formData.LINE_TRACK || ''}
+                name="lineTrack"
+                value={formData.lineTrack || ''}
                 onChange={handleChange}
                 className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600"
               />
@@ -181,8 +181,8 @@ const EditModal: React.FC<EditModalProps> = ({ isOpen, onClose, data, onSave, mo
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Location</label>
               <input
-                name="LOCATION"
-                value={formData.LOCATION || ''}
+                name="location"
+                value={formData.location || ''}
                 onChange={handleChange}
                 className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600"
               />
@@ -190,8 +190,8 @@ const EditModal: React.FC<EditModalProps> = ({ isOpen, onClose, data, onSave, mo
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Mobile 1</label>
               <input
-                name="MOBILE_1"
-                value={formData.MOBILE_1 || ''}
+                name="mobile1"
+                value={formData.mobile1 || ''}
                 onChange={handleChange}
                 className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600"
               />
@@ -199,8 +199,8 @@ const EditModal: React.FC<EditModalProps> = ({ isOpen, onClose, data, onSave, mo
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Mobile 2</label>
               <input
-                name="MOBILE_2"
-                value={formData.MOBILE_2 || ''}
+                name="mobile2"
+                value={formData.mobile2 || ''}
                 onChange={handleChange}
                 className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600"
               />
@@ -208,8 +208,8 @@ const EditModal: React.FC<EditModalProps> = ({ isOpen, onClose, data, onSave, mo
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Mobile 3</label>
               <input
-                name="MOBILE_3"
-                value={formData.MOBILE_3 || ''}
+                name="mobile3"
+                value={formData.mobile3 || ''}
                 onChange={handleChange}
                 className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600"
               />
@@ -217,8 +217,8 @@ const EditModal: React.FC<EditModalProps> = ({ isOpen, onClose, data, onSave, mo
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Email</label>
               <input
-                name="EMAIL"
-                value={formData.EMAIL || ''}
+                name="email"
+                value={formData.email || ''}
                 onChange={handleChange}
                 className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600"
               />
@@ -228,8 +228,8 @@ const EditModal: React.FC<EditModalProps> = ({ isOpen, onClose, data, onSave, mo
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Address</label>
             <input
-              name="ADDRESS"
-              value={formData.ADDRESS || ''}
+              name="address"
+              value={formData.address || ''}
               onChange={handleChange}
               className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600"
             />
@@ -239,8 +239,8 @@ const EditModal: React.FC<EditModalProps> = ({ isOpen, onClose, data, onSave, mo
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Agreement</label>
               <input
-                name="Agreement"
-                value={formData.Agreement || ''}
+                name="agreement"
+                value={formData.agreement || ''}
                 onChange={handleChange}
                 className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600"
               />
@@ -248,8 +248,8 @@ const EditModal: React.FC<EditModalProps> = ({ isOpen, onClose, data, onSave, mo
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Remark</label>
               <input
-                name="Remark"
-                value={formData.Remark || ''}
+                name="remark"
+                value={formData.remark || ''}
                 onChange={handleChange}
                 className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600"
               />
@@ -302,18 +302,23 @@ export default function MasterTable() {
       const token = localStorage.getItem("token");
       if (!token) throw new Error("Authentication token not found");
 
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/master`, {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/masters/`, {
         headers: {
           Authorization: `Bearer ${token}`,
           "Content-Type": "application/json",
         },
       });
+      console.log("Status:", response.status);
+      console.log("Fetch response:", response);
+      console.log("Fetch response status:", response.status);
+      console.log("Status:", response.status);
 
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
 
       const data = await response.json();
+      console.log("data",data)
       setMasterData(data.data);
       setError(null);
     } catch (error) {
@@ -335,14 +340,14 @@ export default function MasterTable() {
       if (!token) throw new Error("Authentication token not found");
 
       const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/api/master/`,
+        `${process.env.NEXT_PUBLIC_API_URL}/api/masters/`,
         {
           method: "POST",
           headers: {
             Authorization: `Bearer ${token}`,
             "Content-Type": "application/json",
           },
-          body: JSON.stringify(newData),
+          body: JSON.stringify({ data: newData })
         }
       );
 
@@ -381,10 +386,10 @@ export default function MasterTable() {
       if (!token) throw new Error("Authentication token not found");
 
       // Use Sr_No for the API call if id isn't available
-      const recordId = updatedData.id || updatedData.Sr_No;
+      const recordId = updatedData.id || updatedData.srNo;
 
       const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/api/master/${recordId}`,
+        `${process.env.NEXT_PUBLIC_API_URL}/api/masters/${recordId}`,
         {
           method: "PUT",
           headers: {
@@ -404,7 +409,7 @@ export default function MasterTable() {
       // Update the local data
       setMasterData((prevData) =>
         prevData.map((item) =>
-          item.Sr_No === updatedData.Sr_No ? updatedData : item
+          item.srNo === updatedData.srNo ? updatedData : item
         )
       );
 
@@ -427,14 +432,14 @@ export default function MasterTable() {
     }
   };
   const handleDelete = async (record: MasterData) => {
-    if (!window.confirm(`Are you sure you want to delete "${record.SPA_NAME}"?`)) return;
+    if (!window.confirm(`Are you sure you want to delete "${record.spaName}"?`)) return;
     try {
       const token = localStorage.getItem("token");
       if (!token) throw new Error("Authentication token not found");
 
-      const recordId = record.id || record.Sr_No;
+      const recordId = record.id || record.srNo;
       const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/api/master/${recordId}`,
+        `${process.env.NEXT_PUBLIC_API_URL}/api/masters/${recordId}`,
         {
           method: "DELETE",
           headers: {
@@ -448,7 +453,7 @@ export default function MasterTable() {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
 
-      setMasterData((prev) => prev.filter((item) => item.Sr_No !== record.Sr_No));
+      setMasterData((prev) => prev.filter((item) => item.srNo !== record.srNo));
       setUpdateStatus({
         message: "Record deleted successfully!",
         type: "success",
@@ -461,19 +466,19 @@ export default function MasterTable() {
       });
     }
   };
-  const filteredData = masterData
-    .filter((item) => {
-      const searchString = searchTerm.toLowerCase();
-      return (
-        item.SPA_CODE.toLowerCase().includes(searchString) ||
-        item.SPA_NAME.toLowerCase().includes(searchString) ||
-        item.CITY_NAME.toLowerCase().includes(searchString) ||
-        item.AREA.toLowerCase().includes(searchString) ||
-        item.OWNER_NAME.toLowerCase().includes(searchString) ||
-        item.STATUS.toLowerCase().includes(searchString)
-      );
-    })
-    .sort((a, b) => a.Sr_No - b.Sr_No);
+    const filteredData = masterData
+      .filter((item) => {
+        const searchString = searchTerm.toLowerCase();
+        return (
+          (item.spaCode || '').toLowerCase().includes(searchString) ||
+          (item.spaName || '').toLowerCase().includes(searchString) ||
+          (item.cityName || '').toLowerCase().includes(searchString) ||
+          (item.area || '').toLowerCase().includes(searchString) ||
+          (item.ownerName || '').toLowerCase().includes(searchString) ||
+          (item.status || '').toLowerCase().includes(searchString)
+        );
+      })
+      .sort((a, b) => a.srNo - b.srNo);
 
   if (loading) {
     return <div className="p-4 text-center">Loading...</div>;
@@ -554,35 +559,35 @@ export default function MasterTable() {
                   <TableBody className="divide-y divide-gray-200 dark:divide-gray-700">
                     {filteredData.map((item) => (
                       <TableRow
-                        key={item.Sr_No}
+                        key={item.srNo}
                         className="hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors"
                       >
-                        <TableCell className="w-16 px-6 py-4 text-gray-900 dark:text-gray-100">{item.Sr_No}</TableCell>
-                        <TableCell className="w-16 px-6 py-4 text-gray-900 dark:text-gray-100">{item.SPA_CODE}</TableCell>
-                        <TableCell className="w-16 px-6 py-4 text-gray-900 dark:text-gray-100">{item.SPA_NAME}</TableCell>
-                        <TableCell className="w-16 px-6 py-4 text-gray-900 dark:text-gray-100">{item.CITY_NAME}</TableCell>
-                        <TableCell className="w-16 px-6 py-4 text-gray-900 dark:text-gray-100">{item.AREA}</TableCell>
-                        <TableCell className="w-16 px-6 py-4 text-gray-900 dark:text-gray-100">{item.OWNER_NAME}</TableCell>
+                        <TableCell className="w-16 px-6 py-4 text-gray-900 dark:text-gray-100">{item.srNo}</TableCell>
+                        <TableCell className="w-16 px-6 py-4 text-gray-900 dark:text-gray-100">{item.spaCode}</TableCell>
+                        <TableCell className="w-16 px-6 py-4 text-gray-900 dark:text-gray-100">{item.spaName}</TableCell>
+                        <TableCell className="w-16 px-6 py-4 text-gray-900 dark:text-gray-100">{item.cityName}</TableCell>
+                        <TableCell className="w-16 px-6 py-4 text-gray-900 dark:text-gray-100">{item.area}</TableCell>
+                        <TableCell className="w-16 px-6 py-4 text-gray-900 dark:text-gray-100">{item.ownerName}</TableCell>
                         <TableCell className="w-16 px-6 py-4 text-gray-900 dark:text-gray-100">
-                          {item.OPENING_DATE ? new Date(item.OPENING_DATE).toLocaleDateString() : '-'}
+                          {item.openingDate ? new Date(item.openingDate).toLocaleDateString() : '-'}
                         </TableCell>
                         <TableCell className="w-16 px-6 py-4 text-gray-900 dark:text-gray-100">
-                          <Badge
-                            size="sm"
-                            color={
-                              item.STATUS.toLowerCase() === "open"
-                                ? "success"
-                                : item.STATUS.toLowerCase() === "pending"
-                                  ? "warning"
-                                  : "error"
-                            }
-                          >
-                            {item.STATUS}
-                          </Badge>
+                         <Badge
+                                size="sm"
+                                color={
+                                  (item.status || '').toLowerCase() === "open"
+                                    ? "success"
+                                    : (item.status || '').toLowerCase() === "pending"
+                                      ? "warning"
+                                      : "error"
+                                }
+                              >
+                                {item.status || '-'}
+                              </Badge>
                         </TableCell>
                         <TableCell className="w-48 px-6 py-4 text-gray-900 dark:text-gray-100">
-                          <div className="truncate max-w-48" title={item.ADDRESS || '-'}>
-                            {item.ADDRESS || '-'}
+                          <div className="truncate max-w-48" title={item.address || '-'}>
+                            {item.address || '-'}
                           </div>
                         </TableCell>
                         <TableCell className="w-24 px-6 py-4 text-gray-900 dark:text-gray-100">
