@@ -13,11 +13,11 @@ import { Search } from "lucide-react";
 interface RentSite {
   code: number;
   id: number;
-  site_name: string;
-  property_location: string;
-  monthly_rent: number;
-  payment_day: string;
-  paid_status: "Pending" | "Delivered" | "Canceled" | string | null;
+  siteName: string;
+  propertyLocation: string;
+  monthlyRent: number;
+  paymentDay: number;
+  paidStatus: "Pending" | "Delivered" | "Canceled" | string | null;
 }
 
 export default function UpcomingRentSitesTable() {
@@ -32,13 +32,13 @@ export default function UpcomingRentSitesTable() {
       setError(null);
       try {
         const res = await fetch(
-          `${process.env.NEXT_PUBLIC_API_URL}/api/rental-dashboard/stats`
+          `${process.env.NEXT_PUBLIC_API_URL}/api/rental-dashboard/stats`,
         );
         console.log("API Response:", res);
         console.log("API Response Status:", res.status);
         if (!res.ok) throw new Error("Failed to fetch data");
         const data = await res.json();
-        setRentSites(data.upcomingRentSites || []);
+       setRentSites(data.data?.upcomingRentSites || []);
       } catch (err: unknown) {
         setError(err instanceof Error ? err.message : "Something went wrong");
       } finally {
@@ -52,11 +52,11 @@ export default function UpcomingRentSitesTable() {
   const filteredRentSites = useMemo(() => {
     if (!searchTerm) return rentSites;
     return rentSites.filter((site) =>
-      site.site_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      site.siteName.toLowerCase().includes(searchTerm.toLowerCase()) ||
       site.code.toString().includes(searchTerm) ||
-      site.property_location.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      site.payment_day.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (site.paid_status && site.paid_status.toLowerCase().includes(searchTerm.toLowerCase()))
+      site.propertyLocation.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      site.paymentDay.toString().includes(searchTerm.toLowerCase()) ||
+      (site.paidStatus && site.paidStatus.toLowerCase().includes(searchTerm.toLowerCase()))
     );
   }, [rentSites, searchTerm]);
 
@@ -113,7 +113,7 @@ export default function UpcomingRentSitesTable() {
               <TableRow>
                 <TableCell colSpan={5} className="py-3 text-center">
                   {searchTerm
-                    ? `No rent sites found matching "${searchTerm}".`
+                    ? `No rent sites found matching ${searchTerm}.`
                     : "No upcoming rent payments found."}
                 </TableCell>
               </TableRow>
@@ -121,21 +121,21 @@ export default function UpcomingRentSitesTable() {
               filteredRentSites.map((site) => (
                 <TableRow key={site.id}>
                   <TableCell className="py-2 px-2 text-center">{site.code}</TableCell>
-                  <TableCell className="py-2 px-2 text-center">{site.site_name}</TableCell>
-                  <TableCell className="py-2 px-2 text-center">{site.property_location}</TableCell>
-                  <TableCell className="py-2 px-2 text-center">{site.payment_day}</TableCell>
+                  <TableCell className="py-2 px-2 text-center">{site.siteName}</TableCell>
+                  <TableCell className="py-2 px-2 text-center">{site.propertyLocation}</TableCell>
+                  <TableCell className="py-2 px-2 text-center">{site.paymentDay}</TableCell>
                   <TableCell className="py-2 px-2 text-center">
                     <Badge
                       size="sm"
                       color={
-                        site.paid_status === "Delivered" || site.paid_status === "Paid"
+                        site.paidStatus === "Delivered" || site.paidStatus === "Paid"
                           ? "success"
-                          : site.paid_status === "Pending"
+                          : site.paidStatus === "Pending"
                             ? "error"
                             : "warning"
                       }
                     >
-                      {site.paid_status || "N/A"}
+                      {site.paidStatus || "N/A"}
                     </Badge>
                   </TableCell>
                 </TableRow>
