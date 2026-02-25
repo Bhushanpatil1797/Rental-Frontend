@@ -399,7 +399,7 @@ export default function SiteEditPage() {
           <ComponentCard title="Basic Site Information">
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm text-gray-500 dark:text-gray-400">Site Code</label>
+                <label className="block text-sm text-gray-500 dark:text-gray-400"></label>
                 <input
                   type="text"
                   name="code"
