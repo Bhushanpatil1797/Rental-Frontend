@@ -15,29 +15,24 @@ import Badge from "../ui/badge/Badge";
 
 interface ElectricityTransaction {
     image: any;
-    electricity_consumerno: string;
-    electricity_charges: string;
+    transactionId: string;
+    consumerNo: string;
+    electricityCharges: string;
     unit: string;
-    month_year: string;
-    monthly_amount: number;
+    monthYear: string;
+    paymentAmount: string;
     id: number;
     tenant_id: string;
-    owner_name: string;
-    payment_amount: string;
-    payment_date: string;
+    consumerName: string;
+    paymentDate: string;
     payment_type: string;
-    paid_status: string;
+    paidStatus: string;
     utr_number: string;
-    bill_month: string;
-    bill_year: string;
-    remarks: string;
-    site: {
-        id: string;
-        site_name: string;
-        code: string;
-        tenant_name: string;
-        property_address: string;
-    };
+    electricityProvider: string;
+    siteId: string;
+    siteName: string;
+    siteCode: string;
+    monthly_amount?: number;
 }
 
 interface FilterParams {
@@ -84,14 +79,13 @@ export default function ElectricityTransactionsTable() {
             const token = localStorage.getItem("token");
             if (!token) throw new Error("Authentication token not found");
 
-            // Build query params
             const queryParams = new URLSearchParams();
             Object.entries(filters).forEach(([key, value]) => {
                 if (value) queryParams.append(key, value);
             });
 
             const response = await fetch(
-                `${process.env.NEXT_PUBLIC_API_URL}/api/electricity-payments?${queryParams}`,
+                `${process.env.NEXT_PUBLIC_API_URL}/api/electricity/all-payments`,
                 {
                     headers: {
                         Authorization: `Bearer ${token}`,
@@ -104,9 +98,12 @@ export default function ElectricityTransactionsTable() {
                 throw new Error(`HTTP error! status: ${response.status}`);
             }
 
-            const data = await response.json();
-            setTransactions(Array.isArray(data) ? data : []);
-            setTotalCount(Array.isArray(data) ? data.length : 0);
+            const json = await response.json();
+
+            // Support both { data: [...] } and plain array responses
+            const dataArray = Array.isArray(json) ? json : Array.isArray(json?.data) ? json.data : [];
+            setTransactions(dataArray);
+            setTotalCount(dataArray.length);
             setError(null);
         } catch (error) {
             console.error("Error fetching electricity transactions:", error);
@@ -129,18 +126,24 @@ export default function ElectricityTransactionsTable() {
         .filter((item) => {
             const searchString = searchTerm.toLowerCase();
             return (
-                (item.site?.site_name?.toLowerCase() || "").includes(searchString) ||
-                (item.site?.code?.toLowerCase() || "").includes(searchString) ||
-                (item.owner_name?.toLowerCase() || "").includes(searchString) ||
+                (item.siteName?.toLowerCase() || "").includes(searchString) ||
+                (item.siteCode?.toLowerCase() || "").includes(searchString) ||
+                (item.consumerName?.toLowerCase() || "").includes(searchString) ||
                 (item.payment_type?.toLowerCase() || "").includes(searchString) ||
-                (item.paid_status?.toLowerCase() || "").includes(searchString) ||
+                (item.paidStatus?.toLowerCase() || "").includes(searchString) ||
                 (item.utr_number?.toLowerCase() || "").includes(searchString)
             );
         })
+        .filter((item) => {
+            if (filters.paid_status && item.paidStatus?.toLowerCase() !== filters.paid_status.toLowerCase()) return false;
+            if (filters.payment_type && item.payment_type?.toLowerCase() !== filters.payment_type.toLowerCase()) return false;
+            if (filters.start_date && item.paymentDate && item.paymentDate < filters.start_date) return false;
+            if (filters.end_date && item.paymentDate && item.paymentDate > filters.end_date) return false;
+            return true;
+        })
         .sort((a, b) => {
-            // Sort by payment_date descending (most recent first)
-            const dateA = a.payment_date ? new Date(a.payment_date).getTime() : 0;
-            const dateB = b.payment_date ? new Date(b.payment_date).getTime() : 0;
+            const dateA = a.paymentDate ? new Date(a.paymentDate).getTime() : 0;
+            const dateB = b.paymentDate ? new Date(b.paymentDate).getTime() : 0;
             return dateB - dateA;
         });
 
@@ -158,37 +161,22 @@ export default function ElectricityTransactionsTable() {
 
     const handleUpdateClick = (transaction: ElectricityTransaction) => {
         setSelectedTransaction(transaction);
-        // Format date to YYYY-MM-DD for input type="date"
         const formatDateForInput = (dateString: string) => {
             if (!dateString) return '';
             const date = new Date(dateString);
             return date.toISOString().split('T')[0];
         };
 
-        // Set month_year based on bill_month and bill_year
-        const monthYear = transaction.bill_month && transaction.bill_year
-            ? `${transaction.bill_year}-${getMonthNumber(transaction.bill_month)}-01`
-            : '';
-
         setUpdateFormData({
-            monthly_amount: transaction.monthly_amount.toString(),
+            monthly_amount: transaction.monthly_amount?.toString() || "",
             payment_type: transaction.payment_type || "",
-            paid_status: transaction.paid_status || "",
-            payment_date: formatDateForInput(transaction.payment_date),
-            payment_amount: transaction.payment_amount || "",
+            paid_status: transaction.paidStatus || "",
+            payment_date: formatDateForInput(transaction.paymentDate),
+            payment_amount: transaction.paymentAmount || "",
             utr_number: transaction.utr_number || "",
-            month_year: monthYear
+            month_year: transaction.monthYear || ""
         });
         setIsUpdateModalOpen(true);
-    };
-
-    const getMonthNumber = (monthName: string) => {
-        const months = {
-            "January": "01", "February": "02", "March": "03", "April": "04",
-            "May": "05", "June": "06", "July": "07", "August": "08",
-            "September": "09", "October": "10", "November": "11", "December": "12"
-        };
-        return months[monthName as keyof typeof months] || "01";
     };
 
     const handleDeleteClick = (transaction: ElectricityTransaction) => {
@@ -203,7 +191,6 @@ export default function ElectricityTransactionsTable() {
             [name]: value
         }));
 
-        // Clear the error for this field
         if (formErrors[name]) {
             setFormErrors(prev => {
                 const newErrors = { ...prev };
@@ -238,7 +225,6 @@ export default function ElectricityTransactionsTable() {
         e.preventDefault();
 
         if (!validateForm()) return;
-
         if (!selectedTransaction) return;
 
         try {
@@ -246,8 +232,9 @@ export default function ElectricityTransactionsTable() {
             const token = localStorage.getItem("token");
             if (!token) throw new Error("Authentication token not found");
 
+            const id = selectedTransaction.transactionId || selectedTransaction.id;
             const response = await fetch(
-                `${process.env.NEXT_PUBLIC_API_URL}/api/electricity-payments/${selectedTransaction.id}`,
+                `${process.env.NEXT_PUBLIC_API_URL}/api/electricity/${id}`,
                 {
                     method: "PUT",
                     headers: {
@@ -271,14 +258,9 @@ export default function ElectricityTransactionsTable() {
                 throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
             }
 
-            // Refresh the data
             await fetchElectricityTransactions();
-
-            // Close the modal
             setIsUpdateModalOpen(false);
             setSelectedTransaction(null);
-
-            // Show success toast or notification here (if you have a toast system)
             alert("Electricity payment updated successfully");
 
         } catch (error) {
@@ -297,8 +279,9 @@ export default function ElectricityTransactionsTable() {
             const token = localStorage.getItem("token");
             if (!token) throw new Error("Authentication token not found");
 
+            const id = selectedTransaction.transactionId || selectedTransaction.id;
             const response = await fetch(
-                `${process.env.NEXT_PUBLIC_API_URL}/api/electricity-payments/${selectedTransaction.id}`,
+                `${process.env.NEXT_PUBLIC_API_URL}/api/electricity-payments/${id}`,
                 {
                     method: "DELETE",
                     headers: {
@@ -313,14 +296,9 @@ export default function ElectricityTransactionsTable() {
                 throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
             }
 
-            // Refresh the data
             await fetchElectricityTransactions();
-
-            // Close the modal
             setIsDeleteModalOpen(false);
             setSelectedTransaction(null);
-
-            // Show success toast or notification here (if you have a toast system)
             alert("Electricity payment deleted successfully");
 
         } catch (error) {
@@ -357,7 +335,7 @@ export default function ElectricityTransactionsTable() {
                     <option value="">All Status</option>
                     <option value="paid">Paid</option>
                     <option value="pending">Pending</option>
-                    <option value="failed">Partial</option>
+                    <option value="partial">Partial</option>
                 </select>
                 <select
                     value={filters.payment_type || ""}
@@ -373,14 +351,12 @@ export default function ElectricityTransactionsTable() {
                         value={filters.start_date || ""}
                         onChange={(e) => handleFilterChange("start_date", e.target.value)}
                         className="w-full md:w-auto px-4 py-2 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-white/[0.05] dark:border-white/[0.1] dark:text-white"
-                        placeholder="Start Date"
                     />
                     <input
                         type="date"
                         value={filters.end_date || ""}
                         onChange={(e) => handleFilterChange("end_date", e.target.value)}
                         className="w-full md:w-auto px-4 py-2 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-white/[0.05] dark:border-white/[0.1] dark:text-white"
-                        placeholder="End Date"
                     />
                 </div>
                 <button
@@ -402,11 +378,9 @@ export default function ElectricityTransactionsTable() {
                         <div className="overflow-hidden">
                             <div className="max-h-[600px] overflow-y-auto scrollbar-thin scrollbar-thumb-gray-300 dark:scrollbar-thumb-gray-700">
                                 <Table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-
                                     <TableHeader className="sticky top-0 z-10 bg-white dark:bg-[#121212] border-b border-gray-200 dark:border-gray-700">
                                         <TableRow>
                                             {[
-                                                { width: "w-16", label: "ID" },
                                                 { width: "w-32", label: "Site Code" },
                                                 { width: "w-40", label: "Site Name" },
                                                 { width: "w-40", label: "Unit" },
@@ -432,40 +406,39 @@ export default function ElectricityTransactionsTable() {
                                     <TableBody className="divide-y divide-gray-200 dark:divide-gray-700">
                                         {filteredTransactions.map((item) => (
                                             <TableRow
-                                                key={item.id}
+                                                key={item.transactionId || item.id}
                                                 className="hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors"
                                             >
-                                                <TableCell className="w-16 px-6 py-4 text-gray-900 dark:text-gray-100">{item.id}</TableCell>
-                                                <TableCell className="w-32 px-6 py-4 text-gray-900 dark:text-gray-100">{item.site?.code || '-'}</TableCell>
-                                                <TableCell className="w-40 px-6 py-4 text-gray-900 dark:text-gray-100">{item.site?.site_name || '-'}</TableCell>
+                                                <TableCell className="w-32 px-6 py-4 text-gray-900 dark:text-gray-100">{item.siteCode || '-'}</TableCell>
+                                                <TableCell className="w-40 px-6 py-4 text-gray-900 dark:text-gray-100">{item.siteName || '-'}</TableCell>
                                                 <TableCell className="w-40 px-6 py-4 text-gray-900 dark:text-gray-100">{item.unit || '-'}</TableCell>
                                                 <TableCell className="w-32 px-6 py-4 text-gray-900 dark:text-gray-100 font-medium">
-                                                    {formatCurrency(Number(item.payment_amount) || 0)}
+                                                    {formatCurrency(Number(item.paymentAmount) || 0)}
                                                 </TableCell>
                                                 <TableCell className="w-32 px-6 py-4 text-gray-900 dark:text-gray-100">
-                                                    {formatDate(item.payment_date)}
+                                                    {formatDate(item.paymentDate)}
                                                 </TableCell>
                                                 <TableCell className="w-32 px-6 py-4 text-gray-900 dark:text-gray-100">
-                                                    {`${item.month_year || '-'}`}
+                                                    {item.monthYear || '-'}
                                                 </TableCell>
                                                 <TableCell className="w-32 px-6 py-4 text-gray-900 dark:text-gray-100">
-                                                    {item.electricity_charges || '-'}
+                                                    {item.electricityCharges || '-'}
                                                 </TableCell>
                                                 <TableCell className="w-24 px-6 py-4 text-gray-900 dark:text-gray-100">
                                                     <Badge
                                                         size="sm"
                                                         color={
-                                                            item.paid_status?.toLowerCase() === "paid"
+                                                            item.paidStatus?.toLowerCase() === "paid"
                                                                 ? "success"
-                                                                : item.paid_status?.toLowerCase() === "pending"
+                                                                : item.paidStatus?.toLowerCase() === "pending"
                                                                     ? "warning"
                                                                     : "error"
                                                         }
                                                     >
-                                                        {item.paid_status || 'Unknown'}
+                                                        {item.paidStatus || 'Unknown'}
                                                     </Badge>
                                                 </TableCell>
-                                                <TableCell className="w-32 px-6 py-4 text-gray-900 dark:text-gray-100">{item.electricity_consumerno || '-'}</TableCell>
+                                                <TableCell className="w-32 px-6 py-4 text-gray-900 dark:text-gray-100">{item.consumerNo || '-'}</TableCell>
                                                 <TableCell className="w-24 px-6 py-4 text-gray-900 dark:text-gray-100">
                                                     {item.image ? (
                                                         <>
@@ -477,8 +450,7 @@ export default function ElectricityTransactionsTable() {
                                                             >
                                                                 View Image
                                                             </button>
-                                                            {/* Image Popup */}
-                                                            {selectedTransaction?.id === item.id && selectedTransaction.image && (
+                                                            {selectedTransaction?.transactionId === item.transactionId && selectedTransaction.image && !isUpdateModalOpen && !isDeleteModalOpen && (
                                                                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
                                                                     <div className="bg-white dark:bg-[#121212] rounded-lg p-4 shadow-lg relative max-w-xs w-full">
                                                                         <button
@@ -490,7 +462,7 @@ export default function ElectricityTransactionsTable() {
                                                                         </button>
                                                                         <img
                                                                             src={selectedTransaction.image}
-                                                                            alt="Rent"
+                                                                            alt="Bill"
                                                                             className="max-h-80 w-auto mx-auto rounded"
                                                                             onError={e => (e.currentTarget.style.display = 'none')}
                                                                         />
@@ -555,8 +527,7 @@ export default function ElectricityTransactionsTable() {
                                         name="monthly_amount"
                                         value={updateFormData.monthly_amount}
                                         onChange={handleInputChange}
-                                        className={`w-full px-3 py-2 border ${formErrors.monthly_amount ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'
-                                            } rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white`}
+                                        className={`w-full px-3 py-2 border ${formErrors.monthly_amount ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'} rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white`}
                                     />
                                     {formErrors.monthly_amount && (
                                         <p className="mt-1 text-sm text-red-500">{formErrors.monthly_amount}</p>
@@ -571,8 +542,7 @@ export default function ElectricityTransactionsTable() {
                                         name="payment_type"
                                         value={updateFormData.payment_type}
                                         onChange={handleInputChange}
-                                        className={`w-full px-3 py-2 border ${formErrors.payment_type ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'
-                                            } rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white`}
+                                        className={`w-full px-3 py-2 border ${formErrors.payment_type ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'} rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white`}
                                     >
                                         <option value="">Select Payment Type</option>
                                         <option value="electricity">Electricity</option>
@@ -591,13 +561,12 @@ export default function ElectricityTransactionsTable() {
                                         name="paid_status"
                                         value={updateFormData.paid_status}
                                         onChange={handleInputChange}
-                                        className={`w-full px-3 py-2 border ${formErrors.paid_status ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'
-                                            } rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white`}
+                                        className={`w-full px-3 py-2 border ${formErrors.paid_status ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'} rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white`}
                                     >
                                         <option value="">Select Status</option>
                                         <option value="paid">Paid</option>
                                         <option value="pending">Pending</option>
-                                        <option value="failed">Partial</option>
+                                        <option value="partial">Partial</option>
                                     </select>
                                     {formErrors.paid_status && (
                                         <p className="mt-1 text-sm text-red-500">{formErrors.paid_status}</p>
@@ -648,10 +617,11 @@ export default function ElectricityTransactionsTable() {
                                         Bill Period (Month/Year)
                                     </label>
                                     <input
-                                        type="month"
+                                        type="text"
                                         name="month_year"
-                                        value={updateFormData.month_year.substring(0, 7)}
+                                        value={updateFormData.month_year}
                                         onChange={handleInputChange}
+                                        placeholder="e.g. Mar-2026"
                                         className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
                                     />
                                 </div>
