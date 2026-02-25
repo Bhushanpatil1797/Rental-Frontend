@@ -262,7 +262,7 @@ export default function AddSiteForm() {
       if ('electricityConsumers' in formattedData) {
         delete formattedData.electricityConsumers;
       }
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/sites/add`, {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/sites/`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -270,11 +270,15 @@ export default function AddSiteForm() {
         },
         body: JSON.stringify(formattedData)
       });
+
+      console.log("API Response:",response);
+      console.log("API Status:",response.status);
+
       const data = await response.json();
       if (!response.ok) {
         throw new Error(data.message || 'Something went wrong');
       }
-      toast.success('✅ Successfully Site Record Added', {
+      toast.success('Successfully Site Record Added', {
         duration: 4000,
         position: 'top-center',
       });
