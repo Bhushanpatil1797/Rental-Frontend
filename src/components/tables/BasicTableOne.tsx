@@ -1,6 +1,6 @@
 "use client";
 
-import React, { ReactNode, useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   Table,
@@ -12,23 +12,21 @@ import {
 import Badge from "../ui/badge/Badge";
 
 interface Owner {
-  id: number;
-  owner_name: string;
-  owner_details: string;
-  owner_monthly_rent: number;
+  id: string;
+  ownerName: string;
+  ownerMobileNo: string;
 }
 
 interface Site {
-  paid_status: string; // Changed from 'any' to 'string'
-  manage_by: ReactNode;
-  id: number;
+  id: string;
+  siteName: string;
   code: string;
-  site_name: string;
-  property_type: string;
-  property_location: string;
-  tenant_name: string;
-  monthly_rent: number;
-  status: string;
+  propertyLocation: string;
+  monthlyRent: string;
+  rentStatus: string;
+  paidStatus: string;
+  isActive: boolean;
+  centreId: string;
   owners: Owner[];
 }
 
@@ -45,7 +43,7 @@ export default function BasicTableOne() {
         const token = localStorage.getItem("token");
         if (!token) throw new Error("Authentication token not found");
 
-        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/sites`, {
+        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/sites/all-sites`, {
           headers: {
             Authorization: `Bearer ${token}`,
             "Content-Type": "application/json",
@@ -57,8 +55,7 @@ export default function BasicTableOne() {
         }
 
         const data = await response.json();
-        setSites(Array.isArray(data.sites) ? data.sites : []);
-
+        setSites(Array.isArray(data.data) ? data.data : []);
         setError(null);
       } catch (error) {
         console.error("Error fetching sites:", error);
@@ -78,17 +75,14 @@ export default function BasicTableOne() {
       const searchString = searchTerm.toLowerCase();
       return (
         (site.code?.toLowerCase() ?? '').includes(searchString) ||
-        (site.site_name?.toLowerCase() ?? '').includes(searchString) ||
-        (site.property_type?.toLowerCase() ?? '').includes(searchString) ||
-        (site.property_location?.toLowerCase() ?? '').includes(searchString) ||
-        (site.tenant_name?.toLowerCase() ?? '').includes(searchString) ||
-        (site.status?.toLowerCase() ?? '').includes(searchString)
+        (site.siteName?.toLowerCase() ?? '').includes(searchString) ||
+        (site.propertyLocation?.toLowerCase() ?? '').includes(searchString) ||
+        (site.paidStatus?.toLowerCase() ?? '').includes(searchString)
       );
     })
-    .sort((a, b) => (a.code ?? "").localeCompare(b.code ?? ""))
-// Sort by site code in ascending order
+    .sort((a, b) => (a.code ?? "").localeCompare(b.code ?? ""));
 
-  const navigateToSite = (siteId: number) => {
+  const navigateToSite = (siteId: string) => {
     router.push(`/sites/${siteId}`);
   };
 
@@ -103,7 +97,7 @@ export default function BasicTableOne() {
   return (
     <div className="space-y-2">
       {/* Search bar with sticky positioning */}
-      <div className="flex items-center px-1 sticky top-0 z-20   py-1 border-b border-gray-200 dark:border-gray-700">
+      <div className="flex items-center px-1 sticky top-0 z-20 py-1 border-b border-gray-200 dark:border-gray-700">
         <input
           type="text"
           placeholder="Search sites..."
@@ -127,12 +121,10 @@ export default function BasicTableOne() {
                         { width: "w-16", label: "Sr No." },
                         { width: "w-24", label: "Site Code" },
                         { width: "w-40", label: "Site Name" },
-                        // { width: "w-32", label: "Property Type" },
                         { width: "w-40", label: "Location" },
                         { width: "w-32", label: "Owner" },
-                        // { width: "w-32", label: "Monthly Rent" },
                         { width: "w-24", label: "Status" },
-                        { width: "w-24", label: "Action" }
+                        { width: "w-24", label: "Action" },
                       ].map(({ width, label }) => (
                         <TableCell
                           key={label}
@@ -151,31 +143,33 @@ export default function BasicTableOne() {
                         key={site.id}
                         className="hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors"
                       >
-                        <TableCell className="w-16 px-6 py-4 text-gray-900 dark:text-gray-100">{index + 1}</TableCell>
-                        <TableCell className="w-24 px-6 py-4 text-gray-900 dark:text-gray-100">{site.code}</TableCell>
-                        <TableCell className="w-40 px-6 py-4 text-gray-900 dark:text-gray-100">{site.site_name}</TableCell>
-                        {/* <TableCell className="w-32 px-6 py-4 text-gray-900 dark:text-gray-100">{site.property_type}</TableCell> */}
-                        <TableCell className="w-40 px-6 py-4 text-gray-900 dark:text-gray-100">{site.property_location}</TableCell>
-                        <TableCell className="w-32 px-6 py-4 text-gray-900 dark:text-gray-100">
-                          {typeof site.manage_by === "string"
-                            ? site.manage_by
-                            : site.manage_by ?? "N/A"}
+                        <TableCell className="w-16 px-6 py-4 text-gray-900 dark:text-gray-100">
+                          {index + 1}
                         </TableCell>
-                        {/* <TableCell className="w-32 px-6 py-4 text-gray-900 dark:text-gray-100">
-                          ₹{site.monthly_rent.toLocaleString()}
-                        </TableCell> */}
+                        <TableCell className="w-24 px-6 py-4 text-gray-900 dark:text-gray-100">
+                          {site.code}
+                        </TableCell>
+                        <TableCell className="w-40 px-6 py-4 text-gray-900 dark:text-gray-100">
+                          {site.siteName}
+                        </TableCell>
+                        <TableCell className="w-40 px-6 py-4 text-gray-900 dark:text-gray-100">
+                          {site.propertyLocation}
+                        </TableCell>
+                        <TableCell className="w-32 px-6 py-4 text-gray-900 dark:text-gray-100">
+                          {site.owners?.map((o) => o.ownerName).join(', ') ?? 'N/A'}
+                        </TableCell>
                         <TableCell className="w-24 px-6 py-4 text-gray-900 dark:text-gray-100">
                           <Badge
                             size="sm"
                             color={
-                              site.paid_status?.toLowerCase() === "paid"
+                              site.paidStatus?.toLowerCase() === "paid"
                                 ? "success"
-                                : site.paid_status?.toLowerCase() === "pending"
+                                : site.paidStatus?.toLowerCase() === "pending"
                                   ? "warning"
                                   : "error"
                             }
                           >
-                            {site.paid_status ?? "N/A"}
+                            {site.paidStatus ?? "N/A"}
                           </Badge>
                         </TableCell>
                         <TableCell className="w-24 px-6 py-4 text-gray-900 dark:text-gray-100">
