@@ -291,12 +291,13 @@ export default function RentTransactionsTable() {
             Authorization: `Bearer ${token}`,
           },
           body: formData,
-        }        
+        }
       );
 
       console.log("Response:", response)
       if (!response.ok) {
         const errorData = await response.json();
+        console.log("Error data:",errorData);
         throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
       }
 
@@ -321,16 +322,6 @@ export default function RentTransactionsTable() {
 
 
 
-
-
-
-
-
-
-
-
-
-  
   const handleDeleteSubmit = async () => {
     if (!selectedTransaction) return;
     try {
@@ -533,17 +524,17 @@ export default function RentTransactionsTable() {
                     <TableRow>
                       {[
                         // { width: "w-10",  label: "ID" },
-                        { width: "w-16",  label: "Site Code" },
-                        { width: "w-24",  label: "Site Name" },
-                        { width: "w-20",  label: "Category" },
-                        { width: "w-32",  label: "Rent Amount" },
-                        { width: "w-32",  label: "Payment Date" },
-                        { width: "w-32",  label: "Rent Period" },
-                        { width: "w-12",  label: "Payment Type" },
-                        { width: "w-10",  label: "Status" },
-                        { width: "w-24",  label: "UTR Number" },
-                        { width: "w-24",  label: "Image" },
-                        { width: "w-28",  label: "Actions" },
+                        { width: "w-16", label: "Site Code" },
+                        { width: "w-24", label: "Site Name" },
+                        { width: "w-20", label: "Category" },
+                        { width: "w-32", label: "Rent Amount" },
+                        { width: "w-32", label: "Payment Date" },
+                        { width: "w-32", label: "Rent Period" },
+                        { width: "w-12", label: "Payment Type" },
+                        { width: "w-10", label: "Status" },
+                        { width: "w-24", label: "UTR Number" },
+                        { width: "w-24", label: "Image" },
+                        { width: "w-28", label: "Actions" },
                       ].map(({ width, label }) => (
                         <TableCell
                           key={label}
@@ -574,7 +565,7 @@ export default function RentTransactionsTable() {
                         {/* Site Name */}
                         <TableCell className="w-24 px-6 py-4 text-gray-900 dark:text-gray-100">
                           {item.site
-                            ? (item.site.site_name|| "-")
+                            ? (item.site.site_name || "-")
                             : (item.siteName || "-")}
                         </TableCell>
 
@@ -611,8 +602,8 @@ export default function RentTransactionsTable() {
                               item.paidStatus?.toLowerCase() === "paid"
                                 ? "success"
                                 : item.paidStatus?.toLowerCase() === "pending"
-                                ? "warning"
-                                : "error"
+                                  ? "warning"
+                                  : "error"
                             }
                           >
                             {item.paidStatus || "Unknown"}
@@ -729,9 +720,8 @@ export default function RentTransactionsTable() {
                       name="monthlyRent"
                       value={updateFormData.monthlyRent}
                       onChange={handleInputChange}
-                      className={`w-full px-3 py-2 border ${
-                        formErrors.monthlyRent ? "border-red-500" : "border-gray-300 dark:border-gray-600"
-                      } rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white`}
+                      className={`w-full px-3 py-2 border ${formErrors.monthlyRent ? "border-red-500" : "border-gray-300 dark:border-gray-600"
+                        } rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white`}
                     />
                     {formErrors.monthlyRent && (
                       <p className="mt-1 text-sm text-red-500">{formErrors.monthlyRent}</p>
@@ -745,9 +735,8 @@ export default function RentTransactionsTable() {
                       name="paymentType"
                       value={updateFormData.paymentType}
                       onChange={handleInputChange}
-                      className={`w-full px-3 py-2 border ${
-                        formErrors.paymentType ? "border-red-500" : "border-gray-300 dark:border-gray-600"
-                      } rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white`}
+                      className={`w-full px-3 py-2 border ${formErrors.paymentType ? "border-red-500" : "border-gray-300 dark:border-gray-600"
+                        } rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white`}
                     >
                       <option value="">Select Payment Type</option>
                       <option value="Rent">Rent</option>
@@ -770,9 +759,8 @@ export default function RentTransactionsTable() {
                       name="paidStatus"
                       value={updateFormData.paidStatus}
                       onChange={handleInputChange}
-                      className={`w-full px-3 py-2 border ${
-                        formErrors.paidStatus ? "border-red-500" : "border-gray-300 dark:border-gray-600"
-                      } rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white`}
+                      className={`w-full px-3 py-2 border ${formErrors.paidStatus ? "border-red-500" : "border-gray-300 dark:border-gray-600"
+                        } rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white`}
                     >
                       <option value="">Select Status</option>
                       <option value="paid">Paid</option>
@@ -794,10 +782,10 @@ export default function RentTransactionsTable() {
                           ...prev,
                           paymentDate: date
                             ? [
-                                date.getFullYear(),
-                                String(date.getMonth() + 1).padStart(2, "0"),
-                                String(date.getDate()).padStart(2, "0"),
-                              ].join("-")
+                              date.getFullYear(),
+                              String(date.getMonth() + 1).padStart(2, "0"),
+                              String(date.getDate()).padStart(2, "0"),
+                            ].join("-")
                             : "",
                         }));
                       }}
@@ -908,11 +896,15 @@ export default function RentTransactionsTable() {
                         disabled={removeImageFlag}
                         className="block w-full text-sm text-gray-500 dark:text-gray-300 file:border file:border-gray-300 file:rounded-md file:bg-gray-50 dark:file:bg-gray-800 file:p-2 file:cursor-pointer"
                       />
-                      {newImageFile && (
-                        <p className="mt-1 text-sm text-gray-700 dark:text-gray-400">
-                          Selected file: {newImageFile.name}
-                        </p>
-                      )}
+                     {newImageFile && (
+  <div className="mt-3">
+    <img
+      src={URL.createObjectURL(newImageFile)}
+      alt="New Preview"
+      className="w-24 h-24 object-cover rounded-md border border-gray-300 shadow"
+    />
+  </div>
+)}
                     </div>
                   </div>
                 </div>
@@ -921,7 +913,7 @@ export default function RentTransactionsTable() {
               <div className="mt-6 flex justify-end space-x-3">
                 <button
                   type="button"
-                  onClick={() => setIsUpdateModalOpen(true)}
+                  onClick={() => setIsUpdateModalOpen(false)}
                   className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200 dark:text-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600"
                 >
                   Cancel
