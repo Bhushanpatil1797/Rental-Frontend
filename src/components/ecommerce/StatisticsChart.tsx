@@ -101,14 +101,14 @@ export default function StatisticsChart() {
   // Prepare chart data based on the selected timeframe
   const getChartData = () => {
     if (!summaryData) return { categories: [], countData: [], amountData: [] };
-    
+
     let categories: string[] = [];
     let countData: number[] = [];
     let amountData: number[] = [];
-    
+
     switch (timeFrame) {
       case 'daily':
-        const sortedDaily = [...summaryData.daily].sort((a, b) => 
+        const sortedDaily = [...summaryData.daily].sort((a, b) =>
           new Date(a.date).getTime() - new Date(b.date).getTime()
         );
         categories = sortedDaily.map(item => {
@@ -136,7 +136,7 @@ export default function StatisticsChart() {
       case 'monthly':
       default:
         const monthNames = [
-          "Jan", "Feb", "Mar", "Apr", "May", "Jun", 
+          "Jan", "Feb", "Mar", "Apr", "May", "Jun",
           "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"
         ];
         const monthDataMap = new Map();
@@ -152,15 +152,15 @@ export default function StatisticsChart() {
         });
         amountData = monthNames.map((_, idx) => {
           const monthData = monthDataMap.get(idx);
-          return monthData ? monthData.total_amount : 0; 
+          return monthData ? monthData.total_amount : 0;
         });
         break;
     }
     return { categories, countData, amountData };
   };
-  
+
   const { categories, countData, amountData } = getChartData();
-  
+
   // Chart options
   const options: ApexOptions = {
     chart: {
@@ -198,7 +198,7 @@ export default function StatisticsChart() {
     tooltip: {
       enabled: true,
       shared: true,
-      intersect: false, 
+      intersect: false,
       y: {
         formatter: function (val, opts) {
           if (opts.seriesIndex === 1) {
@@ -255,7 +255,7 @@ export default function StatisticsChart() {
             fontSize: "12px",
             colors: ["#6B7280"],
           },
-          formatter: function(val) {
+          formatter: function (val) {
             return `₹${val}`; // <-- full amount, no k
           }
         },

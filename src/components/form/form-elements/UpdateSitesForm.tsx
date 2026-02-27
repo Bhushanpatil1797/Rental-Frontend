@@ -156,7 +156,87 @@ export default function SiteEditPage() {
         }
 
         const data = await response.json();
-        setFormData(data);
+
+        // Handle nested response if exists
+        const siteData = data?.site ?? data?.data ?? data;
+
+        // Normalize siteData by supporting both snake_case and camelCase
+        const normalized = { ...siteData };
+        const mapping: Record<string, string> = {
+          siteName: 'site_name',
+          propertyType: 'property_type',
+          propertyLocation: 'property_location',
+          propertyAddress: 'property_address',
+          tenantName: 'tenant_name',
+          monthlyRent: 'monthly_rent',
+          paidStatus: 'paid_status',
+          rentStatus: 'rent_status',
+          electricityStatus: 'electricity_status',
+          gstCharges: 'gst_charges',
+          maintenanceCharges: 'maintenance_charges',
+          muncipalTax: 'muncipal_tax',
+          cmaCharges: 'cma_charges',
+          electricityCharges: 'electricity_charges',
+          electricityProvider: 'electricity_provider',
+          waterCharges: 'water_charges',
+          bankName: 'added_bank_name',
+          accountNo: 'added_account_no',
+          ifscCode: 'added_ifsc',
+          agreementDate: 'agreement_date',
+          agreementExpiring: 'agreement_expiring',
+          fitoutTime: 'fitout_time',
+          rentStartDate: 'rent_start_date',
+          agreementYears: 'agreement_years',
+          yearlyEscalationPercentage: 'yearly_escalation_percentage',
+          authorisedBy: 'authorised_by',
+          manageBy: 'manage_by',
+          paymentDate: 'payment_date',
+          paymentDay: 'payment_day',
+          ownerRenttotal: 'owner_renttotal',
+          electricityConsumerno: 'electricity_consumerno',
+          areaSize: 'area_size',
+          rentType: 'rent_type',
+          consumerName: 'consumer_name',
+          siteMobileno: 'site_mobileno',
+          agentCost: 'agent_cost',
+          agentDetails: 'agent_details',
+          authorisedPersonCommission: 'authorised_person_commissio',
+          increasedRent: 'increased_rent',
+          escalationPercentage: 'escalation_percentage',
+          city: 'city',
+          pincode: 'pincode'
+        };
+
+        Object.entries(mapping).forEach(([camel, snake]) => {
+          if (normalized[camel] !== undefined && normalized[camel] !== null) {
+            normalized[snake] = normalized[camel];
+          }
+        });
+
+        // Also normalize owners
+        if (normalized.owners && Array.isArray(normalized.owners)) {
+          normalized.owners = normalized.owners.map((owner: any) => {
+            const normalizedOwner = { ...owner };
+            const ownerMapping: Record<string, string> = {
+              ownerName: 'owner_name',
+              ownerDetails: 'owner_details',
+              ownerMobileNo: 'owner_mobile_no',
+              ownerAccountNo: 'owner_account_no',
+              ownerBankName: 'owner_bank_name',
+              ownerBankIfsc: 'owner_bank_ifsc',
+              ownerMonthlyRent: 'owner_monthly_rent',
+              ownerId: 'id'
+            };
+            Object.entries(ownerMapping).forEach(([camel, snake]) => {
+              if (normalizedOwner[camel] !== undefined && normalizedOwner[camel] !== null) {
+                normalizedOwner[snake] = normalizedOwner[camel];
+              }
+            });
+            return normalizedOwner;
+          });
+        }
+
+        setFormData(normalized);
       } catch (error) {
         console.error("Error fetching site details:", error);
         setError(error instanceof Error ? error.message : "Failed to fetch site details");
@@ -330,13 +410,91 @@ export default function SiteEditPage() {
         throw new Error("Authentication token not found");
       }
 
+      // Map snake_case values back to camelCase for the API
+      const denormalized = { ...formData };
+      const mapping: Record<string, string> = {
+        site_name: 'siteName',
+        property_type: 'propertyType',
+        property_location: 'propertyLocation',
+        property_address: 'propertyAddress',
+        tenant_name: 'tenantName',
+        monthly_rent: 'monthlyRent',
+        paid_status: 'paidStatus',
+        rent_status: 'rentStatus',
+        electricity_status: 'electricityStatus',
+        gst_charges: 'gstCharges',
+        maintenance_charges: 'maintenanceCharges',
+        muncipal_tax: 'muncipalTax',
+        cma_charges: 'cmaCharges',
+        electricity_charges: 'electricityCharges',
+        electricity_provider: 'electricityProvider',
+        water_charges: 'waterCharges',
+        added_bank_name: 'bankName',
+        added_account_no: 'accountNo',
+        added_ifsc: 'ifscCode',
+        agreement_date: 'agreementDate',
+        agreement_expiring: 'agreementExpiring',
+        fitout_time: 'fitoutTime',
+        rent_start_date: 'rentStartDate',
+        agreement_years: 'agreementYears',
+        yearly_escalation_percentage: 'yearlyEscalationPercentage',
+        authorised_by: 'authorisedBy',
+        manage_by: 'manageBy',
+        payment_date: 'paymentDate',
+        payment_day: 'paymentDay',
+        owner_renttotal: 'ownerRenttotal',
+        electricity_consumerno: 'electricityConsumerno',
+        area_size: 'areaSize',
+        rent_type: 'rentType',
+        consumer_name: 'consumerName',
+        site_mobileno: 'siteMobileno',
+        agent_cost: 'agentCost',
+        agent_details: 'agentDetails',
+        authorised_person_commissio: 'authorisedPersonCommission',
+        increased_rent: 'increasedRent',
+        escalation_percentage: 'escalationPercentage',
+        city: 'city',
+        pincode: 'pincode'
+      };
+
+      Object.entries(mapping).forEach(([snake, camel]) => {
+        if ((denormalized as any)[snake] !== undefined) {
+          (denormalized as any)[camel] = (denormalized as any)[snake];
+          // Optionally remove snake_case keys to send a cleaner payload
+          // delete (denormalized as any)[snake]; 
+        }
+      });
+
+      // Also denormalize owners
+      if (denormalized.owners && Array.isArray(denormalized.owners)) {
+        denormalized.owners = denormalized.owners.map((owner: any) => {
+          const denormalizedOwner = { ...owner };
+          const ownerMapping: Record<string, string> = {
+            owner_name: 'ownerName',
+            owner_details: 'ownerDetails',
+            owner_mobile_no: 'ownerMobileNo',
+            owner_account_no: 'ownerAccountNo',
+            owner_bank_name: 'ownerBankName',
+            owner_bank_ifsc: 'ownerBankIfsc',
+            owner_monthly_rent: 'ownerMonthlyRent',
+            id: 'ownerId'
+          };
+          Object.entries(ownerMapping).forEach(([snake, camel]) => {
+            if ((denormalizedOwner as any)[snake] !== undefined) {
+              (denormalizedOwner as any)[camel] = (denormalizedOwner as any)[snake];
+            }
+          });
+          return denormalizedOwner;
+        });
+      }
+
       const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/sites/${params.id}`, {
         method: 'PUT',
         headers: {
           Authorization: `Bearer ${token}`,
           "Content-Type": "application/json",
         },
-        body: JSON.stringify(formData),
+        body: JSON.stringify(denormalized),
       });
 
       if (!response.ok) {
@@ -373,9 +531,9 @@ export default function SiteEditPage() {
   }
 
   return (
-    <div className="p-6">
-      <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
+    <div className="p-4 sm:p-6">
+      <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
+        <h1 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white">
           Edit Site: {formData.site_name}
         </h1>
         <div className="flex space-x-4">
@@ -394,10 +552,10 @@ export default function SiteEditPage() {
         </div>
       </div>
       <form onSubmit={handleSubmit}>
-        <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+        <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
           {/* Basic Site Information */}
           <ComponentCard title="Basic Site Information">
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm text-gray-500 dark:text-gray-400"></label>
                 <input
@@ -544,7 +702,7 @@ export default function SiteEditPage() {
                   {/* Collapsible Body */}
                   {expandedOwners[index] && (
                     <div className="p-3 bg-white dark:bg-white/[0.03] border-t border-gray-200 dark:border-gray-700">
-                      <div className="grid grid-cols-2 gap-4">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div>
                           <label className="block text-sm text-gray-500 dark:text-gray-400">Owner Name</label>
                           <input
@@ -806,9 +964,9 @@ export default function SiteEditPage() {
               <div>
                 <label className="block text-sm text-gray-500 dark:text-gray-400">Fitout Date</label>
                 <input
-                  type="date"
+                  type="text"
                   name="fitout_time"
-                  value={formData.fitout_time ? formData.fitout_time.substring(0, 10) : ''}
+                  value={formData.fitout_time || ''}
                   onChange={handleChange}
                   className="w-full p-2 mt-1 border rounded text-gray-900 dark:text-white border-gray-300 dark:border-gray-600 bg-white dark:bg-white/[0.03] focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 />

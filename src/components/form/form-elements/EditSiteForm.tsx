@@ -14,15 +14,22 @@ import { ChevronDown, ChevronUp } from 'lucide-react';
 import SiteRentTransactionsTable from '../../tables/SiteRenttransaction';
 interface Owner {
   owner_mobile_no: string;
+  ownerMobileNo?: string; // Fallback
   id: number;
   owner_name: string;
+  ownerName?: string; // Fallback
   owner_details: string;
+  ownerDetails?: string; // Fallback
   mobile_no?: string;
   email?: string;
   owner_account_no: string;
+  ownerAccountNo?: string; // Fallback
   owner_bank_name: string;
+  ownerBankName?: string; // Fallback
   owner_bank_ifsc: string;
+  ownerBankIfsc?: string; // Fallback
   owner_monthly_rent: string;
+  ownerMonthlyRent?: string; // Fallback
   siteId?: number;
   createdAt?: string;
   updatedAt?: string;
@@ -139,8 +146,83 @@ export default function SiteDetailPage() {
 
         const data = await response.json();
 
-        // The API returns site data directly, not nested under a 'site' property
-        setSite(data);
+        // The API may return the site directly OR nested under data.site / data.data
+        const siteData = data?.site ?? data?.data ?? data;
+
+        // Normalize siteData by supporting both snake_case and camelCase
+        const normalized = { ...siteData };
+        const mapping: Record<string, string> = {
+          siteName: 'site_name',
+          propertyType: 'property_type',
+          propertyLocation: 'property_location',
+          propertyAddress: 'property_address',
+          tenantName: 'tenant_name',
+          monthlyRent: 'monthly_rent',
+          paidStatus: 'paid_status',
+          rentStatus: 'rent_status',
+          electricityStatus: 'electricity_status',
+          gstCharges: 'gst_charges',
+          maintenanceCharges: 'maintenance_charges',
+          muncipalTax: 'muncipal_tax',
+          cmaCharges: 'cma_charges',
+          electricityCharges: 'electricity_charges',
+          electricityProvider: 'electricity_provider',
+          waterCharges: 'water_charges',
+          bankName: 'bank_name',
+          bankIfsc: 'bank_ifsc',
+          agreementDate: 'agreement_date',
+          agreementExpiring: 'agreement_expiring',
+          fitoutTime: 'fitout_time',
+          rentStartDate: 'rent_start_date',
+          agreementYears: 'agreement_years',
+          yearlyEscalationPercentage: 'yearly_escalation_percentage',
+          authorisedBy: 'authorised_by',
+          manageBy: 'manage_by',
+          paymentDate: 'payment_date',
+          paymentDay: 'payment_day',
+          ownerRenttotal: 'owner_renttotal',
+          electricityConsumerno: 'electricity_consumerno',
+          areaSize: 'area_size',
+          rentType: 'rent_type',
+          consumerName: 'consumer_name',
+          siteMobileno: 'site_mobileno',
+          agentCost: 'agent_cost',
+          agentDetails: 'agent_details',
+          authorisedPersonCommission: 'authorised_person_commissio',
+          increasedRent: 'increased_rent',
+          escalationPercentage: 'escalation_percentage'
+        };
+
+        Object.entries(mapping).forEach(([camel, snake]) => {
+          if (normalized[camel] !== undefined && normalized[camel] !== null) {
+            normalized[snake] = normalized[camel];
+          }
+        });
+
+        // Also normalize owners
+        if (normalized.owners && Array.isArray(normalized.owners)) {
+          normalized.owners = normalized.owners.map((owner: any) => {
+            const normalizedOwner = { ...owner };
+            const ownerMapping: Record<string, string> = {
+              ownerName: 'owner_name',
+              ownerDetails: 'owner_details',
+              ownerMobileNo: 'owner_mobile_no',
+              ownerAccountNo: 'owner_account_no',
+              ownerBankName: 'owner_bank_name',
+              ownerBankIfsc: 'owner_bank_ifsc',
+              ownerMonthlyRent: 'owner_monthly_rent',
+              ownerId: 'id'
+            };
+            Object.entries(ownerMapping).forEach(([camel, snake]) => {
+              if (normalizedOwner[camel] !== undefined && normalizedOwner[camel] !== null) {
+                normalizedOwner[snake] = normalizedOwner[camel];
+              }
+            });
+            return normalizedOwner;
+          });
+        }
+
+        setSite(normalized);
       } catch (error) {
         console.error("Error fetching site details:", error);
         setError(error instanceof Error ? error.message : "Failed to fetch site details");
@@ -652,7 +734,7 @@ export default function SiteDetailPage() {
       </div>
       <div className="mt-6 grid grid-cols-1 gap-8 md:grid-cols-1">
         <ComponentCard title="Rent Transactions">
-          <SiteRentTransactionsTable siteId={site.id.toString()} site={site} />
+          <SiteRentTransactionsTable siteId={site.id?.toString() ?? String(params.id ?? '')} site={site} />
         </ComponentCard>
       </div>
     </div>

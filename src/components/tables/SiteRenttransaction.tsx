@@ -13,28 +13,39 @@ import Badge from "../ui/badge/Badge";
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
 interface RentTransaction {
-    month_year: unknown;
-    monthly_rent: number;
-    id: number;
-    tenant_id: string;
-    owner_name: string;
-    payment_amount: string;
-    payment_date: string;
-    payment_type: string;
-    paid_status: string;
-    utr_number: string;
-    rent_month: string;
-    rent_year: string;
-    remarks: string;
+    id: string | number;
+    monthYear: string;
+    month_year?: string;
+    monthlyRent: string | number;
+    monthly_rent?: string | number;
+    ownerId: string;
+    ownerName: string;
+    owner_name?: string;
+    paidStatus: string;
+    paid_status?: string;
+    paymentAmount: string | number;
+    payment_amount?: string | number;
+    paymentDate: string;
+    payment_date?: string;
+    paymentType: string;
+    payment_type?: string;
+    utrNumber: string;
+    utr_number?: string;
+    siteCode: string;
+    siteName: string;
+    propertyLocation: string;
     image?: string;
-    site: {
-        property_location: string;
-        location: any;
+    site?: {
         id: string;
         site_name: string;
         code: string;
+        Code?: string;
+        property_location: string;
         tenant_name: string;
     };
+    tenant_id?: string;
+    rent_month?: string;
+    rent_year?: string;
 }
 interface FilterParams {
     site_id?: string;
@@ -89,7 +100,7 @@ export default function SiteRentTransactionsTable({ siteId: propSiteId, site }: 
             if (!token) throw new Error("Authentication token not found");
 
             const response = await fetch(
-                `${process.env.NEXT_PUBLIC_API_URL}/api/rent-payments/site/${siteId}`,
+                `${process.env.NEXT_PUBLIC_API_URL}/api/rent/?site_id=${siteId}`,
                 {
                     headers: {
                         Authorization: `Bearer ${token}`,
@@ -98,15 +109,20 @@ export default function SiteRentTransactionsTable({ siteId: propSiteId, site }: 
                 }
             );
             if (!response.ok) {
-                const errorData = await response.json();
-                throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
+                // Safely parse error — server may return HTML on 404
+                const text = await response.text();
+                let message = `HTTP error! status: ${response.status}`;
+                try { message = JSON.parse(text)?.message || message; } catch { }
+                throw new Error(message);
             }
 
             const data = await response.json();
-            setTransactions(data.rentPayments);
-            setTotalCount(data.count);
+            // Support both { rentPayments: [...] } and a direct array
+            const payments = Array.isArray(data) ? data : (data.rentPayments ?? data.data ?? []);
+            setTransactions(payments);
+            setTotalCount(data.count ?? payments.length);
             setError(null);
-            console.log("Fetched rent transactions:", data.rentPayments);
+            console.log("Fetched rent transactions:", payments);
         } catch (error) {
             console.error("Error fetching rent transactions:", error);
             setError(
@@ -148,18 +164,21 @@ export default function SiteRentTransactionsTable({ siteId: propSiteId, site }: 
         .filter((item) => {
             const searchString = searchTerm.toLowerCase();
             const matchesSearch =
-                (item.site?.site_name?.toLowerCase() || "").includes(searchString) ||
-                (item.site?.property_location?.toLowerCase() || "").includes(searchString) ||
-                (item.site?.code?.toLowerCase() || "").includes(searchString) ||
-                (item.owner_name?.toLowerCase() || "").includes(searchString) ||
-                (item.payment_type?.toLowerCase() || "").includes(searchString) ||
-                (item.paid_status?.toLowerCase() || "").includes(searchString) ||
-                (item.utr_number?.toLowerCase() || "").includes(searchString);
+                (item.site?.site_name?.toLowerCase() || item.siteName?.toLowerCase() || "").includes(searchString) ||
+                (item.site?.property_location?.toLowerCase() || item.propertyLocation?.toLowerCase() || "").includes(searchString) ||
+                (item.site?.code?.toLowerCase() || item.site?.Code?.toLowerCase() || item.siteCode?.toLowerCase() || "").includes(searchString) ||
+                (item.ownerName?.toLowerCase() || item.owner_name?.toLowerCase() || "").includes(searchString) ||
+                (item.paymentType?.toLowerCase() || item.payment_type?.toLowerCase() || "").includes(searchString) ||
+                (item.paidStatus?.toLowerCase() || item.paid_status?.toLowerCase() || "").includes(searchString) ||
+                (item.utrNumber?.toLowerCase() || item.utr_number?.toLowerCase() || "").includes(searchString);
 
-            const matchesPaidStatus = !filters.paid_status || item.paid_status === filters.paid_status;
-            const matchesPaymentType = !filters.payment_type || item.payment_type === filters.payment_type;
+            const status = item.paidStatus || item.paid_status;
+            const type = item.paymentType || item.payment_type;
+            const matchesPaidStatus = !filters.paid_status || status?.toLowerCase() === filters.paid_status.toLowerCase();
+            const matchesPaymentType = !filters.payment_type || type?.toLowerCase() === filters.payment_type.toLowerCase();
 
-            const paymentDate = item.payment_date ? new Date(item.payment_date) : null;
+            const pDate = item.paymentDate || item.payment_date;
+            const paymentDate = pDate ? new Date(pDate) : null;
             const matchesStartDate = !filters.start_date || (paymentDate && paymentDate >= new Date(filters.start_date));
             const matchesEndDate = !filters.end_date || (paymentDate && paymentDate <= new Date(filters.end_date));
 
@@ -172,12 +191,14 @@ export default function SiteRentTransactionsTable({ siteId: propSiteId, site }: 
             );
         })
         .sort((a, b) => {
-            const aMonth = getTransactionMonthYear(a);
-            const bMonth = getTransactionMonthYear(b);
+            const aMonth = a.monthYear || a.month_year || "";
+            const bMonth = b.monthYear || b.month_year || "";
             if (aMonth === currentMonthYear && bMonth !== currentMonthYear) return -1;
             if (bMonth === currentMonthYear && aMonth !== currentMonthYear) return 1;
-            const dateA = a.payment_date ? new Date(a.payment_date).getTime() : 0;
-            const dateB = b.payment_date ? new Date(b.payment_date).getTime() : 0;
+            const pDateA = a.paymentDate || a.payment_date;
+            const pDateB = b.paymentDate || b.payment_date;
+            const dateA = pDateA ? new Date(pDateA).getTime() : 0;
+            const dateB = pDateB ? new Date(pDateB).getTime() : 0;
             return dateB - dateA;
         });
 
@@ -199,18 +220,18 @@ export default function SiteRentTransactionsTable({ siteId: propSiteId, site }: 
             const date = new Date(dateString);
             return date.toISOString().split('T')[0];
         };
-        // Set month_year based on rent_month and rent_year
-        const monthYear = transaction.rent_month && transaction.rent_year
+        // Set month_year based on rent_month/rent_year or just use monthYear
+        const mYear = transaction.monthYear || transaction.month_year || (transaction.rent_month && transaction.rent_year
             ? `${transaction.rent_year}-${getMonthNumber(transaction.rent_month)}-01`
-            : '';
+            : '');
         setUpdateFormData({
-            monthly_rent: transaction.monthly_rent.toString(),
-            payment_type: transaction.payment_type || "",
-            paid_status: transaction.paid_status || "",
-            payment_date: formatDateForInput(transaction.payment_date),
-            payment_amount: transaction.payment_amount?.toString() || "",
-            utr_number: transaction.utr_number || "",
-            month_year: monthYear
+            monthly_rent: (transaction.monthlyRent || transaction.monthly_rent || "0").toString(),
+            payment_type: transaction.paymentType || transaction.payment_type || "",
+            paid_status: transaction.paidStatus || transaction.paid_status || "",
+            payment_date: formatDateForInput(transaction.paymentDate || transaction.payment_date || ""),
+            payment_amount: (transaction.paymentAmount || transaction.payment_amount || "0").toString(),
+            utr_number: transaction.utrNumber || transaction.utr_number || "",
+            month_year: mYear
         });
         setIsUpdateModalOpen(true);
     };
@@ -266,7 +287,7 @@ export default function SiteRentTransactionsTable({ siteId: propSiteId, site }: 
             const token = localStorage.getItem("token");
             if (!token) throw new Error("Authentication token not found");
             const response = await fetch(
-                `${process.env.NEXT_PUBLIC_API_URL}/api/rent-payments/${selectedTransaction.id}`,
+                `${process.env.NEXT_PUBLIC_API_URL}/api/rent/${selectedTransaction.id}`,
                 {
                     method: "PUT",
                     headers: {
@@ -274,19 +295,21 @@ export default function SiteRentTransactionsTable({ siteId: propSiteId, site }: 
                         "Content-Type": "application/json",
                     },
                     body: JSON.stringify({
-                        monthly_rent: Number(updateFormData.monthly_rent),
-                        payment_type: updateFormData.payment_type,
-                        paid_status: updateFormData.paid_status,
-                        payment_date: updateFormData.payment_date,
-                        payment_amount: updateFormData.payment_amount,
-                        utr_number: updateFormData.utr_number,
-                        month_year: updateFormData.month_year
+                        monthlyRent: updateFormData.monthly_rent,
+                        paymentType: updateFormData.payment_type,
+                        paidStatus: updateFormData.paid_status,
+                        paymentDate: updateFormData.payment_date,
+                        paymentAmount: updateFormData.payment_amount,
+                        utrNumber: updateFormData.utr_number,
+                        monthYear: updateFormData.month_year
                     }),
                 }
             );
             if (!response.ok) {
-                const errorData = await response.json();
-                throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
+                const text = await response.text();
+                let message = `HTTP error! status: ${response.status}`;
+                try { message = JSON.parse(text)?.message || message; } catch { }
+                throw new Error(message);
             }
             // Refresh the data
             await fetchRentTransactions();
@@ -306,7 +329,7 @@ export default function SiteRentTransactionsTable({ siteId: propSiteId, site }: 
     const handleDownloadExcel = async (siteId: number | string) => {
         try {
             const token = localStorage.getItem('token');
-            const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/rent-payments/download-site-ledger-excel/${siteId}`, {
+            const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/rent/download-site-ledger-excel/${siteId}`, {
                 headers: {
                     Authorization: `Bearer ${token}`
                 }
@@ -330,7 +353,7 @@ export default function SiteRentTransactionsTable({ siteId: propSiteId, site }: 
         try {
             const token = localStorage.getItem('token');
 
-            const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/rent-payments/download-site-ledger-pdf/${siteId}`, {
+            const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/rent/download-site-ledger-pdf/${siteId}`, {
                 headers: {
                     Authorization: `Bearer ${token}`
                 }
@@ -364,7 +387,7 @@ export default function SiteRentTransactionsTable({ siteId: propSiteId, site }: 
             const token = localStorage.getItem("token");
             if (!token) throw new Error("Authentication token not found");
             const response = await fetch(
-                `${process.env.NEXT_PUBLIC_API_URL}/api/rent-payments/${selectedTransaction.id}`,
+                `${process.env.NEXT_PUBLIC_API_URL}/api/rent/${selectedTransaction.id}`,
                 {
                     method: "DELETE",
                     headers: {
@@ -374,8 +397,10 @@ export default function SiteRentTransactionsTable({ siteId: propSiteId, site }: 
                 }
             );
             if (!response.ok) {
-                const errorData = await response.json();
-                throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
+                const text = await response.text();
+                let message = `HTTP error! status: ${response.status}`;
+                try { message = JSON.parse(text)?.message || message; } catch { }
+                throw new Error(message);
             }
             // Refresh the data
             await fetchRentTransactions();
@@ -399,22 +424,44 @@ export default function SiteRentTransactionsTable({ siteId: propSiteId, site }: 
     }
     return (
         <div className="space-y-4">
-            <div className="flex items-center justify-between gap-2 px-3 sticky top-0 z-20 py-2 border-b border-gray-200 dark:border-gray-700">
-                <p className="text-sm text-gray-500 dark:text-gray-400">
-                    Showing {filteredTransactions.length} of {totalCount} transactions
-                </p>
-                <div className="flex items-center gap-2">
+            <div className="flex flex-col gap-2 px-3 sticky top-0 z-20 py-2 border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-[#121212]">
+                {/* Row 1: count + download */}
+                <div className="flex items-center justify-between gap-2">
+                    <p className="text-sm text-gray-500 dark:text-gray-400 whitespace-nowrap">
+                        Showing {filteredTransactions.length} of {totalCount} transactions
+                    </p>
+                    <div className="flex items-center gap-2 flex-shrink-0">
+                        <div className="relative inline-block text-left">
+                            <button
+                                onClick={handleDownload}
+                                className="px-3 py-2 min-h-[44px] text-sm bg-green-600 text-white rounded hover:bg-green-700 transition-colors whitespace-nowrap"
+                            >
+                                📥 Ledger ({selectedFormat.toUpperCase()})
+                            </button>
+                            <select
+                                value={selectedFormat}
+                                onChange={(e) => setSelectedFormat(e.target.value as 'excel' | 'pdf')}
+                                className="absolute top-0 right-0 h-full opacity-0 cursor-pointer"
+                            >
+                                <option value="excel">excel</option>
+                                <option value="pdf">pdf</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                {/* Row 2: filter inputs - wraps on mobile */}
+                <div className="flex flex-wrap items-center gap-2">
                     <input
                         type="text"
                         placeholder="Search..."
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
-                        className="w-40 px-2 py-1 text-sm rounded border border-gray-300 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:bg-white/[0.05] dark:border-white/[0.1] dark:text-white"
+                        className="flex-1 min-w-[8rem] max-w-full px-2 py-2 min-h-[40px] text-sm rounded border border-gray-300 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:bg-white/[0.05] dark:border-white/[0.1] dark:text-white"
                     />
                     <select
                         value={filters.paid_status || ""}
                         onChange={(e) => handleFilterChange("paid_status", e.target.value)}
-                        className="w-32 px-2 py-1 text-sm rounded border border-gray-300 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:bg-white/[0.05] dark:border-white/[0.1] dark:text-white [&>option]:dark:text-black">
+                        className="flex-1 min-w-[8rem] px-2 py-2 min-h-[40px] text-sm rounded border border-gray-300 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:bg-white/[0.05] dark:border-white/[0.1] dark:text-white [&>option]:dark:text-black">
                         <option value="">All Status</option>
                         <option value="Paid">Paid</option>
                         <option value="Pending">Pending</option>
@@ -423,7 +470,7 @@ export default function SiteRentTransactionsTable({ siteId: propSiteId, site }: 
                     <select
                         value={filters.payment_type || ""}
                         onChange={(e) => handleFilterChange("payment_type", e.target.value)}
-                        className="w-32 px-2 py-1 text-sm rounded border border-gray-300 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:bg-white/[0.05] dark:border-white/[0.1] dark:text-white [&>option]:dark:text-black">
+                        className="flex-1 min-w-[8rem] px-2 py-2 min-h-[40px] text-sm rounded border border-gray-300 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:bg-white/[0.05] dark:border-white/[0.1] dark:text-white [&>option]:dark:text-black">
                         <option value="">All Types</option>
                         <option value="Rent">Rent</option>
                         <option value="Electricity">Electricity</option>
@@ -438,7 +485,7 @@ export default function SiteRentTransactionsTable({ siteId: propSiteId, site }: 
                         }
                         dateFormat="yyyy-MM-dd"
                         placeholderText="Start Date"
-                        className="w-32 px-2 py-1 text-sm rounded border border-gray-300 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:bg-white/[0.05] dark:border-white/[0.1] dark:text-white"
+                        className="flex-1 min-w-[8rem] px-2 py-2 min-h-[40px] text-sm rounded border border-gray-300 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:bg-white/[0.05] dark:border-white/[0.1] dark:text-white"
                     />
                     <DatePicker
                         selected={filters.end_date ? new Date(filters.end_date) : null}
@@ -450,31 +497,14 @@ export default function SiteRentTransactionsTable({ siteId: propSiteId, site }: 
                         }
                         dateFormat="yyyy-MM-dd"
                         placeholderText="End Date"
-                        className="w-32 px-2 py-1 text-sm rounded border border-gray-300 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:bg-white/[0.05] dark:border-white/[0.1] dark:text-white"
+                        className="flex-1 min-w-[8rem] px-2 py-2 min-h-[40px] text-sm rounded border border-gray-300 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:bg-white/[0.05] dark:border-white/[0.1] dark:text-white"
                     />
                     <button
                         onClick={() => setFilters({})}
-                        className="px-2 py-1 text-sm bg-gray-200 hover:bg-gray-300 rounded dark:bg-gray-700 dark:hover:bg-gray-600 transition-colors"
+                        className="px-3 py-2 min-h-[40px] text-sm bg-gray-200 hover:bg-gray-300 rounded dark:bg-gray-700 dark:hover:bg-gray-600 transition-colors whitespace-nowrap"
                     >
                         Clear
                     </button>
-                    <div className="relative inline-block text-left">
-                        <button
-                            onClick={handleDownload}
-                            className="px-3 py-1 text-sm bg-green-600 text-white rounded hover:bg-green-700 transition-colors"
-                        >
-                            📥 Ledger ({selectedFormat.toUpperCase()})
-                        </button>
-                        <select
-                            value={selectedFormat}
-                            onChange={(e) => setSelectedFormat(e.target.value as 'excel' | 'pdf')}
-                            className="absolute top-0 right-0 h-full opacity-0 cursor-pointer"
-                        >
-                            <option value="excel">excel</option>
-                            <option value="pdf">pdf</option>
-                        </select>
-                    </div>
-
                 </div>
             </div>
             <div className="relative rounded-xl border border-gray-200 bg-white dark:border-white/[0.05] dark:bg-white/[0.03]">
@@ -514,41 +544,41 @@ export default function SiteRentTransactionsTable({ siteId: propSiteId, site }: 
                                                 key={item.id}
                                                 className="hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors"
                                             >
-                                                <TableCell className="w-16 px-6 py-4 text-gray-900  dark:text-gray-100">{item.id}</TableCell>
-                                                <TableCell className="w-16 px-6 py-4 text-gray-900 dark:text-gray-100">{item.site?.code || '-'}</TableCell>
+                                                <TableCell className="w-16 px-6 py-4 text-gray-900  dark:text-gray-100 truncate max-w-24" title={item.id.toString()}>{item.id}</TableCell>
+                                                <TableCell className="w-16 px-6 py-4 text-gray-900 dark:text-gray-100">{item.site?.Code || item.site?.code || item.siteCode || '-'}</TableCell>
                                                 <TableCell className="w-24 px-6 py-4 text-gray-900 dark:text-gray-100">
                                                     {item.site
                                                         ? `${item.site.site_name} (${item.site.property_location || 'No location'})`
-                                                        : '-'}
+                                                        : (item.siteName ? `${item.siteName} (${item.propertyLocation || 'No location'})` : '-')}
                                                 </TableCell>
-                                                <TableCell className="w-20 px-6 py-4 text-gray-900 truncate max-w-48 dark:text-gray-100">{item.owner_name || '-'}</TableCell>
+                                                <TableCell className="w-20 px-6 py-4 text-gray-900 truncate max-w-48 dark:text-gray-100">{item.ownerName || item.owner_name || '-'}</TableCell>
                                                 <TableCell className="w-32 px-6 py-4 text-gray-900 dark:text-gray-100 font-medium">
-                                                    {formatCurrency(parseFloat(item.payment_amount ?? '0') || 0)}
+                                                    {formatCurrency(parseFloat((item.paymentAmount || item.payment_amount || item.monthlyRent || item.monthly_rent || '0').toString()) || 0)}
                                                 </TableCell>
                                                 <TableCell className="w-32 px-6 py-4 text-gray-900 dark:text-gray-100">
-                                                    {formatDate(item.payment_date)}
+                                                    {formatDate(item.paymentDate || item.payment_date || '')}
                                                 </TableCell>
                                                 <TableCell className="w-32 px-6 py-4 text-gray-900 dark:text-gray-100">
-                                                    {`${item.month_year || '-'}`}
+                                                    {`${item.monthYear || item.month_year || '-'}`}
                                                 </TableCell>
                                                 <TableCell className="w-12 px-6 py-4 text-center text-gray-900 dark:text-gray-100">
-                                                    {item.payment_type || '-'}
+                                                    {item.paymentType || item.payment_type || '-'}
                                                 </TableCell>
                                                 <TableCell className="w-10 px-6 py-4 text-gray-900 dark:text-gray-100">
                                                     <Badge
                                                         size="sm"
                                                         color={
-                                                            item.paid_status?.toLowerCase() === "paid"
+                                                            (item.paidStatus || item.paid_status)?.toLowerCase() === "paid"
                                                                 ? "success"
-                                                                : item.paid_status?.toLowerCase() === "pending"
+                                                                : (item.paidStatus || item.paid_status)?.toLowerCase() === "pending"
                                                                     ? "warning"
                                                                     : "error"
                                                         }
                                                     >
-                                                        {item.paid_status || 'Unknown'}
+                                                        {item.paidStatus || item.paid_status || 'Unknown'}
                                                     </Badge>
                                                 </TableCell>
-                                                <TableCell className="w-32 px-6 py-4 text-gray-900 dark:text-gray-100">{item.utr_number || '-'}</TableCell>
+                                                <TableCell className="w-32 px-6 py-4 text-gray-900 dark:text-gray-100">{item.utrNumber || item.utr_number || '-'}</TableCell>
                                                 <TableCell className="w-24 px-6 py-4 text-gray-900 dark:text-gray-100">
                                                     {item.image ? (
                                                         <>
