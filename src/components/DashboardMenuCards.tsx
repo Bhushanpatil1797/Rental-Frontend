@@ -52,8 +52,9 @@ export default function DashboardMenuCards() {
   useEffect(() => {
     const fetchStats = async () => {
       try {
-        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/dashboard/stats?daysAhead=10`);
+        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/rental-dashboard/stats`);
         const data = await res.json();
+        console.log("Data : ",data);
         setSiteCount(data.totalSites ?? 0);
         setUpcomingPayments(data.upcomingRentSitesCount ?? 0);
         setElectricityBillCount(data.electricityBillCount ?? 0);
