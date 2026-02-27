@@ -50,24 +50,118 @@ export default function DashboardMenuCards() {
   }, []);
 
   useEffect(() => {
-    const fetchStats = async () => {
-      try {
-        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/rental-dashboard/stats`);
-        const data = await res.json();
-        console.log("Data : ",data);
-        setSiteCount(data.totalSites ?? 0);
-        setUpcomingPayments(data.upcomingRentSitesCount ?? 0);
-        setElectricityBillCount(data.electricityBillCount ?? 0);
-        setTotalPaidRent(data.totalPaidRentSites ?? 0);
-      } catch {
-        setSiteCount(null);
-        setUpcomingPayments(null);
-        setElectricityBillCount(null);
-        setTotalPaidRent(null);
+  const fetchDashboardData = async () => {
+    try {
+      const token = localStorage.getItem("token");
+      if (!token) throw new Error("Authentication token not found");
+
+      const statsResponse = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL}/api/rental-dashboard/stats`
+      );
+
+      if (!statsResponse.ok) {
+        throw new Error("Failed to fetch dashboard stats");
       }
-    };
-    fetchStats();
-  }, []);
+
+      const statsJson = await statsResponse.json();
+      console.log("Dashboard Stats:", statsJson);
+
+      setSiteCount(Number(statsJson?.data?.totalSites) || 0);
+      setUpcomingPayments(Number(statsJson?.data?.upcomingRentSitesCount) || 0);
+
+
+      const rentResponse = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL}/api/rent/`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+        }
+      );
+
+      if (!rentResponse.ok) {
+        throw new Error("Failed to fetch rent transactions");
+      }
+
+      const rentJson = await rentResponse.json();
+      console.log("Rent Transactions:", rentJson);
+
+      // Normalize array safely
+      const rentArray: any[] =
+        Array.isArray(rentJson)
+          ? rentJson
+          : Array.isArray(rentJson?.rentPayments)
+          ? rentJson.rentPayments
+          : Array.isArray(rentJson?.data?.rentPayments)
+          ? rentJson.data.rentPayments
+          : [];
+
+      // Dynamic status counting (NO HARDCODE)
+      const rentStatusCounts = rentArray.reduce<Record<string, number>>(
+        (acc, item) => {
+          const status = (
+            item?.paidStatus ||
+            item?.status ||
+            ""
+          )
+            .toString()
+            .toLowerCase()
+            .trim();
+
+          if (!status) return acc;
+
+          acc[status] = (acc[status] || 0) + 1;
+          return acc;
+        },
+        {}
+      );
+
+      console.log("Rent Status Counts:", rentStatusCounts);
+
+      // Example: show only Paid count in card
+      setTotalPaidRent(rentStatusCounts["All"] || 0);
+
+
+      const electricityResponse = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL}/api/electricity/all-payments`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+        }
+      );
+
+      if (!electricityResponse.ok) {
+        throw new Error("Failed to fetch electricity payments");
+      }
+
+      const electricityJson = await electricityResponse.json();
+      console.log("Electricity Payments:", electricityJson);
+
+      const electricityArray: any[] =
+        Array.isArray(electricityJson)
+          ? electricityJson
+          : Array.isArray(electricityJson?.data)
+          ? electricityJson.data
+          : [];
+
+      setElectricityBillCount(electricityArray.length);
+
+    } catch (error) {
+      console.error("Dashboard fetch error:", error);
+
+      // Safe fallback
+      setSiteCount(0);
+      setUpcomingPayments(0);
+      setTotalPaidRent(0);
+      setElectricityBillCount(0);
+    }
+  };
+
+  fetchDashboardData();
+}, []);
 
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-8">
