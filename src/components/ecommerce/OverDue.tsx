@@ -30,7 +30,7 @@ export default function OverdueRentSitesTable() {
             setLoading(true);
             setError(null);
             try {
-                const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/dashboard/overdue-sites`);
+                const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/rental-dashboard/overdue-rent-sites`);
                 if (!res.ok) throw new Error("Failed to fetch overdue sites");
                 const data = await res.json();
                 setRentSites(data.overdueSites || []);
