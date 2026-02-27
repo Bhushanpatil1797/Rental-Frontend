@@ -315,13 +315,6 @@ export default function RentTransactionsTable() {
     }
   };
 
-
-
-
-
-
-
-
   const handleDeleteSubmit = async () => {
     if (!selectedTransaction) return;
     try {
@@ -845,7 +838,7 @@ export default function RentTransactionsTable() {
                       Proof File
                     </label>
 
-                    {!removeImageFlag && selectedTransaction?.image ? (
+                    {!removeImageFlag && !newImageFile && selectedTransaction?.image &&(
                       <div className="mb-2">
                         {selectedTransaction.image.match(/\.(jpeg|jpg|gif|png|svg|webp|bmp)$/i) ? (
                           <img
@@ -864,8 +857,6 @@ export default function RentTransactionsTable() {
                           </a>
                         )}
                       </div>
-                    ) : (
-                      <p className="text-sm text-gray-500 dark:text-gray-400">No file available</p>
                     )}
 
                     {selectedTransaction?.image && (
@@ -897,14 +888,14 @@ export default function RentTransactionsTable() {
                         className="block w-full text-sm text-gray-500 dark:text-gray-300 file:border file:border-gray-300 file:rounded-md file:bg-gray-50 dark:file:bg-gray-800 file:p-2 file:cursor-pointer"
                       />
                      {newImageFile && (
-  <div className="mt-3">
-    <img
-      src={URL.createObjectURL(newImageFile)}
-      alt="New Preview"
-      className="w-24 h-24 object-cover rounded-md border border-gray-300 shadow"
-    />
-  </div>
-)}
+                          <div className="mt-3">
+                            <img
+                              src={URL.createObjectURL(newImageFile)}
+                              alt="New Preview"
+                              className="w-24 h-24 object-cover rounded-md border border-gray-300 shadow"
+                            />
+                          </div>
+                        )}
                     </div>
                   </div>
                 </div>
