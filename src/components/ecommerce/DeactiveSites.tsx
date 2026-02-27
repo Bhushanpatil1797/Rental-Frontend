@@ -50,8 +50,8 @@ export default function InactiveRentSitesTable() {
 
       try {
         const [siteRes, statsRes] = await Promise.all([
-          fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/dashboard/deactive-sites`),
-          fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/dashboard/stats?daysAhead=10`),
+          fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/rental-dashboard/deactive-sites`),
+          fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/rental-dashboard/stats`),
         ]);
 
         if (!siteRes.ok || !statsRes.ok) throw new Error("Failed to fetch data");
