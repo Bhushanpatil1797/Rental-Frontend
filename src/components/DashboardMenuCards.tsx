@@ -37,7 +37,7 @@ export default function DashboardMenuCards() {
   const [siteCount, setSiteCount] = useState<number | null>(null);
   const [upcomingPayments, setUpcomingPayments] = useState<number | null>(null);
   const [electricityBillCount, setElectricityBillCount] = useState<number | null>(null);
-  const [totalPaidRent, setTotalPaidRent] = useState<number | null>(null);
+  const [totalRentTransactions, setTotalRentTransactions] = useState<number | null>(null);
   const [hoveredCard, setHoveredCard] = useState<string | null>(null);
   const [isDark, setIsDark] = useState(false);
 
@@ -97,68 +97,45 @@ export default function DashboardMenuCards() {
           ? rentJson.data.rentPayments
           : [];
 
-      // Dynamic status counting (NO HARDCODE)
-      const rentStatusCounts = rentArray.reduce<Record<string, number>>(
-        (acc, item) => {
-          const status = (
-            item?.paidStatus ||
-            item?.status ||
-            ""
-          )
-            .toString()
-            .toLowerCase()
-            .trim();
+        setTotalRentTransactions(rentArray.length);
 
-          if (!status) return acc;
+        // ── Electricity ──
+        const electricityResponse = await fetch(
+          `${process.env.NEXT_PUBLIC_API_URL}/api/electricity/all-payments`,
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+              "Content-Type": "application/json",
+            },
+          }
+        );
 
-          acc[status] = (acc[status] || 0) + 1;
-          return acc;
-        },
-        {}
-      );
-
-      console.log("Rent Status Counts:", rentStatusCounts);
-
-      // Example: show only Paid count in card
-      setTotalPaidRent(rentStatusCounts["All"] || 0);
-
-
-      const electricityResponse = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/api/electricity/all-payments`,
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-            "Content-Type": "application/json",
-          },
+        if (!electricityResponse.ok) {
+          throw new Error("Failed to fetch electricity payments");
         }
-      );
 
-      if (!electricityResponse.ok) {
-        throw new Error("Failed to fetch electricity payments");
+        const electricityJson = await electricityResponse.json();
+        console.log("Electricity Payments:", electricityJson);
+
+        const electricityArray: any[] =
+          Array.isArray(electricityJson)
+            ? electricityJson
+            : Array.isArray(electricityJson?.data)
+            ? electricityJson.data
+            : [];
+
+        setElectricityBillCount(electricityArray.length);
+
+      } catch (error) {
+        console.error("Dashboard fetch error:", error);
+
+        // Safe fallback
+        setSiteCount(0);
+        setUpcomingPayments(0);
+        setTotalRentTransactions(0); 
+        setElectricityBillCount(0);
       }
-
-      const electricityJson = await electricityResponse.json();
-      console.log("Electricity Payments:", electricityJson);
-
-      const electricityArray: any[] =
-        Array.isArray(electricityJson)
-          ? electricityJson
-          : Array.isArray(electricityJson?.data)
-          ? electricityJson.data
-          : [];
-
-      setElectricityBillCount(electricityArray.length);
-
-    } catch (error) {
-      console.error("Dashboard fetch error:", error);
-
-      // Safe fallback
-      setSiteCount(0);
-      setUpcomingPayments(0);
-      setTotalPaidRent(0);
-      setElectricityBillCount(0);
-    }
-  };
+    };
 
   fetchDashboardData();
 }, []);
@@ -243,9 +220,9 @@ export default function DashboardMenuCards() {
                       {electricityBillCount} Bills
                     </span>
                   )}
-                  {item.name === "Rent Transaction's" && totalPaidRent !== null && (
+                  {item.name === "Rent Transaction's" && totalRentTransactions !== null && (
                     <span className="mt-1 inline-flex items-center px-2 py-0.5 text-[10px] font-semibold rounded-lg w-fit bg-emerald-100 text-emerald-600 dark:bg-emerald-500/20 dark:text-emerald-400">
-                      {totalPaidRent} Paid
+                      {totalRentTransactions} Paid
                     </span>
                   )}
                 </div>
