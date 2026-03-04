@@ -447,7 +447,7 @@ export default function RentTransactionsTable() {
             <option value="">All Status</option>
             <option value="paid">Paid</option>
             <option value="pending">Pending</option>
-            <option value="failed">Partial</option>
+            <option value="Partial">Partial</option>
           </select>
 
           <select
@@ -758,7 +758,7 @@ export default function RentTransactionsTable() {
                       <option value="">Select Status</option>
                       <option value="paid">Paid</option>
                       <option value="pending">Pending</option>
-                      <option value="failed">Partial</option>
+                      <option value="Partial">Partial</option>
                     </select>
                     {formErrors.paidStatus && (
                       <p className="mt-1 text-sm text-red-500">{formErrors.paidStatus}</p>
