@@ -85,7 +85,7 @@ export default function SignInForm() {
     const start = Date.now();
 
     try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/auth/login`, {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/users/login`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -97,7 +97,7 @@ export default function SignInForm() {
       });
 
       const data = await response.json();
-      console.log(data);
+      // console.log(data);
       
       if (!response.ok) {
         throw new Error(data.message || "Failed to sign in");
