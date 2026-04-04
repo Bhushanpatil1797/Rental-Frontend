@@ -18,15 +18,8 @@ interface ElectricityTransaction {
     transactionId: string;
     id: string;
     _id: string;
-    siteId: {
-        _id: string;
-        siteName: string;
-        code: string;
-    };
-    ownerId?: {
-        ownerName: string;
-        mobileNo: string;
-    };
+    siteId: any | null;
+    ownerId?: any | null;
     monthYear: string;
     paymentDate: string;
     paymentAmount: string;
@@ -89,7 +82,7 @@ export default function ElectricityTransactionsTable() {
                 if (value) queryParams.append(key, value);
             });
 
-            const url = `${process.env.NEXT_PUBLIC_API_URL}/api/rent/electricity`; // Standardized prefix
+            const url = `${process.env.NEXT_PUBLIC_API_URL}/api/rent/electricitytransactions/site/all${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
             console.log("Fetching electricity transactions from:", url);
 
             const response = await fetch(url, {
@@ -110,9 +103,15 @@ export default function ElectricityTransactionsTable() {
             console.log("Electricity Transactions Data:", json);
 
             // Support both { data: [...] } and plain array responses
-            const dataArray = Array.isArray(json) ? json : (json?.data || []);
-            setTransactions(dataArray);
-            setTotalCount(dataArray.total || dataArray.length);
+            const dataArray = json.data || (Array.isArray(json) ? json : (json?.data || []));
+            const normalizedTransactions = dataArray.map((t: any) => ({
+                ...t,
+                id: t._id || t.id,
+                electricityConsumerNo: t.electricityConsumerId?.consumerNo || t.electricityConsumerNo || '-',
+            }));
+
+            setTransactions(normalizedTransactions);
+            setTotalCount(json.total || normalizedTransactions.length);
             setError(null);
         } catch (error) {
             console.error("Error fetching electricity transactions:", error);
@@ -140,7 +139,8 @@ export default function ElectricityTransactionsTable() {
                 (item.ownerId?.ownerName?.toLowerCase() || "").includes(searchString) ||
                 (item.paymentType?.toLowerCase() || "").includes(searchString) ||
                 (item.paidStatus?.toLowerCase() || "").includes(searchString) ||
-                (item.utrNumber?.toLowerCase() || "").includes(searchString)
+                (item.utrNumber?.toLowerCase() || "").includes(searchString) ||
+                (item.electricityConsumerNo?.toLowerCase() || "").includes(searchString)
             );
         })
         .filter((item) => {
@@ -328,57 +328,63 @@ export default function ElectricityTransactionsTable() {
 
     return (
         <div className="space-y-4">
-            <div className="flex flex-col md:flex-row items-center gap-4 px-4 sticky top-0 z-20 bg-white dark:bg-[#121212] py-4 border-b border-gray-200 dark:border-gray-700">
-                <input
-                    type="text"
-                    placeholder="Search..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    className="w-full md:w-64 px-4 py-2 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-white/[0.05] dark:border-white/[0.1] dark:text-white"
-                />
-
-                <select
-                    value={filters.paid_status || ""}
-                    onChange={(e) => handleFilterChange("paid_status", e.target.value)}
-                    className="w-full md:w-48 px-4 py-2 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-white/[0.05] dark:border-white/[0.1] dark:text-white [&>option]:dark:text-black">
-                    <option value="">All Status</option>
-                    <option value="paid">Paid</option>
-                    <option value="pending">Pending</option>
-                    <option value="partial">Partial</option>
-                </select>
-                <select
-                    value={filters.payment_type || ""}
-                    onChange={(e) => handleFilterChange("payment_type", e.target.value)}
-                    className="w-full md:w-48 px-4 py-2 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-white/[0.05] dark:border-white/[0.1] dark:text-white [&>option]:dark:text-black">
-                    <option value="">All Payment Types</option>
-                    <option value="electricity">Electricity</option>
-                    <option value="other">Other</option>
-                </select>
-                <div className="flex gap-2">
-                    <input
-                        type="date"
-                        value={filters.start_date || ""}
-                        onChange={(e) => handleFilterChange("start_date", e.target.value)}
-                        className="w-full md:w-auto px-4 py-2 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-white/[0.05] dark:border-white/[0.1] dark:text-white"
-                    />
-                    <input
-                        type="date"
-                        value={filters.end_date || ""}
-                        onChange={(e) => handleFilterChange("end_date", e.target.value)}
-                        className="w-full md:w-auto px-4 py-2 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-white/[0.05] dark:border-white/[0.1] dark:text-white"
-                    />
-                </div>
-                <button
-                    onClick={() => setFilters({})}
-                    className="px-4 py-2 bg-gray-200 hover:bg-gray-300 rounded-lg dark:bg-gray-700 dark:hover:bg-gray-600 transition-colors"
-                >
-                    Clear Filters
-                </button>
-            </div>
-            <div className="px-4">
-                <p className="text-sm text-gray-500 dark:text-gray-400">
-                    Showing {filteredTransactions.length} of {totalCount} transactions
+            <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-4 px-4 sticky top-0 z-20 py-4 bg-white dark:bg-[#121212] border-b border-gray-200 dark:border-gray-700">
+                <p className="text-sm text-gray-600 dark:text-gray-400 font-medium whitespace-nowrap">
+                    Showing <span className="font-semibold text-gray-900 dark:text-gray-100">{filteredTransactions.length}</span> of <span className="font-semibold text-gray-900 dark:text-gray-100">{totalCount}</span> transactions
                 </p>
+
+                <div className="flex flex-wrap items-center gap-3">
+                    <input
+                        type="text"
+                        placeholder="Search..."
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        className="w-full sm:w-48 px-3 py-2 text-sm rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-800 dark:border-gray-700 dark:text-white transition-shadow shadow-sm"
+                    />
+
+                    <select
+                        value={filters.paid_status || ""}
+                        onChange={(e) => handleFilterChange("paid_status", e.target.value)}
+                        className="w-full sm:w-auto min-w-[120px] px-3 py-2 text-sm rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-800 dark:border-gray-700 dark:text-white [&>option]:dark:text-black transition-shadow shadow-sm"
+                    >
+                        <option value="">All Status</option>
+                        <option value="paid">Paid</option>
+                        <option value="pending">Pending</option>
+                        <option value="partial">Partial</option>
+                    </select>
+
+                    <select
+                        value={filters.payment_type || ""}
+                        onChange={(e) => handleFilterChange("payment_type", e.target.value)}
+                        className="w-full sm:w-auto min-w-[130px] px-3 py-2 text-sm rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-800 dark:border-gray-700 dark:text-white [&>option]:dark:text-black transition-shadow shadow-sm"
+                    >
+                        <option value="">All Types</option>
+                        <option value="electricity">Electricity</option>
+                        <option value="other">Other</option>
+                    </select>
+
+                    <div className="flex w-full sm:w-auto gap-3">
+                        <input
+                            type="date"
+                            value={filters.start_date || ""}
+                            onChange={(e) => handleFilterChange("start_date", e.target.value)}
+                            className="w-full sm:w-32 px-3 py-2 text-sm rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-800 dark:border-gray-700 dark:text-white transition-shadow shadow-sm"
+                        />
+                        <input
+                            type="date"
+                            value={filters.end_date || ""}
+                            onChange={(e) => handleFilterChange("end_date", e.target.value)}
+                            className="w-full sm:w-32 px-3 py-2 text-sm rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-800 dark:border-gray-700 dark:text-white transition-shadow shadow-sm"
+                        />
+                    </div>
+
+                    <button
+                        onClick={() => setFilters({})}
+                        className="w-full sm:w-auto flex justify-center px-4 py-2 text-sm font-medium bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg dark:bg-gray-800 dark:hover:bg-gray-700 dark:text-gray-300 transition-colors shadow-sm"
+                    >
+                        Clear
+                    </button>
+                </div>
             </div>
 
             <div className="relative rounded-xl border border-gray-200 bg-white dark:border-white/[0.05] dark:bg-white/[0.03]">

@@ -18,8 +18,11 @@ import "react-datepicker/dist/react-datepicker.css";
 
 interface RentTransaction {
   id: string;
-  siteOwnerId: string;
-  siteId: string | null;
+  _id?: string;
+  siteOwnerId?: string;
+  siteId: any | null;
+  ownerId?: any;
+  ownerName?: string;
   siteCode: string;
   siteName: string;
   category: string;
@@ -101,8 +104,10 @@ export default function RentTransactionsTable() {
         if (value) queryParams.append(key, value);
       });
 
+      const endpoint = `${process.env.NEXT_PUBLIC_API_URL}/api/rent/renttransactions/site/all${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
+
       const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/api/rent/`,
+        endpoint,
         {
           headers: {
             Authorization: `Bearer ${token}`,
@@ -116,8 +121,23 @@ export default function RentTransactionsTable() {
       }
 
       const data = await response.json();
-      setTransactions(data.rentPayments);
-      setTotalCount(data.count);
+      const transactionsList = data.data || data.rentPayments || [];
+      const normalizedTransactions = transactionsList.map((t: any) => ({
+        ...t,
+        id: t._id || t.id,
+        siteCode: t.siteId?.code || t.siteCode,
+        siteName: t.siteId?.siteName || t.siteName,
+        site: t.siteId ? {
+          ...t.siteId,
+          site_name: t.siteId.siteName || t.siteName,
+          code: t.siteId.code || t.siteCode,
+        } : t.site,
+        ownerId: t.ownerId?._id || t.ownerId,
+        ownerName: t.ownerId?.ownerName || t.ownerName,
+      }));
+
+      setTransactions(normalizedTransactions);
+      setTotalCount(data.total || data.count || normalizedTransactions.length);
       setError(null);
     } catch (error) {
       console.error("Error fetching rent transactions:", error);
@@ -172,6 +192,7 @@ export default function RentTransactionsTable() {
         (item.site?.site_name?.toLowerCase() || "").includes(searchString) ||
         (item.site?.property_location?.toLowerCase() || "").includes(searchString) ||
         (item.site?.code?.toLowerCase() || "").includes(searchString) ||
+        (item.ownerName?.toLowerCase() || "").includes(searchString) ||
         (item.paymentType?.toLowerCase() || "").includes(searchString) ||
         (item.paidStatus?.toLowerCase() || "").includes(searchString) ||
         (item.utrNumber?.toLowerCase() || "").includes(searchString) ||
@@ -436,7 +457,7 @@ export default function RentTransactionsTable() {
             placeholder="Search..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-40 px-2 py-1 text-sm rounded border border-gray-300 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:bg-white/[0.05] dark:border-white/[0.1] dark:text-white"
+            className="w-40 px-2 py-1.5 text-sm rounded border border-gray-300 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:bg-white/[0.05] dark:border-white/[0.1] dark:text-white"
           />
 
           <select
@@ -519,6 +540,7 @@ export default function RentTransactionsTable() {
                         // { width: "w-10",  label: "ID" },
                         { width: "w-16", label: "Site Code" },
                         { width: "w-24", label: "Site Name" },
+                        { width: "w-20", label: "Owner Name" },
                         { width: "w-20", label: "Category" },
                         { width: "w-32", label: "Rent Amount" },
                         { width: "w-32", label: "Payment Date" },
@@ -560,6 +582,11 @@ export default function RentTransactionsTable() {
                           {item.site
                             ? (item.site.site_name || "-")
                             : (item.siteName || "-")}
+                        </TableCell>
+
+                        {/* Owner Name */}
+                        <TableCell className="w-20 px-6 py-4 text-gray-900 dark:text-gray-100 truncate max-w-48">
+                          {item.ownerName || "-"}
                         </TableCell>
 
                         {/* Category */}
