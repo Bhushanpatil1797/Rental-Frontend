@@ -6,54 +6,62 @@ import Input from '../input/InputField';
 import Select from '../Select';
 import DatePicker from '@/components/form/date-picker';
 import { toast } from 'react-hot-toast';
+import { CreditCard } from 'lucide-react';
 
 // Payment type options
 const paymentTypeOptions = [
-    { value: "Rent", label: "Rent" },
-    { value: "Electricity", label: "Electricity" },
+    { value: "Cash", label: "Cash" },
+    { value: "Cheque", label: "Cheque" },
+    { value: "Online", label: "Online" },
+    { value: "Other", label: "Other" },
 ];
 
 // Paid status options
 const paidStatusOptions = [
-    { value: "Paid", label: "Paid" },
-    { value: "Unpaid", label: "Unpaid" },
-    { value: "Partial", label: "Partially Paid" },
+    { value: "paid", label: "Paid" },
+    { value: "pending", label: "Pending" },
+    { value: "partial", label: "Partially Paid" },
 ];
 
 // Add proper typing for form data
 interface RentPaymentFormData {
-    site_id: number;
-    month_year: string;
-    monthly_rent: number;
-    payment_type: string;
-    payment_date: string;
-    owner_name: string;
-    payment_amount: string;
-    utr_number: string;
-    paid_status: 'Paid' | 'Unpaid' | 'Partial';
+    siteId: string;
+    ownerId: string;
+    centreId: string;
+    monthYear: string;
+    paymentDate: string;
+    paymentAmount: string;
+    paidStatus: string;
+    paymentType: string;
+    utrNumber: string;
+    monthlyRent: string;
+    ownerName: string;
 }
 
 interface RentPaymentFormProps {
-    siteId: number;
+    siteId: string;
     owners: Array<{
-        id?: number;
+        id: string;
         owner_name: string;
-        owner_monthly_rent: number; // Changed to be non-optional and explicitly number
+        owner_monthly_rent: number;
     }>;
     currentMonthlyRent: number;
+    centreId?: string; // Optional centreId
 }
 
-export default function RentPaymentForm({ siteId, owners, currentMonthlyRent }: RentPaymentFormProps) {
+export default function RentPaymentForm({ siteId, owners, currentMonthlyRent, centreId }: RentPaymentFormProps) {
     const [formData, setFormData] = useState<RentPaymentFormData>({
-        site_id: siteId,
-        month_year: '',
-        monthly_rent: currentMonthlyRent,
-        payment_type: '',
-        payment_date: new Date().toISOString().split('T')[0],
-        owner_name: '',
-        payment_amount: '',
-        utr_number: '',
-        paid_status: 'Paid'
+        siteId: siteId,
+        ownerId: '',
+        centreId: centreId || '',
+        monthYear: '',
+        paymentDate: new Date().toISOString().split('T')[0],
+        paymentAmount: '',
+        paidStatus: 'paid',
+        paymentType: 'Online',
+        utrNumber: '',
+        monthlyRent: String(currentMonthlyRent),
+        ownerName: ''
     });
     const [imageFile, setImageFile] = useState<File | null>(null);
 
@@ -101,31 +109,42 @@ export default function RentPaymentForm({ siteId, owners, currentMonthlyRent }: 
         try {
             // Validate required fields
             if (
-                !formData.site_id ||
-                !formData.month_year ||
-                !formData.payment_amount ||
-                !formData.owner_name ||
-                !formData.payment_type
+                !formData.siteId ||
+                !formData.monthYear ||
+                !formData.paymentAmount ||
+                !formData.ownerId
             ) {
-                throw new Error('Please fill in all required fields');
+                throw new Error('Please fill in all required fields (Month, Owner, Amount)');
             }
 
             // Use FormData for file upload
             const form = new FormData();
-            form.append('site_id', String(formData.site_id));
-            form.append('month_year', formData.month_year);
-            form.append('monthly_rent', String(formData.monthly_rent));
-            form.append('payment_type', formData.payment_type);
-            form.append('payment_date', formData.payment_date || new Date().toISOString().split('T')[0]);
-            form.append('owner_name', formData.owner_name);
-            form.append('payment_amount', formData.payment_amount);
-            form.append('utr_number', formData.utr_number);
-            form.append('paid_status', formData.paid_status);
+            form.append('siteId', formData.siteId);
+            form.append('ownerId', formData.ownerId);
+            form.append('centreId', formData.centreId);
+            form.append('monthYear', formData.monthYear);
+            form.append('paymentDate', formData.paymentDate);
+            form.append('paymentAmount', formData.paymentAmount);
+            form.append('paidStatus', formData.paidStatus);
+            form.append('paymentType', formData.paymentType);
+            form.append('utrNumber', formData.utrNumber);
+            form.append('monthlyRent', formData.monthlyRent);
+            form.append('ownerName', formData.ownerName);
+
             if (imageFile) {
                 form.append('image', imageFile);
             }
 
-            const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/rent`, {
+            // Log the payload for debugging
+            console.log("Submitting Rent Transaction Payload:");
+            for (const [key, value] of form.entries()) {
+                console.log(`${key}:`, value instanceof File ? `File: ${value.name}` : value);
+            }
+
+            const url = `${process.env.NEXT_PUBLIC_API_URL}/api/rent/siteTransaction/rent-transaction`;
+            console.log("Submitting to URL:", url);
+
+            const response = await fetch(url, {
                 method: 'POST',
                 headers: {
                     'Authorization': `Bearer ${localStorage.getItem('token')}`
@@ -134,16 +153,14 @@ export default function RentPaymentForm({ siteId, owners, currentMonthlyRent }: 
                 body: form
             });
 
-            console.log("API Response:", response);
             console.log("API Status:", response.status);
-
-
             const data = await response.json();
+            console.log("API Response Data:", data);
 
             if (!response.ok) {
                 switch (response.status) {
                     case 409:
-                        const errorMessage = `A payment record already exists for ${formData.owner_name} for ${formData.month_year}`;
+                        const errorMessage = `A payment record already exists for ${formData.ownerName} for ${formData.monthYear}`;
                         throw new Error(errorMessage);
                     case 404:
                         throw new Error('Owner not found or not associated with this site');
@@ -155,13 +172,8 @@ export default function RentPaymentForm({ siteId, owners, currentMonthlyRent }: 
             }
 
             // Enhanced success toast with more details
-            const monthYear = new Date(formData.month_year).toLocaleString('default', {
-                month: 'long',
-                year: 'numeric'
-            });
-
             toast.success(
-                `Payment Success! ₹${formData.payment_amount} recorded for ${formData.owner_name} (${monthYear})`,
+                `Payment Success! ₹${formData.paymentAmount} recorded for ${formData.ownerName} (${formData.monthYear})`,
                 {
                     duration: 4000,
                     position: 'top-center',
@@ -177,16 +189,17 @@ export default function RentPaymentForm({ siteId, owners, currentMonthlyRent }: 
                 }
             );
 
-            // Reset form while keeping site_id and monthly_rent
+            // Reset form while keeping siteId and monthlyRent
             setFormData(prev => ({
                 ...prev,
-                payment_type: '',
-                payment_amount: '',
-                owner_name: '',
-                paid_status: 'Paid',
-                month_year: '',
-                payment_date: new Date().toISOString().split('T')[0],
-                utr_number: ''
+                ownerId: '',
+                ownerName: '',
+                paymentAmount: '',
+                paidStatus: 'paid',
+                paymentType: 'Online',
+                monthYear: '',
+                paymentDate: new Date().toISOString().split('T')[0],
+                utrNumber: ''
             }));
             setImageFile(null);
 
@@ -204,77 +217,123 @@ export default function RentPaymentForm({ siteId, owners, currentMonthlyRent }: 
             setIsLoading(false);
         }
     };
-
     return (
-        <ComponentCard title="Record Rent Payment">
-            <form onSubmit={handleSubmit} className="space-y-6">
+        <div className="bg-white dark:bg-white/[0.03] border border-gray-100 dark:border-white/[0.06] rounded-2xl p-6 shadow-sm">
+            <div className="flex items-center gap-3 mb-6">
+                <div className="p-2 bg-blue-600 rounded-xl shadow-lg shadow-blue-600/20">
+                    <CreditCard className="text-white" size={20} />
+                </div>
+                <div>
+                    <h2 className="text-lg font-bold text-gray-800 dark:text-white leading-tight">Record Rent Payment</h2>
+                    <p className="text-xs text-gray-400 mt-0.5">Payment details will be recorded in the general ledger</p>
+                </div>
+            </div>
 
-                <div className="grid grid-cols-2 gap-4">
-                    <div>
-                        <Label htmlFor="month_year">Payment Month*</Label>
+            <form onSubmit={handleSubmit} className="space-y-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                    <div className="space-y-1.5">
+                        <Label htmlFor="monthYear" className="text-xs font-bold uppercase tracking-wider text-gray-400">Payment Month*</Label>
                         <Input
                             type="text"
-                            id="month_year"
-                            name="month_year"
-                            value={formData.month_year}
+                            id="monthYear"
+                            name="monthYear"
+                            value={formData.monthYear}
                             onChange={handleInputChange}
                             placeholder="e.g., JUNE 2025"
                             required
+                            className="h-10 text-sm"
                         />
                     </div>
 
-                    <div>
-                        <Label htmlFor="owner_name">Owner Name*</Label>
+                    <div className="space-y-1.5">
+                        <Label htmlFor="ownerId" className="text-xs font-bold uppercase tracking-wider text-gray-400">Select Owner*</Label>
                         <Select
                             options={owners.map(owner => ({
-                                value: owner.owner_name,
-                                label: `${owner.owner_name} (₹${owner.owner_monthly_rent || 0})`
+                                value: owner.id,
+                                label: `${owner.owner_name}  `
                             }))}
-                            value={formData.owner_name}
+                            value={formData.ownerId}
                             onChange={(value) => {
-                                const selectedOwner = owners.find(o => o.owner_name === value);
+                                const selectedOwner = owners.find(o => o.id === value);
                                 setFormData(prev => ({
                                     ...prev,
-                                    owner_name: value,
-                                    // Update both payment_amount and monthly_rent when owner changes
-                                    payment_amount: selectedOwner?.owner_monthly_rent?.toString() || '',
-                                    monthly_rent: selectedOwner?.owner_monthly_rent || 0 // Add this line
+                                    ownerId: value,
+                                    ownerName: selectedOwner?.owner_name || '',
+                                    paymentAmount: selectedOwner?.owner_monthly_rent?.toString() || '',
+                                    monthlyRent: selectedOwner?.owner_monthly_rent?.toString() || ''
                                 }));
                             }}
+                            className="h-10 text-sm"
                         />
                     </div>
 
-                    <div>
-                        <Label htmlFor="payment_amount">Payment Amount*</Label>
+                    <div className="space-y-1.5">
+                        <Label htmlFor="paymentAmount" className="text-xs font-bold uppercase tracking-wider text-gray-400">Amount*</Label>
                         <Input
                             type="number"
-                            id="payment_amount"
-                            name="payment_amount"
-                            value={formData.payment_amount}
+                            id="paymentAmount"
+                            name="paymentAmount"
+                            value={formData.paymentAmount}
                             onChange={handleInputChange}
                             required
+                            className="h-10 text-sm"
                         />
                     </div>
 
-                    <div>
-                        <Label htmlFor="payment_amount">UTR No.*</Label>
+                    <div className="space-y-1.5">
+                        <Label htmlFor="utrNumber" className="text-xs font-bold uppercase tracking-wider text-gray-400">UTR Number*</Label>
                         <Input
                             type="text"
-                            id="utr_number"
-                            name="utr_number"
-                            value={formData.utr_number}
+                            id="utrNumber"
+                            name="utrNumber"
+                            value={formData.utrNumber}
                             onChange={handleInputChange}
+                            placeholder="Transaction ID"
                             required
+                            className="h-10 text-sm"
                         />
                     </div>
-                    <div>
-                        <Label htmlFor="image">Upload Payment Proof/Image</Label>
-                        <div className="flex items-center space-x-3">
+
+                    <div className="space-y-1.5">
+                        <Label htmlFor="paymentType" className="text-xs font-bold uppercase tracking-wider text-gray-400">Method*</Label>
+                        <Select
+                            options={paymentTypeOptions}
+                            value={formData.paymentType}
+                            onChange={(value) => handleSelectChange('paymentType', value)}
+                            required
+                            className="h-10 text-sm"
+                        />
+                    </div>
+
+                    <div className="space-y-1.5">
+                        <Label htmlFor="paidStatus" className="text-xs font-bold uppercase tracking-wider text-gray-400">Status*</Label>
+                        <Select
+                            options={paidStatusOptions}
+                            value={formData.paidStatus}
+                            onChange={(value) => handleSelectChange('paidStatus', value)}
+                            className="h-10 text-sm"
+                        />
+                    </div>
+
+                    <div className="space-y-1.5">
+                        <Label htmlFor="paymentDate" className="text-xs font-bold uppercase tracking-wider text-gray-400">Date*</Label>
+                        <DatePicker
+                            id="paymentDate"
+                            value={new Date(formData.paymentDate)}
+                            onChange={(date) => handleDateChange('paymentDate', date)}
+                        />
+                    </div>
+
+                    <div className="col-span-1 lg:col-span-2 space-y-1.5">
+                        <Label htmlFor="image" className="text-xs font-bold uppercase tracking-wider text-gray-400">Proof of Payment</Label>
+                        <div className="flex items-center gap-3">
                             <label
                                 htmlFor="image"
-                                className="cursor-pointer px-4 py-2 bg-blue-50 text-blue-700 border border-blue-300 rounded hover:bg-blue-100 transition"
+                                className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-gray-50 dark:bg-white/[0.03] border border-dashed border-gray-200 dark:border-white/[0.1] rounded-xl hover:bg-gray-100 dark:hover:bg-white/[0.05] transition-all cursor-pointer group"
                             >
-                                Choose File
+                                <span className="text-sm font-medium text-gray-600 dark:text-gray-400 group-hover:text-blue-600 transition-colors">
+                                    {imageFile ? imageFile.name : "Click to upload image or PDF"}
+                                </span>
                                 <input
                                     type="file"
                                     id="image"
@@ -284,60 +343,25 @@ export default function RentPaymentForm({ siteId, owners, currentMonthlyRent }: 
                                     className="hidden"
                                 />
                             </label>
-                            {imageFile && (
-                                <span className="text-xs text-green-600 truncate max-w-xs">
-                                    Selected: {imageFile.name}
-                                </span>
-                            )}
                         </div>
-                        <p className="text-xs text-gray-400 mt-1">Accepted formats: JPG, PNG, GIF, etc.</p>
-                    </div>
-
-                    <div>
-                        <Label htmlFor="payment_type">Payment Type*</Label>
-                        <Select
-                            options={paymentTypeOptions}
-                            value={formData.payment_type}
-                            onChange={(value) => handleSelectChange('payment_type', value)}
-                            required
-                        />
-                    </div>
-
-                    <div>
-                        <Label htmlFor="payment_date">Payment Date</Label>
-                        <DatePicker
-                            id="payment_date"
-                            value={new Date(formData.payment_date)}
-                            onChange={(date) => handleDateChange('payment_date', date)}
-                        />
-                    </div>
-
-                    <div>
-                        <Label htmlFor="paid_status">Payment Status</Label>
-                        <Select
-                            options={paidStatusOptions}
-                            value={formData.paid_status}
-                            onChange={(value) => handleSelectChange('paid_status', value)}
-                        />
                     </div>
                 </div>
 
-                <div className="flex justify-end space-x-4">
-                    <button
-                        type="button"
-                        className="px-4 py-2 text-gray-700 bg-gray-100 rounded hover:bg-gray-200"
-                    >
-                        Cancel
-                    </button>
+                <div className="flex justify-end pt-4 border-t border-gray-100 dark:border-white/[0.05]">
                     <button
                         type="submit"
-                        className="px-4 py-2 text-white bg-blue-500 rounded hover:bg-blue-600 disabled:bg-blue-300"
                         disabled={isLoading}
+                        className="px-6 py-2.5 bg-blue-600 text-white text-sm font-bold rounded-xl hover:bg-blue-700 transition-all shadow-lg shadow-blue-600/20 active:scale-95 disabled:opacity-50 disabled:active:scale-100"
                     >
-                        {isLoading ? 'Recording Payment...' : 'Record Payment'}
+                        {isLoading ? (
+                            <div className="flex items-center gap-2">
+                                <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                <span>Recording...</span>
+                            </div>
+                        ) : 'Record Payment'}
                     </button>
                 </div>
             </form>
-        </ComponentCard>
+        </div>
     );
 }

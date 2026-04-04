@@ -29,6 +29,7 @@ interface Site {
   isActive: boolean;
   centreId: string;
   owners: Owner[];
+  status: string;
 }
 
 export default function BasicTableOne() {
@@ -171,14 +172,14 @@ export default function BasicTableOne() {
                           <Badge
                             size="sm"
                             color={
-                              site.paidStatus?.toLowerCase() === "paid"
+                              site.status?.toLowerCase() === "active"
                                 ? "success"
-                                : site.paidStatus?.toLowerCase() === "pending"
+                                : site.status?.toLowerCase() === "inactive"
                                   ? "warning"
                                   : "error"
                             }
                           >
-                            {site.paidStatus ?? "N/A"}
+                            {site.status ?? "N/A"}
                           </Badge>
                         </TableCell>
                         <TableCell className="w-24 px-6 py-4 text-gray-900 dark:text-gray-100">

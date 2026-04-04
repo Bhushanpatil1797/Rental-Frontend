@@ -5,10 +5,37 @@
 'use client'
 
 import React, { useState, useEffect } from 'react'
-import { ChevronDown, ChevronUp, MapPin, Calendar, Phone, CreditCard } from 'lucide-react'
+import { ChevronDown, ChevronUp, MapPin, Calendar, Phone, CreditCard, Building2, Users, Landmark, FileText, Globe, ArrowLeft, MoreVertical, CheckCircle2, ExternalLink, ShieldCheck, Banknote, HelpCircle, UserCheck } from 'lucide-react'
 import RentPaymentForm from '@/components/form/form-elements/RentPayments'
 import RentEscalationTable from '@/components/form/form-elements/RentEscalationTable'
 import { Toaster } from 'react-hot-toast'
+import Badge from '@/components/ui/badge/Badge'
+
+// ─── UI Helpers ───────────────────────────────────────────────────────────────
+
+const SectionHeader = ({ icon: Icon, title, subtitle }: { icon: any, title: string, subtitle?: string }) => (
+    <div className="flex items-center gap-3 mb-5 group">
+        <div className="p-2.5 bg-indigo-50 dark:bg-indigo-900/20 rounded-xl group-hover:scale-110 transition-transform duration-300">
+            <Icon size={20} className="text-indigo-600 dark:text-indigo-400" />
+        </div>
+        <div>
+            <h3 className="text-sm font-bold text-gray-800 dark:text-white uppercase tracking-wider leading-none">{title}</h3>
+            {subtitle && <p className="text-[10px] text-gray-400 dark:text-gray-500 font-medium mt-1">{subtitle}</p>}
+        </div>
+    </div>
+);
+
+const ViewField = ({ label, value, span2, icon: Icon }: { label: string, value: any, span2?: boolean, icon?: any }) => (
+    <div className={`${span2 ? 'col-span-2' : ''} p-3 rounded-xl bg-gray-50/50 dark:bg-white/[0.02] border border-gray-100/50 dark:border-white/[0.03] hover:shadow-sm transition-all duration-200 group`}>
+        <div className="flex items-center gap-2 mb-1">
+            {Icon && <Icon size={12} className="text-indigo-500/70" />}
+            <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest leading-none">{label}</span>
+        </div>
+        <div className="text-sm font-bold text-gray-700 dark:text-gray-200 truncate group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">
+            {value || 'Not Specified'}
+        </div>
+    </div>
+);
 
 type ComponentCardProps = {
   title: React.ReactNode
@@ -17,8 +44,7 @@ type ComponentCardProps = {
 
 const ComponentCard: React.FC<ComponentCardProps> = ({ title, children }) => {
   return (
-    <div className="p-4 mb-4 bg-white border rounded-lg shadow-sm dark:bg-white/[0.03] dark:border-gray-700">
-      <h2 className="mb-3 font-medium text-gray-900 text-md dark:text-white">{title}</h2>
+    <div className="bg-white dark:bg-white/[0.02] border border-gray-100 dark:border-white/[0.06] rounded-2xl p-6 shadow-sm mb-6 transition-all duration-300 hover:shadow-md">
       {children}
     </div>
   )
@@ -355,206 +381,134 @@ const filtered = sites.filter(site => {
         </>
       ) : (
         // Site Details View
-        <div>
-          <div className="flex items-center justify-between mb-6">
-            <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
-              {selectedSite.site_name}
-            </h1>
-            <button
-              onClick={handleBackToSearch}
-              className="px-4 py-2 text-gray-700 bg-gray-100 rounded hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600"
-            >
-              Back to Search
-            </button>
-          </div>
+        <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+           {/* Header Area */}
+           <div className="relative overflow-hidden mb-8 p-8 rounded-3xl bg-indigo-600 text-white shadow-2xl shadow-indigo-600/20">
+              <div className="absolute top-0 right-0 p-8 transform translate-x-1/4 -translate-y-1/4">
+                <Building2 size={240} className="text-white/10" />
+              </div>
+              <div className="relative z-10">
+                <div className="flex items-center gap-2 mb-4">
+                  <Badge size="sm" color="info" variant="light">
+                    {siteDetails?.code || "SITE-NO-CODE"}
+                  </Badge>
+                  <Badge size="sm" color="success" variant="light">
+                    Active Site
+                  </Badge>
+                </div>
+                <div className="flex items-end justify-between gap-4">
+                  <div>
+                    <h1 className="text-4xl font-black tracking-tight mb-2 uppercase">
+                      {siteDetails?.siteName || siteDetails?.site_name || "New Site Entry"}
+                    </h1>
+                    <div className="flex items-center gap-4 text-indigo-100/80 text-sm font-medium">
+                      <div className="flex items-center gap-1.5 px-3 py-1 bg-white/10 rounded-full">
+                        <MapPin size={14} />
+                        {siteDetails?.propertyLocation || siteDetails?.property_location || "Location N/A"}
+                      </div>
+                      <div className="flex items-center gap-1.5 px-3 py-1 bg-white/10 rounded-full lowercase">
+                        <Building2 size={14} />
+                        {siteDetails?.propertyType || "Commercial Space"}
+                      </div>
+                    </div>
+                  </div>
+                  <button onClick={handleBackToSearch} className="flex items-center gap-2 px-6 py-3 bg-white/10 hover:bg-white/20 transition-all rounded-2xl text-sm font-bold backdrop-blur-md border border-white/10">
+                    <ArrowLeft size={16} /> Back to sites
+                  </button>
+                </div>
+              </div>
+            </div>
+
           {loadingDetails ? (
-            <div className="py-16 text-center">
-              <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-blue-600 border-r-transparent"></div>
-              <p className="mt-4">Loading site details...</p>
+            <div className="py-20 text-center">
+              <div className="inline-block h-10 w-10 animate-spin rounded-full border-4 border-solid border-blue-600 border-r-transparent"></div>
+              <p className="mt-4 text-gray-500 font-medium">Synchronizing site data...</p>
             </div>
           ) : error ? (
-            <div className="text-red-500 p-4 border border-red-200 rounded bg-red-50">
-              Error: {error}
+            <div className="p-6 bg-red-50 border border-red-100 rounded-3xl text-red-600 flex items-center gap-3">
+              <MoreVertical size={20} />
+              <span className="font-bold">Error: {error}</span>
             </div>
           ) : siteDetails ? (
-            <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-              {/* Basic Site Information */}
-              <ComponentCard title="Basic Site Information">
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm text-gray-500 dark:text-gray-400 ">Site Name</label>
-                    <div className="mt-1 font-medium dark:text-white">{siteDetails.siteName || siteDetails.site_name || 'N/A'}</div>
-                  </div>
-                  <div>
-                    <label className="block text-sm text-gray-500 dark:text-gray-400">Site Code</label>
-                    <div className="mt-1 font-medium dark:text-white">{siteDetails.code || 'N/A'}</div>
-                  </div>
-                  <div>
-                    <label className="block text-sm text-gray-500 dark:text-gray-400">Property Location</label>
-                    <div className="mt-1 font-medium dark:text-white">{siteDetails.propertyLocation || siteDetails.property_location || 'N/A'}</div>
-                  </div>
-                  <div>
-                    <label className="block text-sm text-gray-500 dark:text-gray-400">Property Type</label>
-                    <div className="mt-1 font-medium dark:text-white">{siteDetails.propertyType || siteDetails.property_type || 'N/A'}</div>
-                  </div>
-                  <div>
-                    <label className="block text-sm text-gray-500 dark:text-gray-400">Pincode</label>
-                    <div className="mt-1 font-medium dark:text-white">{siteDetails.pincode || 'N/A'}</div>
-                  </div>
-                  <div>
-                    <label className="block text-sm text-gray-500 dark:text-gray-400">Managed By</label>
-                    <div className="mt-1 font-medium dark:text-white">{siteDetails.managedBy || siteDetails.manage_by || 'N/A'}</div>
-                  </div>
-                  <div className="mt-4 pb-7">
-                  <label className="block text-sm text-gray-500 dark:text-gray-400">Property Address</label>
-                  <div className="mt-1 font-medium dark:text-white">{siteDetails.propertyAddress || siteDetails.property_address || 'N/A'}</div>
-                </div>
-                <div className="mt-4 pb-7">
-                  <label className="block text-sm text-gray-500 dark:text-gray-400">Added Bank Account</label>
-                  <div className="mt-1 font-medium dark:text-white">{siteDetails.addedBankName || siteDetails.added_bank_name || 'N/A'}</div>
-                </div>
-                </div>
-                
-                {/* Agreement Information */}
-                <ComponentCard title="Agreement Information">
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm text-gray-500 dark:text-gray-400">Agreement Date</label>
-                      <div className="mt-1 font-medium flex items-center dark:text-white">
-                        <Calendar size={14} className="mr-1 text-gray-400 " />
-                        {formatDate(siteDetails.agreementDate || siteDetails.agreement_date)}
-                      </div>
-                    </div>
-                    <div>
-                      <label className="block text-sm text-gray-500 dark:text-gray-400">Agreement Expiring</label>
-                      <div className="mt-1 font-medium flex items-center dark:text-white">
-                        <Calendar size={14} className="mr-1 text-gray-400" />
-                        {formatDate(siteDetails.agreementExpiring || siteDetails.agreement_expiring)}
-                      </div>
-                    </div>
-                    <div>
-                      <label className="block text-sm text-gray-500 dark:text-gray-400">Rent Start Date</label>
-                      <div className="mt-1 font-medium flex items-center dark:text-white">
-                        <Calendar size={14} className="mr-1 text-gray-400" />
-                        {formatDate(siteDetails.rentStartDate || siteDetails.rent_start_date)}
-                      </div>
-                    </div>
-                    <div>
-                      <label className="block text-sm text-gray-500 dark:text-gray-400">Payment Day (1 to 10)</label>
-                      <div className="mt-1 font-medium dark:text-white">{siteDetails.paymentDay || siteDetails.payment_day || 'N/A'}</div>
-                    </div>
-                    <div>
-                      <label className="block text-sm text-gray-500 dark:text-gray-400">Monthly Rent (Base Rent)</label>
-                      <div className="mt-1 font-medium flex items-center dark:text-white">
-                        <Calendar size={14} className="mr-1 text-gray-400" />
-                        ₹{(siteDetails.monthlyRent || siteDetails.monthly_rent || 0).toLocaleString() || 'N/A'}
-                      </div>
-                    </div>
-                    <div>
-                      <label className="block text-sm text-gray-500 dark:text-gray-400">Agreement Years</label>
-                      <div className="mt-1 font-medium flex items-center dark:text-white">
-                        <Calendar size={14} className="mr-1 text-gray-400" />
-                        {siteDetails.agreementYears || siteDetails.agreement_years || 'N/A'} years
-                      </div>
-                    </div>
-                    <div>
-                      <label className="block text-sm text-gray-500 dark:text-gray-400">Escalation %</label>
-                      <div className="mt-1 font-medium flex items-center dark:text-white">
-                        <Calendar size={14} className="mr-1 text-gray-400" />
-                        {siteDetails.yearlyEscalationPercentage || siteDetails.yearly_escalation_percentage || 0}%
-                      </div>
-                    </div>
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-start">
+              <div className="space-y-8">
+                {/* Record Payment Section - NOW AT TOP */}
+                <RentPaymentForm
+                  siteId={String(selectedSite._id || selectedSite.id)}
+                  owners={(siteDetails.owners || siteDetails.ownerId || []).map((owner: any) => ({
+                    id: owner.ownerId?._id || owner._id || owner.id,
+                    owner_name: owner.ownerId?.ownerName || owner.ownerName || owner.owner_name,
+                    owner_monthly_rent: Number(owner.ownerMonthlyRent || owner.owner_monthly_rent) || 0
+                  }))}
+                  currentMonthlyRent={Number(siteDetails.monthlyRent || siteDetails.monthly_rent) || 0}
+                  centreId={siteDetails.centreId?._id || siteDetails.centreId}
+                />
+
+                {/* Simplified Site Metadata */}
+                <ComponentCard title="">
+                  <SectionHeader icon={Building2} title="Site Essential Info" />
+                  <div className="grid grid-cols-2 gap-3">
+                    <ViewField label="Site Name" value={siteDetails.siteName || siteDetails.site_name} />
+                    <ViewField label="Site Code" value={siteDetails.code} />
+                    <ViewField label="Property Location" value={siteDetails.propertyLocation || siteDetails.property_location} />
+                    <ViewField label="Managed By" value={siteDetails.managedBy || siteDetails.manage_by} />
+                    <ViewField label="Monthly Rent (₹)" value={`₹${(siteDetails.monthlyRent || siteDetails.monthly_rent || 0).toLocaleString()}`} icon={Landmark} />
+                    <ViewField label="Pincode" value={siteDetails.pincode} />
+                    <ViewField label="Property Address" value={siteDetails.propertyAddress || siteDetails.property_address} span2 />
                   </div>
                 </ComponentCard>
-                <RentEscalationTable site={selectedSite} />
-              </ComponentCard>
-              {/* Owner Information */}
-              {siteDetails.owners && siteDetails.owners.length > 0 && (
-                <ComponentCard title="Owner Information">
-                  {siteDetails.owners.map((owner: { id: any; owner_name: string | number | bigint | boolean | React.ReactElement<unknown, string | React.JSXElementConstructor<any>> | Iterable<React.ReactNode> | React.ReactPortal | Promise<string | number | bigint | boolean | React.ReactPortal | React.ReactElement<unknown, string | React.JSXElementConstructor<any>> | Iterable<React.ReactNode> | null | undefined> | null | undefined; owner_monthly_rent: any; mobile_no: any; email: any; owner_account_no: any; owner_bank_name: any; owner_bank_ifsc: any; owner_mobile_no: any; owner_details: string | number | bigint | boolean | React.ReactElement<unknown, string | React.JSXElementConstructor<any>> | Iterable<React.ReactNode> | React.ReactPortal | Promise<string | number | bigint | boolean | React.ReactPortal | React.ReactElement<unknown, string | React.JSXElementConstructor<any>> | Iterable<React.ReactNode> | null | undefined> | null | undefined }, index: number) => (
-                    <div key={owner.id || index} className="mb-4 border rounded overflow-hidden">
-                      {/* Collapsible Header */}
-                      <div
-                        className="flex justify-between items-center p-3 bg-white dark:bg-white/[0.03] cursor-pointer hover:bg-gray-100 dark:hover:bg-zinc-700"
-                        onClick={() => toggleOwner(index)}
-                      >
-                        <h3 className="font-semibold text-gray-900 dark:text-white">
-                          {owner.owner_name ? owner.owner_name : `Owner ${index + 1}`}
-                        </h3>
-                        <div className="text-gray-600 dark:text-gray-300">
-                          {expandedOwners[index] ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
-                        </div>
+              </div>
+
+              <div className="space-y-8">
+                {/* Owners Container */}
+                <div className="space-y-4">
+                   <div className="flex items-center justify-between px-2 mb-2">
+                      <div className="flex items-center gap-2">
+                         <div className="w-2 h-6 bg-indigo-600 rounded-full" />
+                         <h2 className="text-xl font-black text-gray-800 dark:text-white uppercase tracking-tight">Active Partcipants</h2>
                       </div>
-                      {/* Collapsible Body */}
-                      {expandedOwners[index] && (
-                        <div className="p-3 bg-white dark:bg-white/[0.03] border-t border-gray-200 dark:border-gray-700">
-                          <div className="grid grid-cols-2 gap-4 ">
-                            <div>
-                              <label className="block text-sm text-gray-500 dark:text-gray-400">Owner Name</label>
-                              <div className="mt-1 font-medium dark:text-white">{owner.owner_name || 'N/A'}</div>
+                         <Badge color="primary" variant="light">
+                         {(siteDetails.owners || siteDetails.ownerId || []).length} Owners
+                      </Badge>
+                   </div>
+                   
+                   {(siteDetails.owners || siteDetails.ownerId || []).map((owner: any, index: number) => (
+                      <div key={owner._id || index} className="group relative overflow-hidden bg-white dark:bg-white/[0.02] border border-gray-100 dark:border-white/[0.06] rounded-2xl transition-all duration-300 hover:shadow-xl hover:border-indigo-100 dark:hover:border-indigo-900/30">
+                        <div className="p-4 flex items-center justify-between cursor-pointer" onClick={() => toggleOwner(index)}>
+                          <div className="flex items-center gap-4">
+                            <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white font-black text-lg shadow-lg group-hover:rotate-6 transition-transform">
+                              { (owner.ownerId?.ownerName || owner.ownerName || owner.owner_name)?.charAt(0) || "O" }
                             </div>
                             <div>
-                              <label className="block text-sm text-gray-500 dark:text-gray-400">Monthly Rent</label>
-                              <div className="mt-1 font-medium dark:text-white">₹{owner.owner_monthly_rent || 'N/A'}</div>
+                               <p className="text-sm font-black text-gray-800 dark:text-white uppercase tracking-tighter">
+                                 {owner.ownerId?.ownerName || owner.ownerName || owner.owner_name || 'N/A'}
+                               </p>
+                               <div className="flex items-center gap-2 mt-0.5">
+                                 <span className="text-[10px] font-bold text-indigo-500 bg-indigo-50 dark:bg-indigo-900/30 px-1.5 py-0.5 rounded leading-none">
+                                    ₹{(owner.ownerMonthlyRent || owner.owner_monthly_rent || 0).toLocaleString()} /mo
+                                 </span>
+                               </div>
                             </div>
-                            <div>
-                              <label className="block text-sm text-gray-500 dark:text-gray-400">Mobile No.</label>
-                              <div className="mt-1 font-medium flex items-center dark:text-white">
-                                <Phone size={14} className="mr-1 text-gray-400" />
-                                {owner.owner_mobile_no || 'N/A'}
-                              </div>
-                            </div>
-                            <div>
-                              <label className="block text-sm text-gray-500 dark:text-gray-400">Email</label>
-                              <div className="mt-1 font-medium dark:text-white">
-                                {owner.email || 'N/A'}
-                              </div>
-                            </div>
-                            <div className="col-span-2">
-                              <label className="block text-sm text-gray-500 dark:text-gray-400">Bank Details</label>
-                              <div className="mt-1 grid grid-cols-3 gap-2">
-                                <div>
-                                  <span className="text-xs text-gray-500">Account No</span>
-                                  <div className="font-medium flex items-cente dark:text-white">
-                                    <CreditCard size={14} className="mr-1 text-gray-400" />
-                                    {owner.owner_account_no || 'N/A'}
-                                  </div>
-                                </div>
-                                <div>
-                                  <span className="text-xs text-gray-500">Bank Name</span>
-                                  <div className="font-medium dark:text-white">{owner.owner_bank_name || 'N/A'}</div>
-                                </div>
-                                <div>
-                                  <span className="text-xs text-gray-500">IFSC</span>
-                                  <div className="font-medium dark:text-white">{owner.owner_bank_ifsc || 'N/A'}</div>
-                                </div>
-                              </div>
-                            </div>
-                            {owner.owner_details && (
-                              <div className="col-span-2">
-                                <label className="block text-sm text-gray-500 dark:text-gray-400">Owner Details</label>
-                                <div className="mt-1 p-2 bg-gray-50 dark:bg-gray-700 rounded dark:text-white">
-                                  {owner.owner_details}
-                                </div>
-                              </div>
-                            )}
+                          </div>
+                          <div className={`p-2 rounded-lg transition-colors ${expandedOwners[index] ? 'bg-indigo-50 text-indigo-600' : 'text-gray-400 group-hover:bg-gray-50'}`}>
+                            {expandedOwners[index] ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
                           </div>
                         </div>
-                      )}
-                    </div>
-                  ))}
-                </ComponentCard>
 
-              )}
-              <RentPaymentForm
-                siteId={selectedSite._id || selectedSite.id}
-                owners={(siteDetails.owners || siteDetails.ownerId || []).map((owner: { id: any; _id: any; owner_name: any; ownerName: any; owner_monthly_rent: any; ownerMonthlyRent: any }) => ({
-                  id: owner._id || owner.id,
-                  owner_name: owner.ownerName || owner.owner_name,
-                  owner_monthly_rent: Number(owner.ownerMonthlyRent || owner.owner_monthly_rent) || 0
-                })) || []}
-                currentMonthlyRent={Number(siteDetails.monthlyRent || siteDetails.monthly_rent) || 0}
-              />
+                        {expandedOwners[index] && (
+                          <div className="px-5 pb-5 pt-2 grid grid-cols-2 gap-4 animate-in slide-in-from-top-2 duration-200">
+                             <ViewField label="Contact" value={owner.ownerId?.mobileNo || owner.ownerMobileNo || owner.owner_mobile_no} icon={Phone} />
+                             <ViewField label="Email Address" value={owner.ownerId?.email || owner.email || owner.ownerEmail} icon={Globe} />
+                             <ViewField label="Bank Name" value={owner.bankAccount?.bankName || owner.ownerBankName || owner.owner_bank_name} icon={Landmark} />
+                             <ViewField label="Account No" value={owner.bankAccount?.accountNo || owner.ownerAccountNo || owner.owner_account_no} icon={CreditCard} />
+                             <ViewField label="IFSC Code" value={owner.bankAccount?.ifsc || owner.ownerBankIfsc || owner.owner_bank_ifsc} />
+                             <ViewField label="Details" value={owner.ownerId?.ownerDetails || owner.owner_details || siteDetails.siteName} span2 />
+                          </div>
+                        )}
+                      </div>
+                   ))}
+                </div>
+              </div>
             </div>
           ) : null}
         </div>

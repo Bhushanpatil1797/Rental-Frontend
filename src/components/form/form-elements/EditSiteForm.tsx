@@ -1,780 +1,404 @@
-
-/* eslint-disable react/no-unescaped-entities */
-/* eslint-disable @typescript-eslint/no-unused-vars */
 /* eslint-disable @typescript-eslint/no-explicit-any */
-
 "use client";
 
-import React, { useEffect, useState } from 'react';
-import { useParams, useRouter } from 'next/navigation';
-import ComponentCard from '@/components/common/ComponentCard';
-import Badge from '@/components/ui/badge/Badge';
-import RentEscalationTable from './RentEscalationTable';
-import { ChevronDown, ChevronUp } from 'lucide-react';
-import SiteRentTransactionsTable from '../../tables/SiteRenttransaction';
-interface Owner {
-  owner_mobile_no: string;
-  ownerMobileNo?: string; // Fallback
-  id: number;
-  owner_name: string;
-  ownerName?: string; // Fallback
-  owner_details: string;
-  ownerDetails?: string; // Fallback
-  mobile_no?: string;
-  email?: string;
-  owner_account_no: string;
-  ownerAccountNo?: string; // Fallback
-  owner_bank_name: string;
-  ownerBankName?: string; // Fallback
-  owner_bank_ifsc: string;
-  ownerBankIfsc?: string; // Fallback
-  owner_monthly_rent: string;
-  ownerMonthlyRent?: string; // Fallback
-  siteId?: number;
-  createdAt?: string;
-  updatedAt?: string;
+import React, { useState, useEffect, useCallback } from "react";
+import { useParams, useRouter } from "next/navigation";
+import { Building2, Users, FileText, Landmark, ChevronDown, ChevronUp, ArrowLeft, Edit, Trash2, Globe, MapPin, ExternalLink } from "lucide-react";
+import { toast } from "react-hot-toast";
+import Label from "../Label";
+import { ChevronDownIcon } from "../../../icons";
+import Badge from "@/components/ui/badge/Badge";
+
+// ─── Types ────────────────────────────────────────────────────────────────────
+interface Centre { _id: string; name: string; shortCode?: string; }
+interface BankAccount { _id: string; accountHolder: string; accountNo: string; bankName: string; ifsc: string; branchName?: string; }
+interface Owner { _id: string; ownerName: string; mobileNo: string; bankAccounts: BankAccount[]; }
+
+interface ElectricityConsumer {
+  consumerNo: string;
+  consumerName: string;
+  electricityProvider: string;
 }
 
-interface Site {
-  id: number;
-  code: string;
-  site_name: string;
-  property_type: string;
-  property_location: string;
-  property_address: string;
-  pincode: string;
-  property_owners: string;
-  owners_details: string;
-  tenant_name: string;
-  address: string;
-  mobile_no: string;
-  email: string;
-  monthly_rent: number;
-  paid_status: string;
-  deposit: number;
-  gst_charges: number;
-  maintenance_charges: number;
-  online_paid: number;
-  cash_paid: number;
-  muncipal_tax: number;
-  cma_charges: number;
-  electricity_charges: string;
-  electricity_provider: string;
-  water_charges: number;
-  bank_no: string;
-  bank_name: string;
-  bank_ifsc: string;
-  bank_details: string;
-  status: string;
-  agreement_date: string;
-  agreement_expiring: string;
-  fitout_time: string;
-  rent_start_date: string;
-  increased_rent: string;
-  agreement_years: string;
-  yearly_escalation_percentage: string;
-  modified: string;
-  addedby: string;
-  total_amount: string;
-  agent_details: string;
-  agent_cost: string;
-  authorised_by: string;
-  managedBy: string;
-  owners: Owner[];
-  // Additional fields from API
-  electricity_status: string;
-  rent_status: string;
-  payment_date: string;
-  payment_day: string;
-  owner_renttotal: string;
-  gdrive_link: string;
-  glocation_link: string;
-  website_link: string;
-  pending_amount: string;
-  electricity_consumerno: string;
-  escalation_percentage: string;
-  added_account_no: string;
-  added_bank_name: string;
-  added_ifsc: string;
-  mseb_deposit: number;
-  createdAt?: string;
-  updatedAt?: string;
-  area_size: string;
-  rent_type: string;
-  authorised_person_commissio: string;
-  unit: string;
-  consumer_name: string;
-  site_mobileno: string;
-  duplicated: number;
-  // Add other fields as needed
-}
-interface SiteRentTransactionsTableProps {
-  siteId: number | string;
-  site: Site;
+interface OwnerAssignment {
+  ownerId: string;
+  ownerName: string;
+  ownershipPercentage: number;
+  ownerMonthlyRent: number;
+  bankAccount?: BankAccount;
+  accountNo?: string;
+  bankName?: string;
+  ifsc?: string;
+  branchName?: string;
 }
 
-export default function SiteDetailPage() {
+// ─── Constants ────────────────────────────────────────────────────────────────
+const API = process.env.NEXT_PUBLIC_API_URL;
+const authHeaders = () => ({ Authorization: `Bearer ${localStorage.getItem("token")}`, "Content-Type": "application/json" });
+
+// ─── Section header helper ────────────────────────────────────────────────────
+function SectionHeader({ icon: Icon, title, subtitle, action }: { icon: any; title: string; subtitle?: string; action?: React.ReactNode }) {
+  return (
+    <div className="flex items-start justify-between pb-3 mb-4 border-b border-gray-100 dark:border-white/[0.05]">
+      <div className="flex items-center gap-2.5">
+        <div className="p-1.5 bg-indigo-50 dark:bg-indigo-900/30 rounded-lg">
+          <Icon size={16} className="text-indigo-600 dark:text-indigo-400" />
+        </div>
+        <div>
+          <h3 className="font-semibold text-gray-800 dark:text-white text-sm">{title}</h3>
+          {subtitle && <p className="text-xs text-gray-400 mt-0.5">{subtitle}</p>}
+        </div>
+      </div>
+      {action}
+    </div>
+  );
+}
+
+// ─── View Field wrapper ───────────────────────────────────────────────────────
+function ViewField({ label, value, span2 = false, isLink = false }: { label: string; value: string | number | undefined | null; span2?: boolean; isLink?: boolean }) {
+  return (
+    <div className={span2 ? "col-span-2" : ""}>
+      <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider mb-1">{label}</p>
+      <div className="px-3 py-2 bg-gray-50 dark:bg-white/[0.02] border border-gray-100 dark:border-white/[0.06] rounded-xl min-h-[38px] flex items-center">
+        {isLink && value ? (
+          <a href={String(value)} target="_blank" rel="noopener noreferrer" className="text-sm text-indigo-600 dark:text-indigo-400 hover:underline flex items-center gap-1.5">
+            {String(value).length > 40 ? String(value).substring(0, 40) + "..." : value}
+            <ExternalLink size={12} />
+          </a>
+        ) : (
+          <p className="text-sm text-gray-700 dark:text-gray-200">{value || "—"}</p>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ─── Main Component: Site Details View ────────────────────────────────────────
+export default function EditSiteForm() {
   const params = useParams();
   const router = useRouter();
-  const [site, setSite] = useState<Site | null>(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  const [isDeleting, setIsDeleting] = useState(false);
+  const [site, setSite] = useState<any>(null);
+  const [owners, setOwners] = useState<OwnerAssignment[]>([]);
+  const [consumers, setConsumers] = useState<ElectricityConsumer[]>([]);
+  const [expandedOwners, setExpandedOwners] = useState<boolean[]>([]);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-  useEffect(() => {
-    const fetchSiteDetails = async () => {
-      try {
-        const siteId = params.id;
-        const token = localStorage.getItem("token");
+  const [deleting, setDeleting] = useState(false);
 
-        if (!token) {
-          throw new Error("Authentication token not found");
-        }
+  // ── Fetch Site Details ──────────────────────────────────────────────────────
+  const fetchDetails = useCallback(async () => {
+    setLoading(true);
+    try {
+      const siteId = params.id;
+      const res = await fetch(`${API}/api/rent/sites/${siteId}`, { headers: authHeaders() });
+      const json = await res.json();
 
-        const url = `${process.env.NEXT_PUBLIC_API_URL}/api/rent/sites/${siteId}`;
-        console.log("Fetching site details from:", url);
+      if (!res.ok) throw new Error(json.message || "Failed to fetch site details");
 
-        const response = await fetch(url, {
-          headers: {
-            Authorization: `Bearer ${token}`,
-            "Content-Type": "application/json",
-          },
-        });
+      const siteData = json.data || json;
+      setSite(siteData);
 
-        console.log("Site Detail API Response Status:", response.status);
-
-        if (!response.ok) {
-          console.error("API Response:", response);
-          throw new Error(`HTTP error! status: ${response.status}`);
-        }
-
-        const data = await response.json();
-        console.log("Site Detail Fetched JSON data:", data);
-
-        // The API returns the site nested under data.data
-        const siteData = data?.data || data?.site || data;
-        console.log("Extracted Site Data:", siteData);
-
-        // Normalize siteData by supporting both snake_case and camelCase
-        const normalized = { ...siteData };
-        const mapping: Record<string, string> = {
-          siteName: 'site_name',
-          propertyType: 'property_type',
-          propertyLocation: 'property_location',
-          propertyAddress: 'property_address',
-          tenantName: 'tenant_name',
-          monthlyRent: 'monthly_rent',
-          paidStatus: 'paid_status',
-          rentStatus: 'rent_status',
-          electricityStatus: 'electricity_status',
-          gstCharges: 'gst_charges',
-          maintenanceCharges: 'maintenance_charges',
-          municipalTax: 'muncipal_tax', // Fixed: backend uses municipalTax
-          muncipalTax: 'muncipal_tax', // Keep for safety
-          cmaCharges: 'cma_charges',
-          electricityCharges: 'electricity_charges',
-          electricityProvider: 'electricity_provider',
-          waterCharges: 'water_charges',
-          bankName: 'bank_name',
-          bankIfsc: 'bank_ifsc',
-          agreementDate: 'agreement_date',
-          agreementExpiring: 'agreement_expiring',
-          fitoutTime: 'fitout_time',
-          rentStartDate: 'rent_start_date',
-          agreementYears: 'agreement_years',
-          yearlyEscalationPercentage: 'yearly_escalation_percentage',
-          authorisedBy: 'authorised_by',
-          managedBy: 'manage_by', // Fixed: backend uses managedBy
-          manageBy: 'manage_by', // Keep for safety
-          paymentDate: 'payment_date',
-          paymentDay: 'payment_day',
-          ownerRenttotal: 'owner_renttotal',
-          electricityConsumerNo: 'electricity_consumerno', // Fixed case
-          electricityConsumerno: 'electricity_consumerno', // Keep for safety
-          areaSize: 'area_size',
-          rentType: 'rent_type',
-          consumerName: 'consumer_name',
-          siteMobileNo: 'site_mobileno', // Fixed case
-          siteMobileno: 'site_mobileno', // Keep for safety
-          agentCost: 'agent_cost',
-          agentDetails: 'agent_details',
-          authorisedPersonCommission: 'authorised_person_commissio',
-          increasedRent: 'increased_rent',
-          escalationPercentage: 'escalation_percentage',
-          msebDeposit: 'mseb_deposit',
-          gdriveLink: 'gdrive_link',
-          glocationLink: 'glocation_link',
-          websiteLink: 'website_link',
-          tenantAddress: 'address',
-          tenantEmail: 'email',
-          tenantMobileNo: 'mobile_no',
-          city: 'city',
-          pincode: 'pincode'
-        };
-
-        Object.entries(mapping).forEach(([camel, snake]) => {
-          if (normalized[camel] !== undefined && normalized[camel] !== null) {
-            normalized[snake] = normalized[camel];
-          }
-        });
-
-        // Also normalize owners
-        if (normalized.owners && Array.isArray(normalized.owners)) {
-          normalized.owners = normalized.owners.map((owner: any) => {
-            const normalizedOwner = { ...owner };
-            
-            // Extract from nested ownerId object if it exists
-            if (owner.ownerId && typeof owner.ownerId === 'object') {
-              normalizedOwner.ownerName = owner.ownerId.ownerName || normalizedOwner.ownerName;
-              normalizedOwner.ownerDetails = owner.ownerId.ownerDetails || normalizedOwner.ownerDetails;
-              normalizedOwner.ownerMobileNo = owner.ownerId.mobileNo || normalizedOwner.ownerMobileNo;
-            }
-            
-            // Extract from nested bankAccount object if it exists
-            if (owner.bankAccount && typeof owner.bankAccount === 'object') {
-              normalizedOwner.ownerBankName = owner.bankAccount.bankName || normalizedOwner.ownerBankName;
-              normalizedOwner.ownerAccountNo = owner.bankAccount.accountNo || normalizedOwner.ownerAccountNo;
-              normalizedOwner.ownerBankIfsc = owner.bankAccount.ifsc || normalizedOwner.ownerBankIfsc;
-            }
-
-            const ownerMapping: Record<string, string> = {
-              ownerName: 'owner_name',
-              ownerDetails: 'owner_details',
-              ownerMobileNo: 'owner_mobile_no',
-              ownerAccountNo: 'owner_account_no',
-              ownerBankName: 'owner_bank_name',
-              ownerBankIfsc: 'owner_bank_ifsc',
-              ownerMonthlyRent: 'owner_monthly_rent',
-              ownerId: 'id'
-            };
-            Object.entries(ownerMapping).forEach(([camel, snake]) => {
-              if (normalizedOwner[camel] !== undefined && normalizedOwner[camel] !== null) {
-                normalizedOwner[snake] = normalizedOwner[camel];
-              }
-            });
-            return normalizedOwner;
-          });
-        }
-
-        setSite(normalized);
-      } catch (error) {
-        console.error("Error fetching site details:", error);
-        setError(error instanceof Error ? error.message : "Failed to fetch site details");
-      } finally {
-        setLoading(false);
+      // Map owners
+      if (siteData.owners) {
+        setOwners(siteData.owners.map((o: any) => ({
+          ownerId: o.ownerId?._id || o.ownerId,
+          ownerName: o.ownerId?.ownerName || "Unknown Owner",
+          ownershipPercentage: o.ownershipPercentage,
+          ownerMonthlyRent: o.ownerMonthlyRent,
+          bankAccount: o.bankAccount,
+          accountNo: o.accountNo,
+          bankName: o.bankName,
+          ifsc: o.ifsc,
+          branchName: o.branchName
+        })));
+        setExpandedOwners(siteData.owners.map(() => false));
       }
-    };
 
-    if (params.id) {
-      fetchSiteDetails();
+      // Map consumers
+      if (siteData.electricityConsumers) {
+        setConsumers(siteData.electricityConsumers);
+      }
+    } catch (err: any) {
+      toast.error(err.message);
+    } finally {
+      setLoading(false);
     }
   }, [params.id]);
 
+  useEffect(() => { if (params.id) fetchDetails(); }, [params.id, fetchDetails]);
+
+  // ── Actions ─────────────────────────────────────────────────────────────────
   const handleDelete = async () => {
-    if (!site || !params.id) return;
-
+    setDeleting(true);
     try {
-      setIsDeleting(true);
-      const token = localStorage.getItem("token");
-
-      if (!token) {
-        throw new Error("Authentication token not found");
-      }
-
-      const url = `${process.env.NEXT_PUBLIC_API_URL}/api/rent/sites/${params.id}`;
-      console.log("Deleting site via:", url);
-
-      const response = await fetch(url, {
-        method: 'DELETE',
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
+      const res = await fetch(`${API}/api/rent/sites/${params.id}`, {
+        method: "DELETE",
+        headers: authHeaders()
       });
-
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+      if (res.ok) {
+        toast.success("Site deleted successfully");
+        router.push("/basic-tables");
+      } else {
+        const json = await res.json();
+        throw new Error(json.message || "Failed to delete site");
       }
-
-      // Successfully deleted, navigate back to sites list
-      router.push('/basic-tables');
-    } catch (error) {
-      console.error("Error deleting site:", error);
-      setError(error instanceof Error ? error.message : "Failed to delete site");
+    } catch (err: any) {
+      toast.error(err.message);
     } finally {
-      setIsDeleting(false);
+      setDeleting(false);
       setShowDeleteConfirm(false);
     }
   };
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="p-6 text-xl">Loading site details...</div>
-      </div>
-    );
-  }
-
-  if (error || !site) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="p-6 text-xl text-red-500">
-          {error || "Site not found"}
-        </div>
-      </div>
-    );
-  }
-
-  const OwnerInfoSection = ({ owners }: { owners: Owner[] }) => {
-    const [expandedOwners, setExpandedOwners] = useState(
-      owners?.map(() => false) || []
-    );
-
-    const toggleOwner = (index: number) => {
-      setExpandedOwners((prev) =>
-        prev.map((expanded, i) => (i === index ? !expanded : expanded))
-      );
-    };
-
-    if (!owners || owners.length === 0) {
-      return <p className="text-gray-500 dark:text-gray-400">No owner information available</p>;
-    }
-
-    return (
-      <div>
-        {owners.map((owner, index) => (
-          <div key={owner.id || index} className="mb-4 border rounded overflow-hidden">
-            {/* Collapsible Header */}
-            <div className="flex justify-between items-center p-3 bg-white dark:bg-white/[0.03]">
-              <div className="flex items-center space-x-4">
-                <h3 className="font-semibold text-gray-900 dark:text-white">
-                  {owner.owner_name ? owner.owner_name : `Owner ${index + 1}`}
-                </h3>
-                <button
-                  type="button"
-                  onClick={() => toggleOwner(index)}
-                  className="text-gray-600 dark:text-gray-300"
-                >
-                  {expandedOwners[index] ? (
-                    <ChevronUp size={20} />
-                  ) : (
-                    <ChevronDown size={20} />
-                  )}
-                </button>
-              </div>
-            </div>
-
-            {/* Collapsible Body */}
-            {expandedOwners[index] && (
-              <div className="p-3 bg-white dark:bg-white/[0.03] border-t border-gray-200 dark:border-gray-700">
-                <div className="grid grid-cols-2 gap-4">
-                  <DisplayField label="Owner Name" value={owner.owner_name} />
-                  <DisplayField label="Monthly Rent" value={`₹${owner.owner_monthly_rent || 'N/A'}`} />
-                  <DisplayField label="Bank" value={owner.owner_bank_name} />
-                  <DisplayField label="Account No." value={owner.owner_account_no} />
-                  <DisplayField label="IFSC No." value={owner.owner_bank_ifsc} />
-                  <DisplayField label="Mobile No." value={owner.owner_mobile_no} />
-                  <div className="col-span-2">
-                    <DisplayField label="Remarks" value={owner.owner_details} multiline />
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
-        ))}
-      </div>
-    );
-  };
-
-  interface DisplayFieldProps {
-    label: string;
-    value: string | number | undefined | null;
-    multiline?: boolean;
-  }
-
-  const DisplayField: React.FC<DisplayFieldProps> = ({ label, value, multiline = false }) => (
-    <div>
-      <p className="text-sm text-gray-500 dark:text-gray-400">{label}</p>
-      <p
-        className={`font-medium w-full p-2 mt-1 border rounded text-gray-900 dark:text-white bg-white dark:bg-white/[0.03] border-gray-300 dark:border-gray-600 ${multiline ? 'whitespace-pre-wrap' : ''
-          }`}
-      >
-        {value || 'N/A'}
-      </p>
+  if (loading) return (
+    <div className="flex flex-col items-center justify-center min-h-[400px] gap-3">
+      <div className="w-10 h-10 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin"></div>
+      <p className="text-gray-400 text-sm font-medium">Loading site details...</p>
     </div>
   );
 
+  if (!site) return (
+    <div className="text-center py-20">
+      <p className="text-gray-400">Site not found.</p>
+      <button onClick={() => router.back()} className="mt-4 text-indigo-600 hover:underline">Go Back</button>
+    </div>
+  );
 
   return (
-    <div className="p-6">
-      <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-bold text-gray-900 dark:text-white">{site.site_name}</h1>
-        <div className="flex space-x-4">
-          <button
-            onClick={() => router.back()}
-            className="px-4 py-2 text-gray-700 bg-gray-100 rounded hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600"
-          >
-            Back
-          </button>
-          <button
-            onClick={() => router.push(`/sites/edit/${params.id}`)}
-            className="px-4 py-2 text-white bg-blue-500 rounded hover:bg-blue-600"
-          >
+    <div className="max-w-5xl mx-auto space-y-6 pb-12">
+      {/* ── Header Actions ── */}
+      <div className="flex items-center justify-between">
+        <button onClick={() => router.back()} className="flex items-center gap-2 text-gray-500 hover:text-gray-800 dark:hover:text-white transition-colors">
+          <ArrowLeft size={18} />
+          <span className="text-sm font-medium">Back to List</span>
+        </button>
+        <div className="flex items-center gap-3">
+          <button onClick={() => router.push(`/sites/edit/${params.id}`)}
+            className="flex items-center gap-2 px-4 py-2 bg-white dark:bg-white/[0.03] border border-gray-200 dark:border-white/[0.08] text-gray-700 dark:text-white text-sm font-semibold rounded-xl hover:bg-gray-50 dark:hover:bg-white/[0.05] transition-colors shadow-sm">
+            <Edit size={14} />
             Edit Site
           </button>
-          <button
-            onClick={() => setShowDeleteConfirm(true)}
-            className="px-4 py-2 text-white bg-red-500 rounded hover:bg-red-600"
-          >
-            Delete Site
+          <button onClick={() => setShowDeleteConfirm(true)}
+            className="flex items-center gap-2 px-4 py-2 bg-red-50 dark:bg-red-900/20 border border-red-100 dark:border-red-900/30 text-red-600 dark:text-red-400 text-sm font-semibold rounded-xl hover:bg-red-100 dark:hover:bg-red-900/40 transition-colors">
+            <Trash2 size={14} />
+            Delete
           </button>
         </div>
       </div>
+
+      {/* ── Page Hero ── */}
+      <div className="rounded-2xl bg-gradient-to-r from-indigo-600 to-violet-600 px-6 py-6 text-white shadow-lg shadow-indigo-500/20 relative overflow-hidden">
+        <div className="absolute top-0 right-0 p-8 opacity-10 pointer-events-none">
+          <Building2 size={120} />
+        </div>
+        <div className="relative z-10 flex flex-wrap items-end justify-between gap-4">
+          <div>
+            <div className="flex items-center gap-2 mb-2">
+              <span className="px-2 py-0.5 bg-white/20 rounded text-[10px] uppercase font-bold tracking-wider">{site.code || "No Code"}</span>
+              <Badge size="sm" color={site.status === "active" ? "success" : "warning"}>{site.status || "Unknown Status"}</Badge>
+            </div>
+            <h1 className="text-2xl font-bold">{site.siteName}</h1>
+            <div className="flex items-center gap-4 mt-2 text-indigo-100 text-sm">
+              <span className="flex items-center gap-1.5">
+                <MapPin size={14} /> {site.pincode ? `${site.city}, ${site.pincode}` : site.city || "No Location"}
+              </span>
+              <span className="flex items-center gap-1.5 uppercase font-bold text-[10px] px-2 py-0.5 bg-black/10 rounded">
+                <Building2 size={12} /> {site.propertyType || "Other"}
+              </span>
+            </div>
+          </div>
+          <div className="text-right">
+            <p className="text-indigo-200 text-xs uppercase font-bold tracking-widest mb-1">Total Monthly Rent</p>
+            <p className="text-3xl font-black">₹{site.monthlyRent?.toLocaleString() || "0"}</p>
+          </div>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-start">
+        <div className="space-y-8">
+          {/* ── Section: Site Metadata ── */}
+          <div className="bg-white dark:bg-white/[0.02] border border-gray-100 dark:border-white/[0.06] rounded-2xl p-6 shadow-sm">
+            <SectionHeader icon={Building2} title="Site Metadata" subtitle="Core identifiers and location details" />
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <ViewField label="Site Name" value={site.siteName} />
+              <ViewField label="Site Code" value={site.code} />
+              <ViewField label="Property Type" value={site.propertyType} />
+              <ViewField label="Managed By" value={site.managedBy} />
+              <ViewField label="City" value={site.city} />
+              <ViewField label="Pincode" value={site.pincode} />
+              <ViewField label="Area Size" value={`${site.areaSize || "—"} ${site.unit || ""}`} />
+              <ViewField label="Unit (sq.ft / sq.m)" value={site.unit} />
+              <ViewField label="Payment Day" value={site.paymentDay ? `Day ${site.paymentDay}` : "—"} />
+              <ViewField label="Property Location" value={site.propertyLocation} span2 />
+              <ViewField label="Property Address" value={site.propertyAddress} span2 />
+            </div>
+
+            <div className="mt-8 border-t border-gray-50 dark:border-white/[0.03] pt-6">
+              <SectionHeader icon={Globe} title="Digital & Contacts" subtitle="Links and communication" />
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+                <ViewField label="Site Mobile No." value={site.siteMobileNo} />
+                <ViewField label="Website Link" value={site.websiteLink} isLink />
+              </div>
+              <div className="flex gap-3">
+                {site.glocationLink && (
+                  <a href={site.glocationLink} target="_blank" rel="noreferrer" className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 dark:text-indigo-400 rounded-xl text-xs font-bold uppercase transition-all hover:bg-indigo-100 dark:hover:bg-indigo-900/40 active:scale-95">
+                    <MapPin size={14} /> Google Maps <ExternalLink size={12} />
+                  </a>
+                )}
+                {site.gdriveLink && (
+                  <a href={site.gdriveLink} target="_blank" rel="noreferrer" className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 dark:text-indigo-400 rounded-xl text-xs font-bold uppercase transition-all hover:bg-indigo-100 dark:hover:bg-indigo-900/40 active:scale-95">
+                    <FileText size={14} /> Google Drive Link <ExternalLink size={12} />
+                  </a>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* ── Section: Tenant Info ── */}
+          <div className="bg-white dark:bg-white/[0.02] border border-gray-100 dark:border-white/[0.06] rounded-2xl p-6 shadow-sm">
+            <SectionHeader icon={Users} title="Tenant Information" subtitle="Current occupancy details" />
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <ViewField label="Tenant Name" value={site.tenantName} />
+              <ViewField label="Tenant Mobile" value={site.tenantMobileNo} />
+              <ViewField label="Tenant Email" value={site.tenantEmail} />
+              <ViewField label="Tenant Address" value={site.tenantAddress} span2 />
+            </div>
+          </div>
+
+          {/* ── Section: Statutory & Financials ── */}
+          <div className="bg-white dark:bg-white/[0.02] border border-gray-100 dark:border-white/[0.06] rounded-2xl p-6 shadow-sm">
+            <SectionHeader icon={Landmark} title="Statutory & Additional" subtitle="Taxes, cesses and charges" />
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              <ViewField label="Maintenance Charges (₹)" value={site.maintenanceCharges ? `₹${site.maintenanceCharges.toLocaleString()}` : "₹0"} />
+              <ViewField label="Municipal Tax (₹)" value={site.municipalTax ? `₹${site.municipalTax.toLocaleString()}` : "₹0"} />
+              <ViewField label="CMA / CAM Charges (₹)" value={site.cmaCharges ? `₹${site.cmaCharges.toLocaleString()}` : "₹0"} />
+              <ViewField label="GST Charges (₹)" value={site.gstCharges ? `₹${site.gstCharges.toLocaleString()}` : "₹0"} />
+              <ViewField label="Water Charges (₹)" value={site.waterCharges ? `₹${site.waterCharges.toLocaleString()}` : "₹0"} />
+              <ViewField label="MSEB Deposit (₹)" value={site.msebDeposit ? `₹${site.msebDeposit.toLocaleString()}` : "₹0"} />
+            </div>
+          </div>
+        </div>
+
+        <div className="space-y-8">
+          {/* ── Section: Financial & Agreement ── */}
+          <div className="bg-white dark:bg-white/[0.02] border border-gray-100 dark:border-white/[0.06] rounded-2xl p-6 shadow-sm">
+            <SectionHeader icon={FileText} title="Financial & Agreement" subtitle="Rent and structural details" />
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <ViewField label="Monthly Rent (₹)" value={site.monthlyRent ? `₹${site.monthlyRent.toLocaleString()}` : "—"} />
+              <ViewField label="Increased Rent (₹)" value={site.increasedRent ? `₹${site.increasedRent.toLocaleString()}` : "—"} />
+              <ViewField label="Deposit (₹)" value={site.deposit ? `₹${site.deposit.toLocaleString()}` : "—"} />
+              <ViewField label="Rent Type" value={site.rentType} />
+              <ViewField label="Yearly Escalation (%)" value={site.yearlyEscalationPercentage ? `${site.yearlyEscalationPercentage}%` : "0%"} />
+              <ViewField label="Escalation (%)" value={site.escalationPercentage ? `${site.escalationPercentage}%` : "0%"} />
+              <ViewField label="Agreement Start Date" value={site.agreementDate ? site.agreementDate.split('T')[0] : "—"} />
+              <ViewField label="Agreement Expiry Date" value={site.agreementExpiring ? site.agreementExpiring.split('T')[0] : "—"} />
+              <ViewField label="Agreement Years" value={site.agreementYears ? `${site.agreementYears} Years` : "—"} />
+              <ViewField label="Rent Start Date" value={site.rentStartDate ? site.rentStartDate.split('T')[0] : "—"} />
+              <ViewField label="Fitout Date" value={site.fitoutTime ? site.fitoutTime.split('T')[0] : "—"} />
+            </div>
+          </div>
+
+          {/* ── Section: Authority & Agency ── */}
+          <div className="bg-white dark:bg-white/[0.02] border border-gray-100 dark:border-white/[0.06] rounded-2xl p-6 shadow-sm">
+            <SectionHeader icon={Building2} title="Authority & Agency" subtitle="Approvals and facilitation" />
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <ViewField label="Authorised By" value={site.authorisedBy} />
+              <ViewField label="Commission (Authorised Person)" value={site.authorisedPersonCommission ? `₹${site.authorisedPersonCommission.toLocaleString()}` : "₹0"} />
+              <ViewField label="Agent Cost (₹)" value={site.agentCost ? `₹${site.agentCost.toLocaleString()}` : "₹0"} />
+              <ViewField label="Agent Details" value={site.agentDetails} span2 />
+            </div>
+          </div>
+
+          {/* ── Section: Owner Assignments ── */}
+          <div className="bg-white dark:bg-white/[0.02] border border-gray-100 dark:border-white/[0.06] rounded-2xl p-6 shadow-sm">
+            <SectionHeader icon={Users} title="Ownership Shares" subtitle={`${owners.length} registered owners`} />
+            <div className="space-y-3">
+              {owners.map((o, idx) => (
+                <div key={idx} className="border border-gray-100 dark:border-white/[0.06] rounded-xl overflow-hidden group/owner">
+                  <div className="flex items-center justify-between px-4 py-3 bg-gray-50/50 dark:bg-white/[0.01] cursor-pointer hover:bg-gray-50 dark:hover:bg-white/[0.03] transition-colors"
+                    onClick={() => setExpandedOwners(prev => { const n = [...prev]; n[idx] = !n[idx]; return n; })}>
+                    <div className="flex items-center gap-3">
+                      <div className="w-9 h-9 rounded-xl bg-indigo-100 dark:bg-indigo-900/30 flex items-center justify-center text-indigo-600 font-bold text-xs uppercase shadow-sm group-hover/owner:rotate-6 transition-transform">
+                        {o.ownerName.charAt(0)}
+                      </div>
+                      <div>
+                        <p className="font-bold text-sm text-gray-800 dark:text-white uppercase tracking-tight">{o.ownerName}</p>
+                        <p className="text-[10px] text-indigo-500 font-bold uppercase tracking-widest">{o.ownershipPercentage}% Share</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-4">
+                      <div className="text-right hidden sm:block">
+                        <p className="text-[9px] text-gray-400 uppercase font-black tracking-widest">Payout</p>
+                        <p className="text-sm font-black text-indigo-600 dark:text-indigo-400">₹{o.ownerMonthlyRent?.toLocaleString()}</p>
+                      </div>
+                      <div className={`p-1.5 rounded-lg transition-colors ${expandedOwners[idx] ? 'bg-indigo-50 text-indigo-600' : 'text-gray-400'}`}>
+                        {expandedOwners[idx] ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                      </div>
+                    </div>
+                  </div>
+                  {expandedOwners[idx] && (
+                    <div className="p-4 bg-white dark:bg-gray-900/50 grid grid-cols-2 gap-4 animate-in slide-in-from-top-2 duration-200">
+                      <ViewField label="Bank Name" value={o.bankAccount?.bankName || o.bankName} />
+                      <ViewField label="Account Holder" value={o.bankAccount?.accountHolder || o.ownerName} />
+                      <ViewField label="Account No" value={o.bankAccount?.accountNo || o.accountNo} />
+                      <ViewField label="IFSC Code" value={o.bankAccount?.ifsc || o.ifsc} />
+                      <ViewField label="Branch" value={o.bankAccount?.branchName || o.branchName} span2 />
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* ── Section: Electricity ── */}
+          <div className="bg-white dark:bg-white/[0.02] border border-gray-100 dark:border-white/[0.06] rounded-2xl p-6 shadow-sm">
+            <SectionHeader icon={Landmark} title="Electricity Meters" subtitle={`${consumers.length} registered consumer(s)`} />
+            {consumers.length === 0 ? (
+              <div className="py-4 text-center border-2 border-dashed border-gray-100 dark:border-white/[0.05] rounded-xl">
+                 <p className="text-xs text-gray-400 font-medium">No electricity meters found.</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 gap-3">
+                {consumers.map((c, i) => (
+                  <div key={i} className="p-4 bg-gray-50 dark:bg-white/[0.02] rounded-xl border border-gray-100 dark:border-white/[0.06] flex items-center justify-between">
+                    <div>
+                      <p className="text-[10px] font-black text-indigo-500 uppercase tracking-[0.2em] mb-1">Consumer #{i + 1}</p>
+                      <h4 className="text-sm font-bold text-gray-800 dark:text-white uppercase">{c.consumerNo}</h4>
+                      <p className="text-xs text-gray-400 font-medium mt-0.5">{c.consumerName} • {c.electricityProvider}</p>
+                    </div>
+                    <div className="p-2 bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 dark:text-indigo-400 rounded-lg">
+                      <Landmark size={18} />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
       {/* Delete Confirmation Modal */}
       {showDeleteConfirm && (
-        <div className="fixed inset-0 z-10 flex items-center justify-center bg-black bg-opacity-50">
-          <div className="p-6 bg-white rounded-lg shadow-lg dark:bg-white/[0.03]">
-            <h3 className="mb-4 text-lg font-semibold text-gray-900 dark:text-white">Confirm Delete</h3>
-            <p className="mb-6 text-gray-700 dark:text-gray-300">
-              Are you sure you want to delete "{site.site_name}"? This action cannot be undone.
-            </p>
-            <div className="flex justify-end space-x-4">
-              <button
-                onClick={() => setShowDeleteConfirm(false)}
-                className="px-4 py-2 text-gray-700 bg-gray-100 rounded hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600"
-                disabled={isDeleting}
-              >
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-2xl max-w-sm w-full p-6 border border-gray-100 dark:border-white/[0.06]">
+            <div className="w-12 h-12 bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 rounded-full flex items-center justify-center mb-4">
+              <Trash2 size={24} />
+            </div>
+            <h3 className="text-lg font-bold text-gray-800 dark:text-white mb-2">Delete Site?</h3>
+            <p className="text-sm text-gray-500 dark:text-gray-400 mb-6 font-medium">Are you sure you want to delete <span className="font-bold text-gray-800 dark:text-white">"{site.siteName}"</span>? This action is permanent and cannot be undone.</p>
+            <div className="flex gap-3">
+              <button onClick={() => setShowDeleteConfirm(false)} disabled={deleting}
+                className="flex-1 px-4 py-2 bg-gray-50 dark:bg-white/[0.05] text-gray-700 dark:text-gray-300 text-sm font-bold rounded-xl hover:bg-gray-100 dark:hover:bg-white/[0.1] transition-colors">
                 Cancel
               </button>
-              <button
-                onClick={handleDelete}
-                className="px-4 py-2 text-white bg-red-500 rounded hover:bg-red-600"
-                disabled={isDeleting}
-              >
-                {isDeleting ? 'Deleting...' : 'Delete'}
+              <button onClick={handleDelete} disabled={deleting}
+                className="flex-1 px-4 py-2 bg-red-600 text-white text-sm font-bold rounded-xl hover:bg-red-700 transition-colors shadow-lg shadow-red-600/20 disabled:opacity-50">
+                {deleting ? "Deleting..." : "Yes, Delete"}
               </button>
             </div>
           </div>
         </div>
       )}
-      <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-        {/* Basic Site Information */}
-        <ComponentCard title="Site Information">
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <p className="text-sm text-gray-500">Site Code</p>
-              <p className="font-medium w-full p-2 mt-1 border rounded text-gray-900 dark:text-white border-gray-300 dark:border-gray-600 bg-white dark:bg-white/[0.03] focus:ring-2 focus:ring-blue-500 focus:border-blue-500">{site.code || 'N/A'}</p>
-            </div>
-            <div>
-              <p className="text-sm text-gray-500">Site Name (SPA)</p>
-              <p className="font-medium w-full p-2 mt-1 border rounded text-gray-900 dark:text-white border-gray-300 dark:border-gray-600 bg-white dark:bg-white/[0.03] focus:ring-2 focus:ring-blue-500 focus:border-blue-500">{site.site_name || 'N/A'}</p>
-            </div>
-            <div>
-              <p className="text-sm text-gray-500">Property Location (Region)</p>
-              <p className="font-medium w-full p-2 mt-1 border rounded text-gray-900 dark:text-white border-gray-300 dark:border-gray-600 bg-white dark:bg-white/[0.03] focus:ring-2 focus:ring-blue-500 focus:border-blue-500">{site.property_location || 'N/A'}</p>
-            </div>
-            <div>
-              <p className="text-sm text-gray-500">Property Address (Area)</p>
-              <p className="font-medium w-full p-2 mt-1 border rounded text-gray-900 dark:text-white border-gray-300 dark:border-gray-600 bg-white dark:bg-white/[0.03] focus:ring-2 focus:ring-blue-500 focus:border-blue-500">{site.property_address || 'N/A'}</p>
-            </div>
-            <div>
-              <p className="text-sm text-gray-500">Pincode</p>
-              <p className="font-medium w-full p-2 mt-1 border rounded text-gray-900 dark:text-white border-gray-300 dark:border-gray-600 bg-white dark:bg-white/[0.03] focus:ring-2 focus:ring-blue-500 focus:border-blue-500">{site.pincode || 'N/A'}</p>
-            </div>
-            <div>
-              <p className="text-sm text-gray-500">Managed By</p>
-              <p className="font-medium w-full p-2 mt-1 border rounded text-gray-900 dark:text-white border-gray-300 dark:border-gray-600 bg-white dark:bg-white/[0.03] focus:ring-2 focus:ring-blue-500 focus:border-blue-500">{site.managedBy||'N/A'}</p>
-            </div>
-            <div>
-              <p className="text-sm text-gray-500">Payment Day (1 to 10)</p>
-              <p className="font-medium w-full p-2 mt-1 border rounded text-gray-900 dark:text-white border-gray-300 dark:border-gray-600 bg-white dark:bg-white/[0.03] focus:ring-2 focus:ring-blue-500 focus:border-blue-500">{site.payment_day || 'N/A'}</p>
-            </div>
-            <div>
-              <p className="text-sm text-gray-500">Property Type</p>
-              <p className="font-medium w-full p-2 mt-1 border rounded text-gray-900 dark:text-white border-gray-300 dark:border-gray-600 bg-white dark:bg-white/[0.03] focus:ring-2 focus:ring-blue-500 focus:border-blue-500">{site.property_type || 'N/A'}</p>
-            </div>
-            <div>
-              <p className="text-sm text-gray-500">Payment Bank Name</p>
-              <p className="font-medium w-full p-2 mt-1 border rounded text-gray-900 dark:text-white border-gray-300 dark:border-gray-600 bg-white dark:bg-white/[0.03] focus:ring-2 focus:ring-blue-500 focus:border-blue-500">{site.added_bank_name || 'N/A'}</p>
-            </div>
-          </div>
-        </ComponentCard>
-
-        {/* Owner Information */}
-        {/* <ComponentCard title="Owner's Information">
-          {site.owners && site.owners.length > 0 ? (
-            site.owners.map((owner, index) => (
-              <div key={owner.id || index} className="mb-4 p-3 border rounded">
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <p className="text-sm text-gray-500">Owner Name</p>
-                    <p className="font-medium w-full p-2 mt-1 border rounded text-gray-900 dark:text-white border-gray-300 dark:border-gray-600 bg-white dark:bg-white/[0.03] focus:ring-2 focus:ring-blue-500 focus:border-blue-500">{owner.owner_name || 'N/A'}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-gray-500">Monthly Rent</p>
-                    <p className="font-medium w-full p-2 mt-1 border rounded text-gray-900 dark:text-white border-gray-300 dark:border-gray-600 bg-white dark:bg-white/[0.03] focus:ring-2 focus:ring-blue-500 focus:border-blue-500">₹{owner.owner_monthly_rent || 'N/A'}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-gray-500">Bank</p>
-                    <p className="font-medium w-full p-2 mt-1 border rounded text-gray-900 dark:text-white border-gray-300 dark:border-gray-600 bg-white dark:bg-white/[0.03] focus:ring-2 focus:ring-blue-500 focus:border-blue-500">{owner.owner_bank_name || 'N/A'}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-gray-500">Account No.</p>
-                    <p className="font-medium w-full p-2 mt-1 border rounded text-gray-900 dark:text-white border-gray-300 dark:border-gray-600 bg-white dark:bg-white/[0.03] focus:ring-2 focus:ring-blue-500 focus:border-blue-500">{owner.owner_account_no || 'N/A'}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-gray-500">IFSC No.</p>
-                    <p className="font-medium w-full p-2 mt-1 border rounded text-gray-900 dark:text-white border-gray-300 dark:border-gray-600 bg-white dark:bg-white/[0.03] focus:ring-2 focus:ring-blue-500 focus:border-blue-500">{owner.owner_bank_ifsc || 'N/A'}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-gray-500">Mobile No.</p>
-                    <p className="font-medium w-full p-2 mt-1 border rounded text-gray-900 dark:text-white border-gray-300 dark:border-gray-600 bg-white dark:bg-white/[0.03] focus:ring-2 focus:ring-blue-500 focus:border-blue-500">{owner.owner_mobile_no || 'N/A'}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-gray-500">Remarks</p>
-                    <p className="font-medium w-full p-2 mt-1 border rounded text-gray-900 dark:text-white border-gray-300 dark:border-gray-600 bg-white dark:bg-white/[0.03] focus:ring-2 focus:ring-blue-500 focus:border-blue-500">{owner.owner_details || 'N/A'}</p>
-                  </div>
-                </div>
-              </div>
-            ))
-          ) : (
-            <p className="text-gray-500">No owner information available</p>
-          )}
-        </ComponentCard> */}
-        <ComponentCard title="Owner's Information">
-          <OwnerInfoSection owners={site.owners} />
-        </ComponentCard>
-
-        {/* Financial Details */}
-        <ComponentCard title="Rent Details">
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <p className="text-sm text-gray-500">Area Sq.Foot</p>
-              <p className="font-medium w-full p-2 mt-1 border rounded text-gray-900 dark:text-white border-gray-300 dark:border-gray-600 bg-white dark:bg-white/[0.03] focus:ring-2 focus:ring-blue-500 focus:border-blue-500">₹{site.area_size || 'N/A'}</p>
-            </div>
-            <div>
-              <p className="text-sm text-gray-500">Monthly Rent (Base Rent)</p>
-              <p className="font-medium w-full p-2 mt-1 border rounded text-gray-900 dark:text-white border-gray-300 dark:border-gray-600 bg-white dark:bg-white/[0.03] focus:ring-2 focus:ring-blue-500 focus:border-blue-500">₹{site.monthly_rent || 'N/A'}</p>
-            </div>
-            <div>
-              <p className="text-sm text-gray-500">Deposit</p>
-              <p className="font-medium w-full p-2 mt-1 border rounded text-gray-900 dark:text-white border-gray-300 dark:border-gray-600 bg-white dark:bg-white/[0.03] focus:ring-2 focus:ring-blue-500 focus:border-blue-500">₹{site.deposit || 'N/A'}</p>
-            </div>
-            <div>
-              <p className="text-sm text-gray-500">Maintenance</p>
-              <p className="font-medium w-full p-2 mt-1 border rounded text-gray-900 dark:text-white border-gray-300 dark:border-gray-600 bg-white dark:bg-white/[0.03] focus:ring-2 focus:ring-blue-500 focus:border-blue-500">₹{site.maintenance_charges || 'N/A'}</p>
-            </div>
-            <div>
-              <p className="text-sm text-gray-500">GST*</p>
-              <p className="font-medium w-full p-2 mt-1 border rounded text-gray-900 dark:text-white border-gray-300 dark:border-gray-600 bg-white dark:bg-white/[0.03] focus:ring-2 focus:ring-blue-500 focus:border-blue-500">₹{site.gst_charges || 'N/A'}</p>
-            </div>
-            <div>
-              <p className="text-sm text-gray-500">Muncipal Tax*</p>
-              <p className="font-medium w-full p-2 mt-1 border rounded text-gray-900 dark:text-white border-gray-300 dark:border-gray-600 bg-white dark:bg-white/[0.03] focus:ring-2 focus:ring-blue-500 focus:border-blue-500">₹{site.muncipal_tax || 'N/A'}</p>
-            </div>
-            <div>
-              <p className="text-sm text-gray-500">CAM Charges*</p>
-              <p className="font-medium w-full p-2 mt-1 border rounded text-gray-900 dark:text-white border-gray-300 dark:border-gray-600 bg-white dark:bg-white/[0.03] focus:ring-2 focus:ring-blue-500 focus:border-blue-500">₹{site.cma_charges || 'N/A'}</p>
-            </div>
-            <div>
-              <p className="text-sm text-gray-500">Water Charges*</p>
-              <p className="font-medium w-full p-2 mt-1 border rounded text-gray-900 dark:text-white border-gray-300 dark:border-gray-600 bg-white dark:bg-white/[0.03] focus:ring-2 focus:ring-blue-500 focus:border-blue-500">₹{site.water_charges || 'N/A'}</p>
-            </div>
-            <div>
-              <p className="text-sm text-gray-500">Owner Rent Total</p>
-              <p className="font-medium w-full p-2 mt-1 border rounded text-gray-900 dark:text-white border-gray-300 dark:border-gray-600 bg-white dark:bg-white/[0.03] focus:ring-2 focus:ring-blue-500 focus:border-blue-500">₹{site.owner_renttotal || 'N/A'}</p>
-            </div>
-            {/* <div>
-              <p className="text-sm text-gray-500">Municipal Tax</p>
-              <p className="font-medium w-50 p-2 mt-1 border rounded text-gray-900 dark:text-white border-gray-300 dark:border-gray-600 bg-white dark:bg-white/[0.03] focus:ring-2 focus:ring-blue-500 focus:border-blue-500">₹{site.muncipal_tax || 'N/A'}</p>
-            </div> */}
-            <div>
-              <p className="text-sm text-gray-500">Rent Pay Status (Current Status)</p>
-              <Badge
-                size="sm"
-                color={site.rent_status?.toLowerCase() === "pending" ? "warning" : "success"}
-              >
-                {site.rent_status || 'N/A'}
-              </Badge>
-            </div>
-          </div>
-        </ComponentCard>
-
-        {/* Agreement Information */}
-        <ComponentCard title="Agreement Information">
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <p className="text-sm text-gray-500">Rent Date (Start)</p>
-              <p className="font-medium w-full p-2 mt-1 border rounded text-gray-900 dark:text-white border-gray-300 dark:border-gray-600 bg-white dark:bg-white/[0.03] focus:ring-2 focus:ring-blue-500 focus:border-blue-500">{site.rent_start_date || 'N/A'}</p>
-            </div>
-            <div>
-              <p className="text-sm text-gray-500">Fitout Date</p>
-              <p className="font-medium w-full p-2 mt-1 border rounded text-gray-900 dark:text-white border-gray-300 dark:border-gray-600 bg-white dark:bg-white/[0.03] focus:ring-2 focus:ring-blue-500 focus:border-blue-500">{site.fitout_time || 'N/A'}</p>
-            </div>
-            <div>
-              <p className="text-sm text-gray-500">Agreement Date (Start)</p>
-              <p className="font-medium w-full p-2 mt-1 border rounded text-gray-900 dark:text-white border-gray-300 dark:border-gray-600 bg-white dark:bg-white/[0.03] focus:ring-2 focus:ring-blue-500 focus:border-blue-500">{site.agreement_date || 'N/A'}</p>
-            </div>
-            <div>
-              <p className="text-sm text-gray-500">Agreement Date (Expiring)</p>
-              <p className="font-medium w-full p-2 mt-1 border rounded text-gray-900 dark:text-white border-gray-300 dark:border-gray-600 bg-white dark:bg-white/[0.03] focus:ring-2 focus:ring-blue-500 focus:border-blue-500">{site.agreement_expiring || 'N/A'}</p>
-            </div>
-            <div>
-              <p className="text-sm text-gray-500">Year's of Agreement</p>
-              <p className="font-medium w-full p-2 mt-1 border rounded text-gray-900 dark:text-white border-gray-300 dark:border-gray-600 bg-white dark:bg-white/[0.03] focus:ring-2 focus:ring-blue-500 focus:border-blue-500">{site.agreement_years || 'N/A'}</p>
-            </div>
-            <div>
-              <p className="text-sm text-gray-500">Yearly Escalation (%)</p>
-              <p className="font-medium w-full p-2 mt-1 border rounded text-gray-900 dark:text-white border-gray-300 dark:border-gray-600 bg-white dark:bg-white/[0.03] focus:ring-2 focus:ring-blue-500 focus:border-blue-500">{site.yearly_escalation_percentage || 'N/A'}</p>
-            </div>
-            <div>
-              <p className="text-sm text-gray-500">Rent Pay Date (Last Pay Date)</p>
-              <p className="font-medium w-full p-2 mt-1 border rounded text-gray-900 dark:text-white border-gray-300 dark:border-gray-600 bg-white dark:bg-white/[0.03] focus:ring-2 focus:ring-blue-500 focus:border-blue-500">{site.payment_date || 'N/A'}</p>
-            </div>
-          </div>
-          {/* Rent Escalation Schedule */}
-          <ComponentCard title="Rent Escalation Schedule">
-            <RentEscalationTable site={{ ...site, monthly_rent: (site.monthly_rent ?? 0).toString() }} />
-          </ComponentCard>
-        </ComponentCard>
-
-        {/* Electricity Details */}
-        <ComponentCard title="Electricity Details">
-          {site.consumer_name ? (
-            String(site.consumer_name || '').split(',').map((name, index) => {
-              const units = String(site.unit || '').split(',');
-              const charges = String(site.electricity_charges || '').split(',');
-              const consumerNos = String(site.electricity_consumerno || '').split(',');
-
-              return (
-                <div key={index} className="mb-4 p-3 border rounded">
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <p className="text-sm text-gray-500">Consumer Name</p>
-                      <p className="font-medium w-full p-2 mt-1 border rounded text-gray-900 dark:text-white border-gray-300 dark:border-gray-600 bg-white dark:bg-white/[0.03] focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
-                        {name.trim() || 'N/A'}
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-sm text-gray-500">Electricity Unit</p>
-                      <p className="font-medium w-full p-2 mt-1 border rounded text-gray-900 dark:text-white border-gray-300 dark:border-gray-600 bg-white dark:bg-white/[0.03] focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
-                        {units[index]?.trim() || 'N/A'}
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-sm text-gray-500">Electricity Charges</p>
-                      <p className="font-medium w-full p-2 mt-1 border rounded text-gray-900 dark:text-white border-gray-300 dark:border-gray-600 bg-white dark:bg-white/[0.03] focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
-                        ₹{charges[index]?.trim() || 'N/A'}
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-sm text-gray-500">Consumer Number</p>
-                      <p className="font-medium w-full p-2 mt-1 border rounded text-gray-900 dark:text-white border-gray-300 dark:border-gray-600 bg-white dark:bg-white/[0.03] focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
-                        {consumerNos[index]?.trim() || 'N/A'}
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-sm text-gray-500">Electricity Provider</p>
-                      <p className="font-medium w-full p-2 mt-1 border rounded text-gray-900 dark:text-white border-gray-300 dark:border-gray-600 bg-white dark:bg-white/[0.03] focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
-                        {site.electricity_provider || 'N/A'}
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-sm text-gray-500 ">Electricity Status</p>
-                      <Badge
-                        size="sm"
-                        color={site.electricity_status?.toLowerCase() === "pending" ? "warning" : "success"}
-                      >
-                        {site.electricity_status || 'N/A'}
-                      </Badge>
-                    </div>
-                  </div>
-                </div>
-              );
-            })
-          ) : (
-            <p className="text-gray-500">No electricity information available</p>
-          )}
-        </ComponentCard>
-
-        {/* Tenant Information */}
-        <ComponentCard title="Tenant Information">
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <p className="text-sm text-gray-500">Tenant Name</p>
-              <p className="font-medium w-full p-2 mt-1 border rounded text-gray-900 dark:text-white border-gray-300 dark:border-gray-600 bg-white dark:bg-white/[0.03] focus:ring-2 focus:ring-blue-500 focus:border-blue-500">{site.tenant_name || 'N/A'}</p>
-            </div>
-            <div>
-              <p className="text-sm text-gray-500">Address</p>
-              <p className="font-medium w-full p-2 mt-1 border rounded text-gray-900 dark:text-white border-gray-300 dark:border-gray-600 bg-white dark:bg-white/[0.03] focus:ring-2 focus:ring-blue-500 focus:border-blue-500">{site.address || 'N/A'}</p>
-            </div>
-            <div>
-              <p className="text-sm text-gray-500">Mobile No.</p>
-              <p className="font-medium w-full p-2 mt-1 border rounded text-gray-900 dark:text-white border-gray-300 dark:border-gray-600 bg-white dark:bg-white/[0.03] focus:ring-2 focus:ring-blue-500 focus:border-blue-500">{site.mobile_no || 'N/A'}</p>
-            </div>
-            <div>
-              <p className="text-sm text-gray-500">Email</p>
-              <p className="font-medium w-full p-2 mt-1 border rounded text-gray-900 dark:text-white border-gray-300 dark:border-gray-600 bg-white dark:bg-white/[0.03] focus:ring-2 focus:ring-blue-500 focus:border-blue-500 overflow-x-auto">{site.email || 'N/A'}</p>
-            </div>
-            <div>
-              <p className="text-sm text-gray-500">Agent Details</p>
-              <p className="font-medium w-full p-2 mt-1 border rounded text-gray-900 dark:text-white border-gray-300 dark:border-gray-600 bg-white dark:bg-white/[0.03] focus:ring-2 focus:ring-blue-500 focus:border-blue-500">{site.agent_details || 'N/A'}</p>
-            </div>
-            <div>
-              <p className="text-sm text-gray-500">Agent Cost</p>
-              <p className="font-medium w-full p-2 mt-1 border rounded text-gray-900 dark:text-white border-gray-300 dark:border-gray-600 bg-white dark:bg-white/[0.03] focus:ring-2 focus:ring-blue-500 focus:border-blue-500">{site.agent_cost || 'N/A'}</p>
-            </div>
-            <div>
-              <p className="text-sm text-gray-500">Authorised By</p>
-              <p className="font-medium w-full p-2 mt-1 border rounded text-gray-900 dark:text-white border-gray-300 dark:border-gray-600 bg-white dark:bg-white/[0.03] focus:ring-2 focus:ring-blue-500 focus:border-blue-500">{site.authorised_by || 'N/A'}</p>
-            </div>
-            <div>
-              <p className="text-sm text-gray-500">Authorised Person Commission</p>
-              <p className="font-medium w-full p-2 mt-1 border rounded text-gray-900 dark:text-white border-gray-300 dark:border-gray-600 bg-white dark:bg-white/[0.03] focus:ring-2 focus:ring-blue-500 focus:border-blue-500">{site.authorised_person_commissio || 'N/A'}</p>
-            </div>
-            <div>
-              <p className="text-sm text-gray-500">Manage By</p>
-              <p className="font-medium w-full p-2 mt-1 border rounded text-gray-900 dark:text-white border-gray-300 dark:border-gray-600 bg-white dark:bg-white/[0.03] focus:ring-2 focus:ring-blue-500 focus:border-blue-500">{site.managedBy|| 'N/A'}</p>
-            </div>
-          </div>
-        </ComponentCard>
-
-        {/* Links */}
-        {/* <ComponentCard title="Important Links">
-          <div className="grid grid-cols-1 gap-4">
-            {site.gdrive_link && (
-              <a href={site.gdrive_link} target="_blank" rel="noopener noreferrer"
-                className="text-blue-500 hover:underline">
-                Google Drive Link
-              </a>
-            )}
-            {site.glocation_link && (
-              <a href={site.glocation_link} target="_blank" rel="noopener noreferrer"
-                className="text-blue-500 hover:underline ">
-                Google Location Link
-              </a>
-            )}
-            {site.website_link && (
-              <a href={site.website_link} target="_blank" rel="noopener noreferrer"
-                className="text-blue-500 hover:underline">
-                Website Link
-              </a>
-            )}
-            {!site.gdrive_link && !site.glocation_link && !site.website_link && (
-              <p className="text-gray-500">No links available</p>
-            )}
-          </div>
-        </ComponentCard> */}
-        {/* <ComponentCard title="Rent Transactions">
-         <SiteRentTransactionsTable siteId={site.id} site={site} />
-        </ComponentCard> */}
-      </div>
-      <div className="mt-6 grid grid-cols-1 gap-8 md:grid-cols-1">
-        <ComponentCard title="Rent Transactions">
-          <SiteRentTransactionsTable siteId={site.id?.toString() ?? String(params.id ?? '')} site={site} />
-        </ComponentCard>
-      </div>
     </div>
   );
 }
