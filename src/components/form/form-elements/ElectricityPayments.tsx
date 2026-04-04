@@ -43,7 +43,7 @@ interface ElectricityPaymentForm {
     payment_date: string;
     payment_amount: string;
     paid_status: 'Paid' | 'Unpaid' | 'Partial';
-    unit: string;
+    units: string;
     electricity_charges: string;
     electricity_consumerno: string;
     payment_type: string;
@@ -83,7 +83,7 @@ export default function RentPaymentForm({ siteId, owners, currentMonthlyRent }: 
         payment_date: new Date().toISOString().split('T')[0],
         payment_amount: '',
         paid_status: 'Paid',
-        unit: '',
+        units: '',
         electricity_charges: '',
         electricity_consumerno: '',
         payment_type: 'Electricity'
@@ -164,25 +164,32 @@ export default function RentPaymentForm({ siteId, owners, currentMonthlyRent }: 
                 throw new Error('Please fill in all required fields');
             }
 
+            const payload = {
+                siteId: rentFormData.site_id,
+                monthYear: rentFormData.month_year,
+                monthlyRent: rentFormData.monthly_rent,
+                paymentType: rentFormData.payment_type,
+                paymentDate: rentFormData.payment_date || new Date().toISOString().split('T')[0],
+                ownerName: rentFormData.owner_name,
+                paymentAmount: rentFormData.payment_amount,
+                utrNumber: rentFormData.utr_number,
+                paidStatus: rentFormData.paid_status,
+                ownerId: rentFormData.site_id // Assuming site_id used as placeholder for ownerId if not specific
+            };
+
+            console.log("Submitting Rent Payment Payload:", payload);
+
             const formData = new FormData();
-            Object.entries({
-                site_id: rentFormData.site_id,
-                month_year: rentFormData.month_year,
-                monthly_rent: rentFormData.monthly_rent,
-                payment_type: rentFormData.payment_type,
-                payment_date: rentFormData.payment_date || new Date().toISOString().split('T')[0],
-                owner_name: rentFormData.owner_name,
-                payment_amount: rentFormData.payment_amount,
-                utr_number: rentFormData.utr_number,
-                paid_status: rentFormData.paid_status,
-                tenant_id: rentFormData.site_id
-            }).forEach(([key, value]) => formData.append(key, String(value)));
+            Object.entries(payload).forEach(([key, value]) => formData.append(key, String(value)));
 
             if (rentImage) {
                 formData.append('image', rentImage);
             }
 
-            const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/electricity/`, {
+            const url = `${process.env.NEXT_PUBLIC_API_URL}/api/rent/renttransactions`;
+            console.log("Submitting Rent Payment to:", url);
+
+            const response = await fetch(url, {
                 method: 'POST',
                 headers: {
                     'Authorization': `Bearer ${localStorage.getItem('token')}`
@@ -190,7 +197,9 @@ export default function RentPaymentForm({ siteId, owners, currentMonthlyRent }: 
                 body: formData
             });
 
+            console.log("Rent Payment API Response Status:", response.status);
             const data = await response.json();
+            console.log("Rent Payment API Response Data:", data);
 
             if (!response.ok) {
                 switch (response.status) {
@@ -246,28 +255,35 @@ export default function RentPaymentForm({ siteId, owners, currentMonthlyRent }: 
     const handleElectricitySubmit = async () => {
         try {
             if (!electricityFormData.site_id || !electricityFormData.month_year || !electricityFormData.payment_amount ||
-                !electricityFormData.unit || !electricityFormData.electricity_charges || !electricityFormData.electricity_consumerno) {
+                !electricityFormData.units || !electricityFormData.electricity_charges || !electricityFormData.electricity_consumerno) {
                 throw new Error('Please fill in all required fields');
             }
 
+            const payload = {
+                siteId: electricityFormData.site_id,
+                monthYear: electricityFormData.month_year.toUpperCase(),
+                paymentDate: electricityFormData.payment_date,
+                paymentAmount: electricityFormData.payment_amount,
+                paidStatus: electricityFormData.paid_status,
+                units: electricityFormData.units,
+                electricityCharges: electricityFormData.electricity_charges,
+                electricityConsumerNo: electricityFormData.electricity_consumerno,
+                paymentType: electricityFormData.payment_type
+            };
+
+            console.log("Submitting Electricity Payment Payload:", payload);
+
             const formData = new FormData();
-            Object.entries({
-                site_id: electricityFormData.site_id,
-                month_year: electricityFormData.month_year.toUpperCase(),
-                payment_date: electricityFormData.payment_date,
-                payment_amount: electricityFormData.payment_amount,
-                paid_status: electricityFormData.paid_status,
-                unit: electricityFormData.unit,
-                electricity_charges: electricityFormData.electricity_charges,
-                electricity_consumerno: electricityFormData.electricity_consumerno,
-                payment_type: electricityFormData.payment_type
-            }).forEach(([key, value]) => formData.append(key, String(value)));
+            Object.entries(payload).forEach(([key, value]) => formData.append(key, String(value)));
 
             if (electricityImage) {
                 formData.append('image', electricityImage);
             }
 
-            const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/electricity-payments`, {
+            const url = `${process.env.NEXT_PUBLIC_API_URL}/api/rent/electricitytransactions`;
+            console.log("Submitting Electricity Payment to:", url);
+
+            const response = await fetch(url, {
                 method: 'POST',
                 headers: {
                     'Authorization': `Bearer ${localStorage.getItem('token')}`
@@ -275,7 +291,9 @@ export default function RentPaymentForm({ siteId, owners, currentMonthlyRent }: 
                 body: formData
             });
 
+            console.log("Electricity Payment API Response Status:", response.status);
             const data = await response.json();
+            console.log("Electricity Payment API Response Data:", data);
 
             if (!response.ok) {
                 throw new Error(data.message || 'Failed to record electricity payment');
@@ -297,7 +315,7 @@ export default function RentPaymentForm({ siteId, owners, currentMonthlyRent }: 
             setElectricityFormData(prev => ({
                 ...prev,
                 payment_amount: '',
-                unit: '',
+                units: '',
                 electricity_charges: '',
                 electricity_consumerno: '',
                 paid_status: 'Paid',
@@ -491,8 +509,8 @@ export default function RentPaymentForm({ siteId, owners, currentMonthlyRent }: 
                                 type="number"
                                 step={0.01}
                                 id="unit"
-                                name="unit"
-                                value={electricityFormData.unit}
+                                name="units"
+                                value={electricityFormData.units}
                                 onChange={handleElectricityInputChange}
                                 required
                             />
@@ -588,7 +606,7 @@ export default function RentPaymentForm({ siteId, owners, currentMonthlyRent }: 
                             setElectricityFormData(prev => ({
                                 ...prev,
                                 payment_amount: '',
-                                unit: '',
+                                units: '',
                                 electricity_charges: '',
                                 electricity_consumerno: '',
                                 paid_status: 'Paid',

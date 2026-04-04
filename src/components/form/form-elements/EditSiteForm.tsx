@@ -79,7 +79,7 @@ interface Site {
   agent_details: string;
   agent_cost: string;
   authorised_by: string;
-  manage_by: string;
+  managedBy: string;
   owners: Owner[];
   // Additional fields from API
   electricity_status: string;
@@ -132,12 +132,17 @@ export default function SiteDetailPage() {
           throw new Error("Authentication token not found");
         }
 
-        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/sites/${siteId}`, {
+        const url = `${process.env.NEXT_PUBLIC_API_URL}/api/rent/sites/${siteId}`;
+        console.log("Fetching site details from:", url);
+
+        const response = await fetch(url, {
           headers: {
             Authorization: `Bearer ${token}`,
             "Content-Type": "application/json",
           },
         });
+
+        console.log("Site Detail API Response Status:", response.status);
 
         if (!response.ok) {
           console.error("API Response:", response);
@@ -145,9 +150,11 @@ export default function SiteDetailPage() {
         }
 
         const data = await response.json();
+        console.log("Site Detail Fetched JSON data:", data);
 
-        // The API may return the site directly OR nested under data.site / data.data
-        const siteData = data?.site ?? data?.data ?? data;
+        // The API returns the site nested under data.data
+        const siteData = data?.data || data?.site || data;
+        console.log("Extracted Site Data:", siteData);
 
         // Normalize siteData by supporting both snake_case and camelCase
         const normalized = { ...siteData };
@@ -163,7 +170,8 @@ export default function SiteDetailPage() {
           electricityStatus: 'electricity_status',
           gstCharges: 'gst_charges',
           maintenanceCharges: 'maintenance_charges',
-          muncipalTax: 'muncipal_tax',
+          municipalTax: 'muncipal_tax', // Fixed: backend uses municipalTax
+          muncipalTax: 'muncipal_tax', // Keep for safety
           cmaCharges: 'cma_charges',
           electricityCharges: 'electricity_charges',
           electricityProvider: 'electricity_provider',
@@ -177,20 +185,32 @@ export default function SiteDetailPage() {
           agreementYears: 'agreement_years',
           yearlyEscalationPercentage: 'yearly_escalation_percentage',
           authorisedBy: 'authorised_by',
-          manageBy: 'manage_by',
+          managedBy: 'manage_by', // Fixed: backend uses managedBy
+          manageBy: 'manage_by', // Keep for safety
           paymentDate: 'payment_date',
           paymentDay: 'payment_day',
           ownerRenttotal: 'owner_renttotal',
-          electricityConsumerno: 'electricity_consumerno',
+          electricityConsumerNo: 'electricity_consumerno', // Fixed case
+          electricityConsumerno: 'electricity_consumerno', // Keep for safety
           areaSize: 'area_size',
           rentType: 'rent_type',
           consumerName: 'consumer_name',
-          siteMobileno: 'site_mobileno',
+          siteMobileNo: 'site_mobileno', // Fixed case
+          siteMobileno: 'site_mobileno', // Keep for safety
           agentCost: 'agent_cost',
           agentDetails: 'agent_details',
           authorisedPersonCommission: 'authorised_person_commissio',
           increasedRent: 'increased_rent',
-          escalationPercentage: 'escalation_percentage'
+          escalationPercentage: 'escalation_percentage',
+          msebDeposit: 'mseb_deposit',
+          gdriveLink: 'gdrive_link',
+          glocationLink: 'glocation_link',
+          websiteLink: 'website_link',
+          tenantAddress: 'address',
+          tenantEmail: 'email',
+          tenantMobileNo: 'mobile_no',
+          city: 'city',
+          pincode: 'pincode'
         };
 
         Object.entries(mapping).forEach(([camel, snake]) => {
@@ -203,6 +223,21 @@ export default function SiteDetailPage() {
         if (normalized.owners && Array.isArray(normalized.owners)) {
           normalized.owners = normalized.owners.map((owner: any) => {
             const normalizedOwner = { ...owner };
+            
+            // Extract from nested ownerId object if it exists
+            if (owner.ownerId && typeof owner.ownerId === 'object') {
+              normalizedOwner.ownerName = owner.ownerId.ownerName || normalizedOwner.ownerName;
+              normalizedOwner.ownerDetails = owner.ownerId.ownerDetails || normalizedOwner.ownerDetails;
+              normalizedOwner.ownerMobileNo = owner.ownerId.mobileNo || normalizedOwner.ownerMobileNo;
+            }
+            
+            // Extract from nested bankAccount object if it exists
+            if (owner.bankAccount && typeof owner.bankAccount === 'object') {
+              normalizedOwner.ownerBankName = owner.bankAccount.bankName || normalizedOwner.ownerBankName;
+              normalizedOwner.ownerAccountNo = owner.bankAccount.accountNo || normalizedOwner.ownerAccountNo;
+              normalizedOwner.ownerBankIfsc = owner.bankAccount.ifsc || normalizedOwner.ownerBankIfsc;
+            }
+
             const ownerMapping: Record<string, string> = {
               ownerName: 'owner_name',
               ownerDetails: 'owner_details',
@@ -247,7 +282,10 @@ export default function SiteDetailPage() {
         throw new Error("Authentication token not found");
       }
 
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/sites/${params.id}`, {
+      const url = `${process.env.NEXT_PUBLIC_API_URL}/api/rent/sites/${params.id}`;
+      console.log("Deleting site via:", url);
+
+      const response = await fetch(url, {
         method: 'DELETE',
         headers: {
           Authorization: `Bearer ${token}`,
@@ -371,7 +409,7 @@ export default function SiteDetailPage() {
   return (
     <div className="p-6">
       <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-bold text-gray-700 bg-gray-100 rounded hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600">{site.site_name}</h1>
+        <h1 className="text-2xl font-bold text-gray-900 dark:text-white">{site.site_name}</h1>
         <div className="flex space-x-4">
           <button
             onClick={() => router.back()}
@@ -380,7 +418,7 @@ export default function SiteDetailPage() {
             Back
           </button>
           <button
-            onClick={() => router.push(`/site/edit/${site.id}`)}
+            onClick={() => router.push(`/sites/edit/${params.id}`)}
             className="px-4 py-2 text-white bg-blue-500 rounded hover:bg-blue-600"
           >
             Edit Site
@@ -446,7 +484,7 @@ export default function SiteDetailPage() {
             </div>
             <div>
               <p className="text-sm text-gray-500">Managed By</p>
-              <p className="font-medium w-full p-2 mt-1 border rounded text-gray-900 dark:text-white border-gray-300 dark:border-gray-600 bg-white dark:bg-white/[0.03] focus:ring-2 focus:ring-blue-500 focus:border-blue-500">{site.manage_by || 'N/A'}</p>
+              <p className="font-medium w-full p-2 mt-1 border rounded text-gray-900 dark:text-white border-gray-300 dark:border-gray-600 bg-white dark:bg-white/[0.03] focus:ring-2 focus:ring-blue-500 focus:border-blue-500">{site.managedBy||'N/A'}</p>
             </div>
             <div>
               <p className="text-sm text-gray-500">Payment Day (1 to 10)</p>
@@ -604,10 +642,10 @@ export default function SiteDetailPage() {
         {/* Electricity Details */}
         <ComponentCard title="Electricity Details">
           {site.consumer_name ? (
-            site.consumer_name.split(',').map((name, index) => {
-              const units = site.unit?.split(',') || [];
-              const charges = site.electricity_charges?.split(',') || [];
-              const consumerNos = site.electricity_consumerno?.split(',') || [];
+            String(site.consumer_name || '').split(',').map((name, index) => {
+              const units = String(site.unit || '').split(',');
+              const charges = String(site.electricity_charges || '').split(',');
+              const consumerNos = String(site.electricity_consumerno || '').split(',');
 
               return (
                 <div key={index} className="mb-4 p-3 border rounded">
@@ -697,7 +735,7 @@ export default function SiteDetailPage() {
             </div>
             <div>
               <p className="text-sm text-gray-500">Manage By</p>
-              <p className="font-medium w-full p-2 mt-1 border rounded text-gray-900 dark:text-white border-gray-300 dark:border-gray-600 bg-white dark:bg-white/[0.03] focus:ring-2 focus:ring-blue-500 focus:border-blue-500">{site.manage_by || 'N/A'}</p>
+              <p className="font-medium w-full p-2 mt-1 border rounded text-gray-900 dark:text-white border-gray-300 dark:border-gray-600 bg-white dark:bg-white/[0.03] focus:ring-2 focus:ring-blue-500 focus:border-blue-500">{site.managedBy|| 'N/A'}</p>
             </div>
           </div>
         </ComponentCard>

@@ -297,7 +297,7 @@ export default function RentTransactionsTable() {
       console.log("Response:", response)
       if (!response.ok) {
         const errorData = await response.json();
-        console.log("Error data:",errorData);
+        console.log("Error data:", errorData);
         throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
       }
 
@@ -838,7 +838,7 @@ export default function RentTransactionsTable() {
                       Proof File
                     </label>
 
-                    {!removeImageFlag && !newImageFile && selectedTransaction?.image &&(
+                    {!removeImageFlag && !newImageFile && selectedTransaction?.image && (
                       <div className="mb-2">
                         {selectedTransaction.image.match(/\.(jpeg|jpg|gif|png|svg|webp|bmp)$/i) ? (
                           <img
@@ -887,15 +887,15 @@ export default function RentTransactionsTable() {
                         disabled={removeImageFlag}
                         className="block w-full text-sm text-gray-500 dark:text-gray-300 file:border file:border-gray-300 file:rounded-md file:bg-gray-50 dark:file:bg-gray-800 file:p-2 file:cursor-pointer"
                       />
-                     {newImageFile && (
-                          <div className="mt-3">
-                            <img
-                              src={URL.createObjectURL(newImageFile)}
-                              alt="New Preview"
-                              className="w-24 h-24 object-cover rounded-md border border-gray-300 shadow"
-                            />
-                          </div>
-                        )}
+                      {newImageFile && (
+                        <div className="mt-3">
+                          <img
+                            src={URL.createObjectURL(newImageFile)}
+                            alt="New Preview"
+                            className="w-24 h-24 object-cover rounded-md border border-gray-300 shadow"
+                          />
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>

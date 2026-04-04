@@ -49,7 +49,7 @@ export default function UserInfoCard() {
   useEffect(() => {
     const storedToken = localStorage.getItem("token");
     setToken(storedToken);
-    
+
     if (storedToken) {
       const user = parseJwt(storedToken);
       if (user && user.id) {
@@ -64,7 +64,7 @@ export default function UserInfoCard() {
         if (!userId || !token) return;
 
         const response = await fetch(
-          `${process.env.NEXT_PUBLIC_API_URL}/api/users/user/${userId}`,
+          `${process.env.NEXT_PUBLIC_API_URL}/api/auth/${userId}`,
           {
             headers: {
               Authorization: `Bearer ${token}`,
@@ -77,16 +77,16 @@ export default function UserInfoCard() {
         }
 
         const data = await response.json();
-        
+
         // Map the API response to our component state structure
         const updatedData = {
-          firstName: data.name || "",
+          firstName: data.firstName || data.name || "",
           lastName: data.lastName || "",
           email: data.userName || data.email || "",
           phone: data.phone || "",
           bio: data.bio || "",
         };
-        
+
         console.log("Processed user details:", updatedData);
         setUserDetails(updatedData);
         setEditUserDetails(updatedData);
@@ -103,9 +103,9 @@ export default function UserInfoCard() {
   // const handleSave = async () => {
   //   try {
   //     if (!userId || !token) return;
-      
+
   //     console.log("Saving changes...", editUserDetails);
-      
+
   //     const response = await fetch(
   //       `http://localhost:5000/api/users/user/${userId}`,
   //       {

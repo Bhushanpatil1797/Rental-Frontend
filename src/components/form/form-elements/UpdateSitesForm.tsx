@@ -9,6 +9,8 @@ import { useParams, useRouter } from 'next/navigation';
 import ComponentCard from '@/components/common/ComponentCard';
 import { toast } from 'sonner';
 import { ChevronDown, ChevronUp } from 'lucide-react';
+import OwnerSelect from '@/components/owners/OwnerSelect';
+
 interface Owner {
   id: number;
   owner_name: string;
@@ -115,6 +117,7 @@ export default function SiteEditPage() {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [selectedOwnerIds, setSelectedOwnerIds] = useState<(string | number)[]>([]);
   const [expandedOwners, setExpandedOwners] = useState<{ [key: number]: boolean }>({}); // Add this line
   const [expandedElectricityDetails, setExpandedElectricityDetails] = useState<{ [key: number]: boolean }>({});
   // const [electricityDetails, setElectricityDetails] = useState<Array<{
@@ -137,25 +140,40 @@ export default function SiteEditPage() {
     const fetchSiteDetails = async () => {
       try {
         const siteId = params.id;
+        
+        // Prevent API calls with invalid IDs
+        if (!siteId || siteId === "undefined" || siteId === "[id]") {
+          console.error("Invalid siteId in URL parameters:", params);
+          setLoading(false);
+          setError("Invalid Site ID: The URL is missing a valid identifier. Please navigate back to the Sites list and try again.");
+          return;
+        }
+
         const token = localStorage.getItem("token");
 
         if (!token) {
           throw new Error("Authentication token not found");
         }
 
-        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/sites/${siteId}`, {
+        const url = `${process.env.NEXT_PUBLIC_API_URL}/api/rent/sites/${siteId}`;
+        console.log("Fetching site details from:", url);
+
+        const response = await fetch(url, {
           headers: {
             Authorization: `Bearer ${token}`,
             "Content-Type": "application/json",
           },
         });
 
+        console.log("Site Details API Response Status:", response.status);
+
         if (!response.ok) {
-          console.error("API Response:", response);
+          console.error("API Response Error:", response);
           throw new Error(`HTTP error! status: ${response.status}`);
         }
 
         const data = await response.json();
+        console.log("Site Details Fetched Data:", data);
 
         // Handle nested response if exists
         const siteData = data?.site ?? data?.data ?? data;
@@ -174,14 +192,18 @@ export default function SiteEditPage() {
           electricityStatus: 'electricity_status',
           gstCharges: 'gst_charges',
           maintenanceCharges: 'maintenance_charges',
-          muncipalTax: 'muncipal_tax',
+          municipalTax: 'muncipal_tax', // Fixed: backend uses municipalTax
+          muncipalTax: 'muncipal_tax', // Keep for safety
           cmaCharges: 'cma_charges',
           electricityCharges: 'electricity_charges',
           electricityProvider: 'electricity_provider',
           waterCharges: 'water_charges',
           bankName: 'added_bank_name',
+          addedBankName: 'added_bank_name', // camelCase version
           accountNo: 'added_account_no',
+          addedAccountNo: 'added_account_no', // camelCase version
           ifscCode: 'added_ifsc',
+          addedIfsc: 'added_ifsc', // camelCase version
           agreementDate: 'agreement_date',
           agreementExpiring: 'agreement_expiring',
           fitoutTime: 'fitout_time',
@@ -189,20 +211,30 @@ export default function SiteEditPage() {
           agreementYears: 'agreement_years',
           yearlyEscalationPercentage: 'yearly_escalation_percentage',
           authorisedBy: 'authorised_by',
-          manageBy: 'manage_by',
+          managedBy: 'manage_by', // Fixed: backend uses managedBy
+          manageBy: 'manage_by', // Keep for safety
           paymentDate: 'payment_date',
           paymentDay: 'payment_day',
           ownerRenttotal: 'owner_renttotal',
-          electricityConsumerno: 'electricity_consumerno',
+          electricityConsumerNo: 'electricity_consumerno', // Fixed case
+          electricityConsumerno: 'electricity_consumerno', // Keep for safety
           areaSize: 'area_size',
           rentType: 'rent_type',
           consumerName: 'consumer_name',
-          siteMobileno: 'site_mobileno',
+          siteMobileNo: 'site_mobileno', // Fixed case
+          siteMobileno: 'site_mobileno', // Keep for safety
           agentCost: 'agent_cost',
           agentDetails: 'agent_details',
           authorisedPersonCommission: 'authorised_person_commissio',
           increasedRent: 'increased_rent',
           escalationPercentage: 'escalation_percentage',
+          msebDeposit: 'mseb_deposit',
+          gdriveLink: 'gdrive_link',
+          glocationLink: 'glocation_link',
+          websiteLink: 'website_link',
+          tenantAddress: 'address',
+          tenantEmail: 'email',
+          tenantMobileNo: 'mobile_no',
           city: 'city',
           pincode: 'pincode'
         };
@@ -213,10 +245,30 @@ export default function SiteEditPage() {
           }
         });
 
+        // Extract owner IDs for selection
+        if (normalized.owners) {
+          setSelectedOwnerIds(normalized.owners.map((o: any) => o._id || o.id));
+        }
+
         // Also normalize owners
         if (normalized.owners && Array.isArray(normalized.owners)) {
           normalized.owners = normalized.owners.map((owner: any) => {
             const normalizedOwner = { ...owner };
+
+            // Extract from nested ownerId object if it exists
+            if (owner.ownerId && typeof owner.ownerId === 'object') {
+              normalizedOwner.ownerName = owner.ownerId.ownerName || normalizedOwner.ownerName;
+              normalizedOwner.ownerDetails = owner.ownerId.ownerDetails || normalizedOwner.ownerDetails;
+              normalizedOwner.ownerMobileNo = owner.ownerId.mobileNo || normalizedOwner.ownerMobileNo;
+            }
+
+            // Extract from nested bankAccount object if it exists
+            if (owner.bankAccount && typeof owner.bankAccount === 'object') {
+              normalizedOwner.ownerBankName = owner.bankAccount.bankName || normalizedOwner.ownerBankName;
+              normalizedOwner.ownerAccountNo = owner.bankAccount.accountNo || normalizedOwner.ownerAccountNo;
+              normalizedOwner.ownerBankIfsc = owner.bankAccount.ifsc || normalizedOwner.ownerBankIfsc;
+            }
+
             const ownerMapping: Record<string, string> = {
               ownerName: 'owner_name',
               ownerDetails: 'owner_details',
@@ -245,14 +297,22 @@ export default function SiteEditPage() {
       }
     };
 
-    if (params.id) {
+    if (params.id && params.id !== "undefined") {
       fetchSiteDetails();
+    } else if (params.id === "undefined") {
+      setLoading(false);
+      setError("Invalid Site ID");
     }
   }, [params.id]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
     setFormData(prev => prev ? { ...prev, [name]: value } : null);
+  };
+
+  // Handle owners selection change
+  const handleOwnersChange = (ids: (string | number)[]) => {
+    setSelectedOwnerIds(ids);
   };
 
   const handleOwnerChange = (index: number, e: React.ChangeEvent<HTMLInputElement>) => {
@@ -274,10 +334,10 @@ export default function SiteEditPage() {
   // Add this useEffect to initialize electricity details from formData
   useEffect(() => {
     if (formData && formData.consumer_name) {
-      const consumerNames = formData.consumer_name.split(',').map(name => name.trim());
-      const units = (formData.unit || '').split(',').map(unit => unit.trim());
-      const charges = (formData.electricity_charges || '').split(',').map(charge => charge.trim());
-      const consumerNos = (formData.electricity_consumerno || '').split(',').map(no => no.trim());
+      const consumerNames = String(formData.consumer_name || '').split(',').map(name => name.trim());
+      const units = String(formData.unit || '').split(',').map(unit => unit.trim());
+      const charges = String(formData.electricity_charges || '').split(',').map(charge => charge.trim());
+      const consumerNos = String(formData.electricity_consumerno || '').split(',').map(no => no.trim());
       const providers = Array(consumerNames.length).fill(formData.electricity_provider || '');
       const statuses = Array(consumerNames.length).fill(formData.electricity_status || '');
 
@@ -465,36 +525,24 @@ export default function SiteEditPage() {
         }
       });
 
-      // Also denormalize owners
-      if (denormalized.owners && Array.isArray(denormalized.owners)) {
-        denormalized.owners = denormalized.owners.map((owner: any) => {
-          const denormalizedOwner = { ...owner };
-          const ownerMapping: Record<string, string> = {
-            owner_name: 'ownerName',
-            owner_details: 'ownerDetails',
-            owner_mobile_no: 'ownerMobileNo',
-            owner_account_no: 'ownerAccountNo',
-            owner_bank_name: 'ownerBankName',
-            owner_bank_ifsc: 'ownerBankIfsc',
-            owner_monthly_rent: 'ownerMonthlyRent',
-            id: 'ownerId'
-          };
-          Object.entries(ownerMapping).forEach(([snake, camel]) => {
-            if ((denormalizedOwner as any)[snake] !== undefined) {
-              (denormalizedOwner as any)[camel] = (denormalizedOwner as any)[snake];
-            }
-          });
-          return denormalizedOwner;
-        });
-      }
+      // Format nested objects properly
+      const submissionData = {
+        ...denormalized,
+        owners: selectedOwnerIds.map(id => ({ id })), // Backend might need full objects or just IDs
+        consumers: (denormalized as any).electricityConsumers || []
+      };
 
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/sites/${params.id}`, {
+      const url = `${process.env.NEXT_PUBLIC_API_URL}/api/rent/sites/${params.id}`;
+      console.log("Updating site at:", url);
+      console.log("Update Payload:", submissionData);
+
+      const response = await fetch(url, {
         method: 'PUT',
         headers: {
           Authorization: `Bearer ${token}`,
           "Content-Type": "application/json",
         },
-        body: JSON.stringify(denormalized),
+        body: JSON.stringify(submissionData),
       });
 
       if (!response.ok) {
@@ -664,148 +712,11 @@ export default function SiteEditPage() {
           </ComponentCard>
 
           {/* Owner Information */}
-          <ComponentCard title="Owner Information">
-            {formData.owners && formData.owners.length > 0 ? (
-              formData.owners.map((owner, index) => (
-                <div key={owner.id || index} className="mb-4 border rounded overflow-hidden">
-                  {/* Collapsible Header */}
-                  <div className="flex justify-between items-center p-3 bg-white dark:bg-white/[0.03]">
-                    <div className="flex items-center space-x-4">
-                      <h3 className="font-semibold text-gray-900 dark:text-white">
-                        {owner.owner_name ? owner.owner_name : `Owner ${index + 1}`}
-                      </h3>
-                      <button
-                        type="button"
-                        onClick={() => toggleOwner(index)}
-                        className="text-gray-600 dark:text-gray-300"
-                      >
-                        {expandedOwners[index] ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
-                      </button>
-                    </div>
-                    {formData.owners.length > 1 && (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setFormData(prev => {
-                            if (!prev) return null;
-                            const updatedOwners = prev.owners.filter((_, i) => i !== index);
-                            return { ...prev, owners: updatedOwners };
-                          });
-                        }}
-                        className="px-3 py-1 text-sm text-white bg-red-500 rounded hover:bg-red-600"
-                      >
-                        Remove
-                      </button>
-                    )}
-                  </div>
-
-                  {/* Collapsible Body */}
-                  {expandedOwners[index] && (
-                    <div className="p-3 bg-white dark:bg-white/[0.03] border-t border-gray-200 dark:border-gray-700">
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        <div>
-                          <label className="block text-sm text-gray-500 dark:text-gray-400">Owner Name</label>
-                          <input
-                            type="text"
-                            name="owner_name"
-                            value={owner.owner_name || ''}
-                            onChange={(e) => handleOwnerChange(index, e)}
-                            className="w-full p-2 mt-1 border rounded text-gray-900 dark:text-white bg-white dark:bg-white/[0.03] border-gray-300 dark:border-gray-600 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-sm text-gray-500 dark:text-gray-400">Monthly Rent (₹)</label>
-                          <input
-                            type="text"
-                            name="owner_monthly_rent"
-                            value={owner.owner_monthly_rent || ''}
-                            onChange={(e) => handleOwnerChange(index, e)}
-                            className="w-full p-2 mt-1 border rounded text-gray-900 dark:text-white bg-white dark:bg-white/[0.03] border-gray-300 dark:border-gray-600 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-sm text-gray-500 dark:text-gray-400">Bank Name</label>
-                          <input
-                            type="text"
-                            name="owner_bank_name"
-                            value={owner.owner_bank_name || ''}
-                            onChange={(e) => handleOwnerChange(index, e)}
-                            className="w-full p-2 mt-1 border rounded text-gray-900 dark:text-white bg-white dark:bg-white/[0.03] border-gray-300 dark:border-gray-600 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-sm text-gray-500 dark:text-gray-400">Account No.</label>
-                          <input
-                            type="text"
-                            name="owner_account_no"
-                            value={owner.owner_account_no || ''}
-                            onChange={(e) => handleOwnerChange(index, e)}
-                            className="w-full p-2 mt-1 border rounded text-gray-900 dark:text-white bg-white dark:bg-white/[0.03] border-gray-300 dark:border-gray-600 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-sm text-gray-500 dark:text-gray-400">IFSC Code</label>
-                          <input
-                            type="text"
-                            name="owner_bank_ifsc"
-                            value={owner.owner_bank_ifsc || ''}
-                            onChange={(e) => handleOwnerChange(index, e)}
-                            className="w-full p-2 mt-1 border rounded text-gray-900 dark:text-white bg-white dark:bg-white/[0.03] border-gray-300 dark:border-gray-600 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-sm text-gray-500 dark:text-gray-400">Mobile No. (Optional)</label>
-                          <input
-                            type="text"
-                            name="owner_mobile_no"
-                            value={owner.owner_mobile_no || ''}
-                            onChange={(e) => handleOwnerChange(index, e)}
-                            className="w-full p-2 mt-1 border rounded text-gray-900 dark:text-white bg-white dark:bg-white/[0.03] border-gray-300 dark:border-gray-600 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                          />
-                        </div>
-                        <div className="col-span-2">
-                          <label className="block text-sm text-gray-500 dark:text-gray-400">Remarks</label>
-                          <textarea
-                            name="owner_details"
-                            value={owner.owner_details || ''}
-                            onChange={(e) => handleOwnerChange(index, e as any)}
-                            className="w-full p-2 mt-1 border rounded text-gray-900 dark:text-white bg-white dark:bg-white/[0.03] border-gray-300 dark:border-gray-600 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                            rows={3}
-                          ></textarea>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              ))
-            ) : (
-              <p className="text-gray-500 dark:text-gray-400">No owner information available</p>
-            )}
-            <button
-              type="button"
-              onClick={() => {
-                setFormData(prev => {
-                  if (!prev) return null;
-                  const newOwner: Owner = {
-                    id: Math.random(), // Temporary ID for new owner
-                    owner_name: '',
-                    owner_details: '',
-                    owner_account_no: '',
-                    owner_bank_name: '',
-                    owner_bank_ifsc: '',
-                    owner_mobile_no: '',
-                    owner_monthly_rent: ''
-                  };
-                  return {
-                    ...prev,
-                    owners: [...prev.owners, newOwner]
-                  };
-                });
-              }}
-              className="mt-4 px-4 py-2 text-white bg-blue-500 rounded hover:bg-blue-600"
-            >
-              Add Owner
-            </button>
+          <ComponentCard title="Assign Owners">
+            <OwnerSelect 
+              selectedOwnerIds={selectedOwnerIds} 
+              onChange={handleOwnersChange} 
+            />
           </ComponentCard>
 
           {/* Financial Details */}
@@ -902,36 +813,6 @@ export default function SiteEditPage() {
                 />
               </div>
 
-              {/* <div>
-                <label className="block text-sm text-gray-500 dark:text-gray-400">Water Charges (₹)</label>
-                <input
-                  type="text"
-                  name="water_charges"
-                  value={formData.water_charges || ''}
-                  onChange={handleChange}
-                  className="w-full p-2 mt-1 border rounded text-gray-900 dark:text-white border-gray-300 dark:border-gray-600 bg-white dark:bg-white/[0.03] focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                />
-              </div>
-              <div>
-                <label className="block text-sm text-gray-500 dark:text-gray-400">Municipal Tax (₹)</label>
-                <input
-                  type="text"
-                  name="muncipal_tax"
-                  value={formData.muncipal_tax || ''}
-                  onChange={handleChange}
-                  className="w-full p-2 mt-1 border rounded text-gray-900 dark:text-white border-gray-300 dark:border-gray-600 bg-white dark:bg-white/[0.03] focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                />
-              </div> */}
-              {/* <div>
-                <label className="block text-sm text-gray-500 dark:text-gray-400">Maintenance Charges (₹)</label>
-                <input
-                  type="number"
-                  name="maintenance_charges"
-                  value={formData.maintenance_charges || ''}
-                  onChange={handleChange}
-                  className="w-full p-2 mt-1 border rounded text-gray-900 dark:text-white border-gray-300 dark:border-gray-600 bg-white dark:bg-white/[0.03] focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                />
-              </div> */}
               <div>
                 <label className="block text-sm text-gray-500 dark:text-gray-400">Rent Status</label>
                 <select
@@ -1132,35 +1013,7 @@ export default function SiteEditPage() {
             </button>
           </ComponentCard>
 
-          {/* Status Information */}
-          {/* <ComponentCard title="Status Information">
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm text-gray-500 dark:text-gray-400">Electricity Charges (₹)</label>
-                <input
-                  type="text"
-                  name="electricity_charges"
-                  value={formData.electricity_charges || ''}
-                  onChange={handleChange}
-                  className="w-full p-2 mt-1 border rounded text-gray-900 dark:text-white border-gray-300 dark:border-gray-600 bg-white dark:bg-white/[0.03] focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                />
-              </div>
-              <div>
-                <label className="block text-sm text-gray-500 dark:text-gray-400">Electricity Status</label>
-                <select
-                  name="electricity_status"
-                  value={formData.electricity_status || ''}
-                  onChange={handleChange}
-                  className="w-full p-2 mt-1 border rounded text-gray-900 dark:text-white border-gray-300 dark:border-gray-600 bg-white dark:bg-white/[0.03] focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                >
-                  <option value="">Select Status</option>
-                  <option value="Pending">Pending</option>
-                  <option value="Paid">Paid</option>
-                </select>
-              </div>
 
-            </div>
-          </ComponentCard> */}
 
           {/* Tenant Information */}
           <ComponentCard title="Tenant Information">

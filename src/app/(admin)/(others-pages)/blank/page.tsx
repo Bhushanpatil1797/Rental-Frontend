@@ -46,8 +46,8 @@ const bankNames = Array.from(new Set(sites.map(site => site.added_bank_name).fil
 
 // Update filtered logic to include bank filter
 const filtered = sites.filter(site => {
-  const matchesQuery = query.trim() === '' || site.site_name?.toLowerCase().includes(query.toLowerCase())
-  const matchesBank = selectedBank === '' || site.added_bank_name === selectedBank
+  const matchesQuery = query.trim() === '' || site.siteName?.toLowerCase().includes(query.toLowerCase())
+  const matchesBank = selectedBank === '' || site.addedBankName === selectedBank
   return matchesQuery && matchesBank
 })
 
@@ -67,23 +67,28 @@ const filtered = sites.filter(site => {
         const token = localStorage.getItem("token")
         if (!token) throw new Error("Token not found in localStorage")
 
-        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/sites/all-sites`, {
+        const url = `${process.env.NEXT_PUBLIC_API_URL}/api/rent/sites`;
+        console.log("Fetching all sites from:", url);
+        
+        const res = await fetch(url, {
           headers: {
             Authorization: `Bearer ${token}`,
             "Content-Type": "application/json",
           },
         })
 
-        console.log("API Response:", res)
-        console.log("API Response Status:", res.status);
+        console.log("API Response Status:", res.status)
 
         if (!res.ok) {
           throw new Error(`HTTP error! Status: ${res.status}`)
         }
 
         const data = await res.json()
-        console.log("Fetched sites data:", data)
-        const siteList = Array.isArray(data.sites) ? data.sites : []
+        console.log("Fetched sites JSON data:", data)
+        
+        // Standard check for data location (some APIs return data.data, some data.sites)
+        const siteList = data.data || data.sites || (Array.isArray(data) ? data : [])
+        console.log("Extracted siteList:", siteList)
 
         setSites(siteList)
         setError(null)
@@ -105,12 +110,12 @@ const filtered = sites.filter(site => {
     }
 
     const filtered = sites.filter(site =>
-      site.site_name?.toLowerCase().includes(query.toLowerCase())
+      site.siteName?.toLowerCase().includes(query.toLowerCase())
     )
     setFilteredSites(filtered)
   }, [query, sites])
 
-  const fetchSiteDetails = async (siteId: number) => {
+  const fetchSiteDetails = async (siteId: string) => {
     setLoadingDetails(true)
     setSiteDetails(null)
 
@@ -118,24 +123,34 @@ const filtered = sites.filter(site => {
       const token = localStorage.getItem("token")
       if (!token) throw new Error("Token not found in localStorage")
 
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/sites/${siteId}`, {
+      console.log("Fetching site details for ID:", siteId, "from:", `${process.env.NEXT_PUBLIC_API_URL}/api/rent/sites/${siteId}`);
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/rent/sites/${siteId}`, {
         headers: {
           Authorization: `Bearer ${token}`,
           "Content-Type": "application/json",
         },
       })
 
+      console.log("Site Details API Response Status:", res.status)
+
       if (!res.ok) {
         throw new Error(`HTTP error! Status: ${res.status}`)
       }
 
       const data = await res.json()
-      setSiteDetails(data)
+      console.log("Fetched site details JSON data:", data)
 
-      // Initialize all owners as collapsed
-      if (data.owners && data.owners.length > 0) {
+      // Unwrap data from data.data or data.data (depends on backend structure)
+      const details = data.data || data
+      console.log("Unwrapped site details:", details)
+
+      setSiteDetails(details)
+
+      // Initialize all owners as collapsed using the new camelCase property or fallback
+      const owners = details.owners || details.ownerId || []
+      if (owners.length > 0) {
         const initialOwnerState: { [key: number]: boolean } = {}
-        data.owners.forEach((_: any, index: number) => {
+        owners.forEach((_: any, index: number) => {
           initialOwnerState[index] = false
         })
         setExpandedOwners(initialOwnerState)
@@ -151,7 +166,7 @@ const filtered = sites.filter(site => {
 
   const handleSiteClick = async (site: any) => {
     setSelectedSite(site)
-    await fetchSiteDetails(site.id)
+    await fetchSiteDetails(site._id || site.id)
   }
 
   const handleBackToSearch = () => {
@@ -278,23 +293,23 @@ const filtered = sites.filter(site => {
               {paginatedSites.length > 0 ? (
                 paginatedSites.map(site => (
                   <div
-                    key={site.id}
+                    key={site._id || site.id}
                     className="p-3 border-b last:border-b-0 cursor-pointer hover:bg-gray-50 flex justify-between items-center"
                     onClick={() => handleSiteClick(site)}
                   >
                     <div>
                       <div className="text-blue-600 font-medium hover:underline">
-                        {site.site_name}
+                        {site.siteName || site.site_name}
                       </div>
-                      {site.property_location && (
+                      {site.propertyLocation && (
                         <div className="text-gray-500 text-sm flex items-center mt-1">
                           <MapPin size={14} className="mr-1" />
-                          {site.property_location}
+                          {site.propertyLocation}
                         </div>
                       )}
                       <div className="text-gray-500 text-sm flex items-center mt-1">
                         <CreditCard size={14} className="mr-1" />
-                        Added In Bank: {site.added_bank_name || 'N/A'}
+                        Added In Bank: {site.addedBankName || site.added_bank_name || 'N/A'}
                       </div>
                     </div>
                     <div className="text-gray-400">
@@ -368,7 +383,7 @@ const filtered = sites.filter(site => {
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm text-gray-500 dark:text-gray-400 ">Site Name</label>
-                    <div className="mt-1 font-medium dark:text-white">{siteDetails.site_name || 'N/A'}</div>
+                    <div className="mt-1 font-medium dark:text-white">{siteDetails.siteName || siteDetails.site_name || 'N/A'}</div>
                   </div>
                   <div>
                     <label className="block text-sm text-gray-500 dark:text-gray-400">Site Code</label>
@@ -376,11 +391,11 @@ const filtered = sites.filter(site => {
                   </div>
                   <div>
                     <label className="block text-sm text-gray-500 dark:text-gray-400">Property Location</label>
-                    <div className="mt-1 font-medium dark:text-white">{siteDetails.property_location || 'N/A'}</div>
+                    <div className="mt-1 font-medium dark:text-white">{siteDetails.propertyLocation || siteDetails.property_location || 'N/A'}</div>
                   </div>
                   <div>
                     <label className="block text-sm text-gray-500 dark:text-gray-400">Property Type</label>
-                    <div className="mt-1 font-medium dark:text-white">{siteDetails.property_type || 'N/A'}</div>
+                    <div className="mt-1 font-medium dark:text-white">{siteDetails.propertyType || siteDetails.property_type || 'N/A'}</div>
                   </div>
                   <div>
                     <label className="block text-sm text-gray-500 dark:text-gray-400">Pincode</label>
@@ -388,15 +403,15 @@ const filtered = sites.filter(site => {
                   </div>
                   <div>
                     <label className="block text-sm text-gray-500 dark:text-gray-400">Managed By</label>
-                    <div className="mt-1 font-medium dark:text-white">{siteDetails.manage_by || 'N/A'}</div>
+                    <div className="mt-1 font-medium dark:text-white">{siteDetails.managedBy || siteDetails.manage_by || 'N/A'}</div>
                   </div>
                   <div className="mt-4 pb-7">
                   <label className="block text-sm text-gray-500 dark:text-gray-400">Property Address</label>
-                  <div className="mt-1 font-medium dark:text-white">{siteDetails.property_address || 'N/A'}</div>
+                  <div className="mt-1 font-medium dark:text-white">{siteDetails.propertyAddress || siteDetails.property_address || 'N/A'}</div>
                 </div>
                 <div className="mt-4 pb-7">
                   <label className="block text-sm text-gray-500 dark:text-gray-400">Added Bank Account</label>
-                  <div className="mt-1 font-medium dark:text-white">{siteDetails.added_bank_name || 'N/A'}</div>
+                  <div className="mt-1 font-medium dark:text-white">{siteDetails.addedBankName || siteDetails.added_bank_name || 'N/A'}</div>
                 </div>
                 </div>
                 
@@ -407,55 +422,46 @@ const filtered = sites.filter(site => {
                       <label className="block text-sm text-gray-500 dark:text-gray-400">Agreement Date</label>
                       <div className="mt-1 font-medium flex items-center dark:text-white">
                         <Calendar size={14} className="mr-1 text-gray-400 " />
-                        {formatDate(siteDetails.agreement_date)}
+                        {formatDate(siteDetails.agreementDate || siteDetails.agreement_date)}
                       </div>
                     </div>
                     <div>
                       <label className="block text-sm text-gray-500 dark:text-gray-400">Agreement Expiring</label>
                       <div className="mt-1 font-medium flex items-center dark:text-white">
                         <Calendar size={14} className="mr-1 text-gray-400" />
-                        {formatDate(siteDetails.agreement_expiring)}
+                        {formatDate(siteDetails.agreementExpiring || siteDetails.agreement_expiring)}
                       </div>
                     </div>
                     <div>
                       <label className="block text-sm text-gray-500 dark:text-gray-400">Rent Start Date</label>
                       <div className="mt-1 font-medium flex items-center dark:text-white">
                         <Calendar size={14} className="mr-1 text-gray-400" />
-                        {formatDate(siteDetails.rent_start_date)}
+                        {formatDate(siteDetails.rentStartDate || siteDetails.rent_start_date)}
                       </div>
                     </div>
-                    {/* <div>
-                      <label className="block text-sm text-gray-500 dark:text-gray-400">Payment Date</label>
-                      <div className="mt-1 font-medium flex items-center dark:text-white">
-                        <Calendar size={14} className="mr-1 text-gray-400" />
-                        {siteDetails.payment_date
-                          ? formatDate(siteDetails.payment_date)
-                          : `Day ${siteDetails.payment_day || 'N/A'}`}
-                      </div>
-                    </div> */}
                     <div>
                       <label className="block text-sm text-gray-500 dark:text-gray-400">Payment Day (1 to 10)</label>
-                      <div className="mt-1 font-medium dark:text-white">{siteDetails.payment_day || 'N/A'}</div>
+                      <div className="mt-1 font-medium dark:text-white">{siteDetails.paymentDay || siteDetails.payment_day || 'N/A'}</div>
                     </div>
                     <div>
                       <label className="block text-sm text-gray-500 dark:text-gray-400">Monthly Rent (Base Rent)</label>
                       <div className="mt-1 font-medium flex items-center dark:text-white">
                         <Calendar size={14} className="mr-1 text-gray-400" />
-                        ₹{siteDetails.monthly_rent?.toLocaleString() || 'N/A'}
+                        ₹{(siteDetails.monthlyRent || siteDetails.monthly_rent || 0).toLocaleString() || 'N/A'}
                       </div>
                     </div>
                     <div>
                       <label className="block text-sm text-gray-500 dark:text-gray-400">Agreement Years</label>
                       <div className="mt-1 font-medium flex items-center dark:text-white">
                         <Calendar size={14} className="mr-1 text-gray-400" />
-                        {siteDetails.agreement_years || 'N/A'} years
+                        {siteDetails.agreementYears || siteDetails.agreement_years || 'N/A'} years
                       </div>
                     </div>
                     <div>
                       <label className="block text-sm text-gray-500 dark:text-gray-400">Escalation %</label>
                       <div className="mt-1 font-medium flex items-center dark:text-white">
                         <Calendar size={14} className="mr-1 text-gray-400" />
-                        {siteDetails.yearly_escalation_percentage || 0}%
+                        {siteDetails.yearlyEscalationPercentage || siteDetails.yearly_escalation_percentage || 0}%
                       </div>
                     </div>
                   </div>
@@ -541,13 +547,13 @@ const filtered = sites.filter(site => {
 
               )}
               <RentPaymentForm
-                siteId={selectedSite.id}
-                owners={siteDetails.owners?.map((owner: { id: any; owner_name: any; owner_monthly_rent: any }) => ({
-                  id: owner.id,
-                  owner_name: owner.owner_name,
-                  owner_monthly_rent: Number(owner.owner_monthly_rent) || 0
+                siteId={selectedSite._id || selectedSite.id}
+                owners={(siteDetails.owners || siteDetails.ownerId || []).map((owner: { id: any; _id: any; owner_name: any; ownerName: any; owner_monthly_rent: any; ownerMonthlyRent: any }) => ({
+                  id: owner._id || owner.id,
+                  owner_name: owner.ownerName || owner.owner_name,
+                  owner_monthly_rent: Number(owner.ownerMonthlyRent || owner.owner_monthly_rent) || 0
                 })) || []}
-                currentMonthlyRent={Number(siteDetails.monthly_rent) || 0}
+                currentMonthlyRent={Number(siteDetails.monthlyRent || siteDetails.monthly_rent) || 0}
               />
             </div>
           ) : null}

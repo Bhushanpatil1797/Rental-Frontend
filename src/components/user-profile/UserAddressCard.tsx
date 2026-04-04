@@ -29,11 +29,13 @@ export default function UsersTable() {
     password: '',
     role: 'user'
   });
+  const [searchTerm, setSearchTerm] = useState("");
+  const [roleFilter, setRoleFilter] = useState("");
   useEffect(() => {
     const fetchUsers = async () => {
       try {
         setLoading(true);
-        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/users`, {
+        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/auth`, {
           method: 'GET',
           headers: {
             'Content-Type': 'application/json',
@@ -62,7 +64,7 @@ export default function UsersTable() {
   const handleCreateUser = async () => {
     try {
       setIsAddingUser(true);
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/users`, {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/auth`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -77,7 +79,7 @@ export default function UsersTable() {
       }
 
       // Refresh users list
-      const updatedResponse = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/users`, {
+      const updatedResponse = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/auth`, {
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('token')}`
         }
@@ -108,7 +110,7 @@ export default function UsersTable() {
 
     try {
       setIsDeleting(true);
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/users/${userId}`, {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/auth/${userId}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('token')}`
@@ -161,16 +163,42 @@ export default function UsersTable() {
     <>
       <div className="p-5 border border-gray-200 rounded-2xl dark:border-gray-800 lg:p-6">
         <div className="flex flex-col gap-6">
-          <div className="flex justify-between items-center">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <h4 className="text-lg font-semibold text-gray-800 dark:text-white/90">
               All Users
             </h4>
-            <Button size="sm" variant="primary" onClick={() => {
-              setSelectedUser(null);
-              openModal();
-            }}>
-              Add New User
-            </Button>
+
+            <div className="flex flex-wrap items-center gap-3">
+              {/* Search Input */}
+              <div className="relative">
+                <input
+                  type="text"
+                  placeholder="Search users..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="w-full sm:w-64 px-4 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:border-gray-700 dark:bg-white/[0.03] dark:text-white/90"
+                />
+              </div>
+
+              {/* Role Filter */}
+              <select
+                value={roleFilter}
+                onChange={(e) => setRoleFilter(e.target.value)}
+                className="px-4 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:border-gray-700 dark:bg-white/[0.03] dark:text-white/90 [&>option]:dark:text-black"
+              >
+                <option value="">All Roles</option>
+                <option value="admin">Admin</option>
+                <option value="user">User</option>
+                <option value="acestaff">Ace Staff</option>
+              </select>
+
+              <Button size="sm" variant="primary" onClick={() => {
+                setSelectedUser(null);
+                openModal();
+              }}>
+                Add New User
+              </Button>
+            </div>
           </div>
 
           <div className="overflow-x-auto">
@@ -186,23 +214,33 @@ export default function UsersTable() {
                 </tr>
               </thead>
               <tbody className="bg-white dark:bg-[#121212] divide-y divide-gray-200 dark:divide-gray-800">
-                {users.map((user) => (
-                  <tr key={user.id}>
-                    <td className="px-4 py-4 text-sm text-gray-800 dark:text-white/90">{user.id}</td>
-                    <td className="px-4 py-4 text-sm text-gray-800 dark:text-white/90">{user.name}</td>
-                    <td className="px-4 py-4 text-sm text-gray-800 dark:text-white/90">{user.userName}</td>
-                    <td className="px-4 py-4 text-sm">
-                      <span className={`px-2 py-1 rounded-full text-xs ${user.role === 'admin'
-                        ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400'
-                        : 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400'
-                        }`}>
-                        {user.role}
-                      </span>
-                    </td>
-                    <td className="px-4 py-4 text-sm text-gray-800 dark:text-white/90">{formatDate(user.createdAt)}</td>
-                    <td className="px-4 py-4 text-sm">
-                      <div className="flex items-center gap-3">
-                        {/* <button
+                {users
+                  .filter((user) => {
+                    const matchesSearch =
+                      user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                      user.userName.toLowerCase().includes(searchTerm.toLowerCase());
+                    const matchesRole = roleFilter === "" || user.role === roleFilter;
+                    return matchesSearch && matchesRole;
+                  })
+                  .map((user) => (
+                    <tr key={user.id}>
+                      <td className="px-4 py-4 text-sm text-gray-800 dark:text-white/90">{user.id}</td>
+                      <td className="px-4 py-4 text-sm text-gray-800 dark:text-white/90">{user.name}</td>
+                      <td className="px-4 py-4 text-sm text-gray-800 dark:text-white/90">{user.userName}</td>
+                      <td className="px-4 py-4 text-sm">
+                        <span className={`px-2 py-1 rounded-full text-xs ${user.role === 'admin'
+                          ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400'
+                          : user.role === 'acestaff'
+                            ? 'bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-400'
+                            : 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400'
+                          }`}>
+                          {user.role}
+                        </span>
+                      </td>
+                      <td className="px-4 py-4 text-sm text-gray-800 dark:text-white/90">{formatDate(user.createdAt)}</td>
+                      <td className="px-4 py-4 text-sm">
+                        <div className="flex items-center gap-3">
+                          {/* <button
                           onClick={() => handleEditUser(user)}
                           className="inline-flex items-center gap-2 text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300"
                           disabled={isDeleting}
@@ -223,25 +261,25 @@ export default function UsersTable() {
                           </svg>
                           Edit
                         </button> */}
-                        <button
-                          onClick={() => handleDeleteUser(user.id)}
-                          className="inline-flex items-center gap-2 text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-300"
-                          disabled={isDeleting}
-                        >
-                          <svg
-                            className="fill-current"
-                            width="18"
-                            height="18"
-                            viewBox="0 0 24 24"
+                          <button
+                            onClick={() => handleDeleteUser(user.id)}
+                            className="inline-flex items-center gap-2 text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-300"
+                            disabled={isDeleting}
                           >
-                            <path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z" />
-                          </svg>
-                          Delete
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
+                            <svg
+                              className="fill-current"
+                              width="18"
+                              height="18"
+                              viewBox="0 0 24 24"
+                            >
+                              <path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z" />
+                            </svg>
+                            Delete
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
               </tbody>
             </table>
           </div>
@@ -309,6 +347,7 @@ export default function UsersTable() {
                     >
                       <option value="user">User</option>
                       <option value="admin">Admin</option>
+                      <option value="acestaff">Ace Staff</option>
                     </select>
                   </div>
                 </div>

@@ -19,6 +19,7 @@ interface Owner {
 
 interface Site {
   id: string;
+  _id?: string;
   siteName: string;
   code: string;
   propertyLocation: string;
@@ -43,19 +44,27 @@ export default function BasicTableOne() {
         const token = localStorage.getItem("token");
         if (!token) throw new Error("Authentication token not found");
 
-        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/sites/all-sites`, {
+        const url = `${process.env.NEXT_PUBLIC_API_URL}/api/rent/sites`;
+        console.log("Fetching sites from:", url);
+        
+        const response = await fetch(url, {
           headers: {
             Authorization: `Bearer ${token}`,
             "Content-Type": "application/json",
           },
         });
 
+        console.log("BasicTableOne API Response Status:", response.status);
+
         if (!response.ok) {
           throw new Error(`HTTP error! status: ${response.status}`);
         }
 
         const data = await response.json();
-        setSites(Array.isArray(data.data) ? data.data : []);
+        console.log("BasicTableOne Fetched Data:", data);
+        
+        const siteList = data.data || data.sites || (Array.isArray(data) ? data : []);
+        setSites(siteList);
         setError(null);
       } catch (error) {
         console.error("Error fetching sites:", error);
@@ -140,7 +149,7 @@ export default function BasicTableOne() {
                   <TableBody className="divide-y divide-gray-200 dark:divide-gray-700">
                     {filteredSites.map((site, index) => (
                       <TableRow
-                        key={site.id}
+                        key={site._id || site.id}
                         className="hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors"
                       >
                         <TableCell className="w-16 px-6 py-4 text-gray-900 dark:text-gray-100">
@@ -174,7 +183,7 @@ export default function BasicTableOne() {
                         </TableCell>
                         <TableCell className="w-24 px-6 py-4 text-gray-900 dark:text-gray-100">
                           <button
-                            onClick={() => navigateToSite(site.id)}
+                            onClick={() => navigateToSite(site._id || site.id)}
                             className="px-3 py-1 text-xs font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
                           >
                             View

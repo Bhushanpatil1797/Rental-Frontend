@@ -16,24 +16,29 @@ import Badge from "../ui/badge/Badge";
 interface ElectricityTransaction {
     image: any;
     transactionId: string;
-    consumerNo: string;
-    electricityCharges: string;
-    unit: string;
+    id: string;
+    _id: string;
+    siteId: {
+        _id: string;
+        siteName: string;
+        code: string;
+    };
+    ownerId?: {
+        ownerName: string;
+        mobileNo: string;
+    };
     monthYear: string;
-    paymentAmount: string;
-    id: number;
-    tenant_id: string;
-    consumerName: string;
     paymentDate: string;
-    payment_type: string;
+    paymentAmount: string;
     paidStatus: string;
-    utr_number: string;
-    electricityProvider: string;
-    siteId: string;
-    siteName: string;
-    siteCode: string;
+    paymentType: string;
+    utrNumber: string;
+    units: string;
+    electricityCharges: string;
+    electricityConsumerNo: string;
     monthly_amount?: number;
 }
+
 
 interface FilterParams {
     site_id?: string;
@@ -84,26 +89,30 @@ export default function ElectricityTransactionsTable() {
                 if (value) queryParams.append(key, value);
             });
 
-            const response = await fetch(
-                `${process.env.NEXT_PUBLIC_API_URL}/api/electricity/all-payments`,
-                {
-                    headers: {
-                        Authorization: `Bearer ${token}`,
-                        "Content-Type": "application/json",
-                    },
-                }
-            );
+            const url = `${process.env.NEXT_PUBLIC_API_URL}/api/rent/electricity`; // Standardized prefix
+            console.log("Fetching electricity transactions from:", url);
+
+            const response = await fetch(url, {
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                    "Content-Type": "application/json",
+                },
+            });
+
+            console.log("Electricity Transactions API Response Status:", response.status);
 
             if (!response.ok) {
+                console.error("Electricity Transactions Error Response:", response);
                 throw new Error(`HTTP error! status: ${response.status}`);
             }
 
             const json = await response.json();
+            console.log("Electricity Transactions Data:", json);
 
             // Support both { data: [...] } and plain array responses
-            const dataArray = Array.isArray(json) ? json : Array.isArray(json?.data) ? json.data : [];
+            const dataArray = Array.isArray(json) ? json : (json?.data || []);
             setTransactions(dataArray);
-            setTotalCount(dataArray.length);
+            setTotalCount(dataArray.total || dataArray.length);
             setError(null);
         } catch (error) {
             console.error("Error fetching electricity transactions:", error);
@@ -126,17 +135,17 @@ export default function ElectricityTransactionsTable() {
         .filter((item) => {
             const searchString = searchTerm.toLowerCase();
             return (
-                (item.siteName?.toLowerCase() || "").includes(searchString) ||
-                (item.siteCode?.toLowerCase() || "").includes(searchString) ||
-                (item.consumerName?.toLowerCase() || "").includes(searchString) ||
-                (item.payment_type?.toLowerCase() || "").includes(searchString) ||
+                (item.siteId?.siteName?.toLowerCase() || "").includes(searchString) ||
+                (item.siteId?.code?.toLowerCase() || "").includes(searchString) ||
+                (item.ownerId?.ownerName?.toLowerCase() || "").includes(searchString) ||
+                (item.paymentType?.toLowerCase() || "").includes(searchString) ||
                 (item.paidStatus?.toLowerCase() || "").includes(searchString) ||
-                (item.utr_number?.toLowerCase() || "").includes(searchString)
+                (item.utrNumber?.toLowerCase() || "").includes(searchString)
             );
         })
         .filter((item) => {
             if (filters.paid_status && item.paidStatus?.toLowerCase() !== filters.paid_status.toLowerCase()) return false;
-            if (filters.payment_type && item.payment_type?.toLowerCase() !== filters.payment_type.toLowerCase()) return false;
+            if (filters.payment_type && item.paymentType?.toLowerCase() !== filters.payment_type.toLowerCase()) return false;
             if (filters.start_date && item.paymentDate && item.paymentDate < filters.start_date) return false;
             if (filters.end_date && item.paymentDate && item.paymentDate > filters.end_date) return false;
             return true;
@@ -169,11 +178,11 @@ export default function ElectricityTransactionsTable() {
 
         setUpdateFormData({
             monthly_amount: transaction.monthly_amount?.toString() || "",
-            payment_type: transaction.payment_type || "",
+            payment_type: transaction.paymentType || "",
             paid_status: transaction.paidStatus || "",
             payment_date: formatDateForInput(transaction.paymentDate),
             payment_amount: transaction.paymentAmount || "",
-            utr_number: transaction.utr_number || "",
+            utr_number: transaction.utrNumber || "",
             month_year: transaction.monthYear || ""
         });
         setIsUpdateModalOpen(true);
@@ -232,9 +241,9 @@ export default function ElectricityTransactionsTable() {
             const token = localStorage.getItem("token");
             if (!token) throw new Error("Authentication token not found");
 
-            const id = selectedTransaction.transactionId || selectedTransaction.id;
+            const id = selectedTransaction._id || selectedTransaction.id;
             const response = await fetch(
-                `${process.env.NEXT_PUBLIC_API_URL}/api/electricity/${id}`,
+                `${process.env.NEXT_PUBLIC_API_URL}/api/rent/electricity/${id}`,
                 {
                     method: "PUT",
                     headers: {
@@ -279,9 +288,9 @@ export default function ElectricityTransactionsTable() {
             const token = localStorage.getItem("token");
             if (!token) throw new Error("Authentication token not found");
 
-            const id = selectedTransaction.transactionId || selectedTransaction.id;
+            const id = selectedTransaction._id || selectedTransaction.id;
             const response = await fetch(
-                `${process.env.NEXT_PUBLIC_API_URL}/api/electricity-payments/${id}`,
+                `${process.env.NEXT_PUBLIC_API_URL}/api/rent/electricity/${id}`,
                 {
                     method: "DELETE",
                     headers: {
@@ -409,9 +418,9 @@ export default function ElectricityTransactionsTable() {
                                                 key={item.transactionId || item.id}
                                                 className="hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors"
                                             >
-                                                <TableCell className="w-32 px-6 py-4 text-gray-900 dark:text-gray-100">{item.siteCode || '-'}</TableCell>
-                                                <TableCell className="w-40 px-6 py-4 text-gray-900 dark:text-gray-100">{item.siteName || '-'}</TableCell>
-                                                <TableCell className="w-40 px-6 py-4 text-gray-900 dark:text-gray-100">{item.unit || '-'}</TableCell>
+                                                <TableCell className="w-32 px-6 py-4 text-gray-900 dark:text-gray-100">{item.siteId?.code || '-'}</TableCell>
+                                                <TableCell className="w-40 px-6 py-4 text-gray-900 dark:text-gray-100">{item.siteId?.siteName || '-'}</TableCell>
+                                                <TableCell className="w-40 px-6 py-4 text-gray-900 dark:text-gray-100">{item.units || '-'}</TableCell>
                                                 <TableCell className="w-32 px-6 py-4 text-gray-900 dark:text-gray-100 font-medium">
                                                     {formatCurrency(Number(item.paymentAmount) || 0)}
                                                 </TableCell>
@@ -438,7 +447,7 @@ export default function ElectricityTransactionsTable() {
                                                         {item.paidStatus || 'Unknown'}
                                                     </Badge>
                                                 </TableCell>
-                                                <TableCell className="w-32 px-6 py-4 text-gray-900 dark:text-gray-100">{item.consumerNo || '-'}</TableCell>
+                                                <TableCell className="w-32 px-6 py-4 text-gray-900 dark:text-gray-100">{item.electricityConsumerNo || '-'}</TableCell>
                                                 <TableCell className="w-24 px-6 py-4 text-gray-900 dark:text-gray-100">
                                                     {item.image ? (
                                                         <>
@@ -450,7 +459,7 @@ export default function ElectricityTransactionsTable() {
                                                             >
                                                                 View Image
                                                             </button>
-                                                            {selectedTransaction?.transactionId === item.transactionId && selectedTransaction.image && !isUpdateModalOpen && !isDeleteModalOpen && (
+                                                            {selectedTransaction?._id === item._id && selectedTransaction.image && !isUpdateModalOpen && !isDeleteModalOpen && (
                                                                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
                                                                     <div className="bg-white dark:bg-[#121212] rounded-lg p-4 shadow-lg relative max-w-xs w-full">
                                                                         <button
