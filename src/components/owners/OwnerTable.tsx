@@ -198,29 +198,29 @@ export default function OwnerTable() {
   return (
     <div className="space-y-4">
       {/* ── Top bar ── */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 py-2">
         {/* Search */}
-        <div className="relative flex-1 max-w-sm">
+        <div className="relative w-full sm:max-w-sm">
           <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
           <input
             type="text"
             placeholder="Search owners..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-9 pr-4 py-2 text-sm border border-gray-200 dark:border-white/[0.08] rounded-lg bg-white dark:bg-white/[0.03] text-gray-800 dark:text-white placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-400"
+            className="w-full pl-9 pr-4 py-2 text-sm border border-gray-200 dark:border-white/[0.08] rounded-lg bg-white dark:bg-white/[0.03] text-gray-800 dark:text-white placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-400 shadow-sm"
           />
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 w-full sm:w-auto justify-between sm:justify-end">
           <button
             onClick={() => fetchOwners(page)}
-            className="p-2 border border-gray-200 dark:border-white/[0.08] rounded-lg text-gray-500 hover:bg-gray-50 dark:hover:bg-white/[0.05] transition-colors"
+            className="p-2 border border-gray-200 dark:border-white/[0.08] rounded-lg text-gray-500 hover:bg-gray-50 dark:hover:bg-white/[0.05] transition-colors bg-white dark:bg-transparent"
             title="Refresh"
           >
             <RefreshCw size={15} />
           </button>
           <button
             onClick={() => { setCurrentOwner(null); setIsModalOpen(true); }}
-            className="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium rounded-lg transition-colors shadow-sm"
+            className="flex flex-1 sm:flex-none items-center justify-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium rounded-lg transition-colors shadow-sm"
           >
             <Plus size={15} /> Add Owner
           </button>

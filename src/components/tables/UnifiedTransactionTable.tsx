@@ -205,22 +205,22 @@ export default function UnifiedTransactionTable({ title, filterStatus }: Props) 
   return (
     <div className="space-y-4">
       {/* Simple Header */}
-      <div className="flex items-center justify-between py-2 px-4 bg-white dark:bg-white/[0.02] border-b border-gray-100 dark:border-white/[0.05]">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between py-4 px-4 bg-white dark:bg-white/[0.02] border-b border-gray-100 dark:border-white/[0.05] gap-4">
         <div>
           <h2 className="text-base font-bold uppercase tracking-tight text-gray-800 dark:text-white/90">{title}</h2>
         </div>
-        <div className="flex items-center gap-4">
-          <div className="relative">
+        <div className="flex flex-col sm:flex-row items-center gap-4 w-full sm:w-auto">
+          <div className="relative w-full sm:w-64">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
             <input
               type="text"
               placeholder="Filter master ledger..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-10 pr-4 py-2 bg-gray-50 dark:bg-white/[0.03] border border-gray-200 dark:border-white/10 rounded-lg text-sm w-64 outline-none focus:ring-2 focus:ring-indigo-500/20"
+              className="pl-10 pr-4 py-2 bg-gray-50 dark:bg-white/[0.03] border border-gray-200 dark:border-white/10 rounded-lg text-sm w-full outline-none focus:ring-2 focus:ring-indigo-500/20"
             />
           </div>
-          <button onClick={handleExport} className="flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white text-sm font-bold rounded-lg hover:bg-emerald-700 transition-all shadow-md shadow-emerald-600/10" title="Export CSV">
+          <button onClick={handleExport} className="flex items-center justify-center gap-2 px-4 py-2 bg-emerald-600 text-white text-sm font-bold rounded-lg hover:bg-emerald-700 transition-all shadow-md shadow-emerald-600/10 w-full sm:w-auto" title="Export CSV">
             <FileSpreadsheet size={18} />
             <span>EXCEL EXPORT</span>
           </button>
@@ -321,11 +321,11 @@ export default function UnifiedTransactionTable({ title, filterStatus }: Props) 
       </div>
 
       {/* Simplified Footer */}
-      <div className="flex justify-between items-center px-4 py-2 bg-white dark:bg-white/[0.02] border border-gray-200 dark:border-white/10 rounded-xl shadow-sm">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center px-4 py-3 bg-white dark:bg-white/[0.02] border border-gray-200 dark:border-white/10 rounded-xl shadow-sm gap-4">
         <div className="flex gap-6">
           <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Master Count: {Object.values(groupedData).flat().length}</span>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 w-full sm:w-auto justify-between sm:justify-end">
           <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Total Aggregate Sum:</span>
           <span className="text-lg font-bold text-indigo-600 dark:text-indigo-400 tabular-nums">₹{Object.values(groupedData).flat().reduce((acc, curr) => acc + curr.amount, 0).toLocaleString()}</span>
         </div>

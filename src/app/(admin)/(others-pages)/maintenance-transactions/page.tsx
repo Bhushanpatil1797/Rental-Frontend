@@ -10,15 +10,11 @@ export const metadata: Metadata = {
 
 export default function MaintenanceTransactionsPage() {
   return (
-    <div className="p-4 sm:p-6 lg:p-8 space-y-8 bg-gray-50/50 dark:bg-[#09090b] min-h-screen">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+    <div className="p-4 sm:p-6 lg:p-8 space-y-4 bg-gray-50/50 dark:bg-[#09090b] min-h-screen">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-gray-100 dark:border-white/[0.05] pb-4">
         <div>
-          <PageBreadCrumb pageTitle="Maintenance History" />
-          <h1 className="text-2xl font-black text-gray-900 dark:text-white uppercase tracking-tighter mt-1">Transaction Ledger</h1>
-        </div>
-        <div className="p-4 bg-emerald-500/10 border border-emerald-500/20 rounded-2xl">
-          <p className="text-[10px] font-black text-emerald-600 uppercase tracking-widest text-center sm:text-right mb-0.5 opacity-70 italic">Accounting View</p>
-          <p className="text-xs font-bold text-emerald-700 dark:text-emerald-400 text-center sm:text-right">Monitoring site upkeep & repair expenses</p>
+          <PageBreadCrumb pageTitle="All Sites" />
+          <h1 className="text-xl font-bold text-gray-900 dark:text-white mt-1">Maintenance History</h1>
         </div>
       </div>
 

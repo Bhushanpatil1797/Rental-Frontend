@@ -35,7 +35,11 @@ interface TableCellProps
 
 // Table Component
 const Table: React.FC<TableProps> = ({ children, className }) => {
-  return <table className={`min-w-full ${className ?? ""}`}>{children}</table>;
+  return (
+    <div className="w-full overflow-x-auto custom-scrollbar">
+      <table className={`min-w-full ${className ?? ""}`}>{children}</table>
+    </div>
+  );
 };
 
 // TableHeader Component

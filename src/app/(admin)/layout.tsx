@@ -27,7 +27,7 @@ export default function AdminLayout({
       <AppSidebar />
 
       <main className={`flex-1 transition-all duration-300 ${sidebarWidth}`}>
-        <div className="w-full px-1 sm:px-2 lg:px-4 py-2 sm:py-4">
+        <div className="w-full px-4 sm:px-6 py-4 sm:py-6">
           {children}
         </div>
       </main>

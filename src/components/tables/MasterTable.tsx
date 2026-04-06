@@ -98,7 +98,7 @@ const EditModal: React.FC<EditModalProps> = ({ isOpen, onClose, data, onSave, mo
         <h2 className="text-xl font-semibold mb-2">{mode === "add" ? "Add New Record" : "Edit Record"}</h2>
         <form onSubmit={handleSubmit} className="space-y-2">
           {/* ...existing form fields... */}
-          <div className="grid grid-cols-2 gap-2">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">SPA Name</label>
               <input
@@ -235,7 +235,7 @@ const EditModal: React.FC<EditModalProps> = ({ isOpen, onClose, data, onSave, mo
             />
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Agreement</label>
               <input
@@ -547,21 +547,21 @@ export default function MasterTable() {
         </div>
       )}
       {/* Add New Button */}
-      <div className="flex items-center justify-between px-3 py-2 border-b border-gray-200 dark:border-gray-700">
-        <div className="relative w-full max-w-sm">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between px-3 py-4 border-b border-gray-200 dark:border-gray-700 gap-4">
+        <div className="relative w-full sm:max-w-sm">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
           <input
             type="text"
             placeholder="Search records..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-9 pr-3 py-1.5 rounded-lg border border-gray-300 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:bg-white/[0.05] dark:border-white/[0.1] dark:text-white text-sm"
+            className="w-full pl-9 pr-3 py-2 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500/20 dark:bg-white/[0.05] dark:border-white/[0.1] dark:text-white text-sm shadow-sm"
           />
         </div>
         <Button
           variant="primary"
           onClick={handleAddClick}
-          className="flex items-center justify-center gap-1.5 text-xs py-1.5 px-3 rounded-lg shadow-sm transition-all hover:shadow-md"
+          className="flex w-full sm:w-auto items-center justify-center gap-1.5 text-xs py-2 px-4 rounded-lg shadow-md transition-all hover:shadow-lg active:scale-95"
           size="sm"
         >
           <Plus size={14} strokeWidth={2.5} />

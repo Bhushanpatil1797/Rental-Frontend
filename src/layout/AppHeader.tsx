@@ -57,7 +57,7 @@ const AppHeader: React.FC = () => {
            <div className="w-8 h-8 rounded-lg bg-indigo-600 flex items-center justify-center text-white shadow-lg shadow-indigo-500/20 group-hover:scale-110 transition-transform">
               <span className="font-bold text-lg">R</span>
            </div>
-           <div className="flex flex-col leading-none">
+           <div className="hidden sm:flex flex-col leading-none">
               <span className="text-sm font-bold text-gray-900 dark:text-white tracking-tight">ACE Rental</span>
               <span className="text-[10px] text-gray-400 font-medium uppercase tracking-[0.2em] mt-0.5">Admin</span>
            </div>

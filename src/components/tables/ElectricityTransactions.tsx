@@ -12,6 +12,41 @@ import {
     TableRow,
 } from "../ui/table";
 import Badge from "../ui/badge/Badge";
+import DatePicker from "react-datepicker";
+import "react-datepicker/dist/react-datepicker.css";
+
+
+const SiteOwnerCell = ({ siteId }: { siteId?: string }) => {
+    const [ownerName, setOwnerName] = React.useState<string>("...");
+
+    React.useEffect(() => {
+        if (!siteId) { setOwnerName("-"); return; }
+        const fetchOwner = async () => {
+            try {
+                const token = localStorage.getItem("token");
+                const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/rent/sites/${siteId}`, {
+                    headers: { Authorization: `Bearer ${token}` }
+                });
+                if (!res.ok) throw new Error();
+                const json = await res.json();
+                console.log(`Fetched site ${siteId} for owner name (Elec):`, json);
+                const siteData = json.data || json;
+                if (siteData.owners && siteData.owners.length > 0) {
+                    const names = siteData.owners.map((o: any) => o.ownerId?.ownerName || "Unknown").join(", ");
+                    setOwnerName(names);
+                } else {
+                    setOwnerName("-");
+                }
+            } catch (err) {
+                console.error(`Error fetching owner for site ${siteId} (Elec):`, err);
+                setOwnerName("-");
+            }
+        };
+        fetchOwner();
+    }, [siteId]);
+
+    return <span>{ownerName}</span>;
+};
 
 interface ElectricityTransaction {
     image: any;
@@ -30,6 +65,7 @@ interface ElectricityTransaction {
     electricityCharges: string;
     electricityConsumerNo: string;
     monthly_amount?: number;
+    ownerName?: string;
 }
 
 
@@ -66,10 +102,68 @@ export default function ElectricityTransactionsTable() {
     const [formErrors, setFormErrors] = useState<Record<string, string>>({});
     const [updateLoading, setUpdateLoading] = useState(false);
     const [deleteLoading, setDeleteLoading] = useState(false);
+    const [selectedFormat, setSelectedFormat] = useState<"excel" | "pdf">("excel");
 
     useEffect(() => {
         fetchElectricityTransactions();
     }, [filters]);
+
+    // Effect to resolve owner names batch-wise for searchability
+    useEffect(() => {
+        const resolveOwners = async () => {
+            // Find transactions needing owner resolution
+            const needingResolution = transactions.filter(t => 
+                t.siteId?._id && (!t.ownerName || t.ownerName === "-" || t.ownerName === "...")
+            );
+            
+            if (needingResolution.length === 0) return;
+            
+            const uniqueSiteIds = Array.from(new Set(needingResolution.map(t => {
+                // siteId can be object or string
+                return typeof t.siteId === 'object' ? t.siteId?._id : t.siteId;
+            }).filter(Boolean)));
+            
+            const token = localStorage.getItem("token");
+            const ownerMap: Record<string, string> = {};
+            
+            await Promise.all(uniqueSiteIds.map(async (sid) => {
+                if (!sid) return;
+                try {
+                    const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/rent/sites/${sid}`, {
+                        headers: { Authorization: `Bearer ${token}` }
+                    });
+                    if (res.ok) {
+                        const json = await res.json();
+                        const siteData = json.data || json;
+                        if (siteData.owners && siteData.owners.length > 0) {
+                            const names = siteData.owners.map((o: any) => 
+                                o.ownerId?.ownerName || o.ownerName || (typeof o.ownerId === 'string' ? o.ownerId : "Unknown")
+                            ).join(", ");
+                            ownerMap[sid] = names;
+                        } else {
+                            ownerMap[sid] = "-";
+                        }
+                    }
+                } catch (e) {
+                    console.error(`Error resolving owners for site ${sid}:`, e);
+                }
+            }));
+            
+            if (Object.keys(ownerMap).length > 0) {
+                setTransactions(prev => prev.map(t => {
+                    const sid = typeof t.siteId === 'object' ? t.siteId?._id : t.siteId;
+                    if (sid && ownerMap[sid]) {
+                        return { ...t, ownerName: ownerMap[sid] };
+                    }
+                    return t;
+                }));
+            }
+        };
+
+        if (!loading && transactions.length > 0) {
+            resolveOwners();
+        }
+    }, [transactions.length, loading]);
 
     const fetchElectricityTransactions = async () => {
         try {
@@ -107,6 +201,7 @@ export default function ElectricityTransactionsTable() {
             const normalizedTransactions = dataArray.map((t: any) => ({
                 ...t,
                 id: t._id || t.id,
+                ownerName: t.siteId?.ownerName || t.ownerName || "-",
                 electricityConsumerNo: t.electricityConsumerId?.consumerNo || t.electricityConsumerNo || '-',
             }));
 
@@ -136,7 +231,7 @@ export default function ElectricityTransactionsTable() {
             return (
                 (item.siteId?.siteName?.toLowerCase() || "").includes(searchString) ||
                 (item.siteId?.code?.toLowerCase() || "").includes(searchString) ||
-                (item.ownerId?.ownerName?.toLowerCase() || "").includes(searchString) ||
+                (item.ownerName?.toLowerCase() || "").includes(searchString) ||
                 (item.paymentType?.toLowerCase() || "").includes(searchString) ||
                 (item.paidStatus?.toLowerCase() || "").includes(searchString) ||
                 (item.utrNumber?.toLowerCase() || "").includes(searchString) ||
@@ -145,9 +240,21 @@ export default function ElectricityTransactionsTable() {
         })
         .filter((item) => {
             if (filters.paid_status && item.paidStatus?.toLowerCase() !== filters.paid_status.toLowerCase()) return false;
-            if (filters.payment_type && item.paymentType?.toLowerCase() !== filters.payment_type.toLowerCase()) return false;
-            if (filters.start_date && item.paymentDate && item.paymentDate < filters.start_date) return false;
-            if (filters.end_date && item.paymentDate && item.paymentDate > filters.end_date) return false;
+            
+            // Client-side date range filter (robust)
+            if (filters.start_date) {
+                const start = new Date(filters.start_date);
+                start.setHours(0, 0, 0, 0);
+                const current = new Date(item.paymentDate);
+                if (current < start) return false;
+            }
+            if (filters.end_date) {
+                const end = new Date(filters.end_date);
+                end.setHours(23, 59, 59, 999);
+                const current = new Date(item.paymentDate);
+                if (current > end) return false;
+            }
+            
             return true;
         })
         .sort((a, b) => {
@@ -318,6 +425,77 @@ export default function ElectricityTransactionsTable() {
         }
     };
 
+    const handleDownloadExcel = async () => {
+        try {
+            const token = localStorage.getItem("token");
+            if (!token) throw new Error("Authentication token not found");
+
+            const queryParams = new URLSearchParams();
+            queryParams.append("model", "rent/electricityTransaction");
+
+            Object.entries(filters).forEach(([key, value]) => {
+                if (value) queryParams.append(key, value);
+            });
+
+            const response = await fetch(
+                `${process.env.NEXT_PUBLIC_API_URL}/api/rent/export/ledger?${queryParams.toString()}`,
+                {
+                    headers: { Authorization: `Bearer ${token}` },
+                }
+            );
+
+            if (!response.ok) throw new Error(`Failed to download Excel file: ${response.status}`);
+
+            const blob = await response.blob();
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement("a");
+            a.href = url;
+            a.download = `ElectricityLedger_${new Date().toISOString().split("T")[0]}.xlsx`;
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+        } catch (error) {
+            console.error("Error downloading Excel:", error);
+            alert(error instanceof Error ? error.message : "Failed to download Excel");
+        }
+    };
+
+    const handleDownloadPDF = async () => {
+        try {
+            const token = localStorage.getItem("token");
+            const queryParams = new URLSearchParams(filters as any).toString();
+            const response = await fetch(
+                `${process.env.NEXT_PUBLIC_API_URL}/api/rent/ledger.pdf?category=electricity&${queryParams}`,
+                {
+                    headers: { Authorization: `Bearer ${token}` },
+                }
+            );
+
+            if (!response.ok) throw new Error("Failed to download PDF");
+
+            const blob = await response.blob();
+            const url = window.URL.createObjectURL(blob);
+            const link = document.createElement("a");
+            link.href = url;
+            link.download = `ElectricityLedger_${Date.now()}.pdf`;
+            document.body.appendChild(link);
+            link.click();
+            link.remove();
+            window.URL.revokeObjectURL(url);
+        } catch (error) {
+            console.error("PDF download failed:", error);
+            alert("PDF download failed");
+        }
+    };
+
+    const handleDownload = async () => {
+        if (selectedFormat === "excel") {
+            await handleDownloadExcel();
+        } else {
+            await handleDownloadPDF();
+        }
+    };
+
     if (loading) {
         return <div className="p-4 text-center">Loading...</div>;
     }
@@ -353,37 +531,53 @@ export default function ElectricityTransactionsTable() {
                         <option value="partial">Partial</option>
                     </select>
 
-                    <select
-                        value={filters.payment_type || ""}
-                        onChange={(e) => handleFilterChange("payment_type", e.target.value)}
-                        className="w-full sm:w-auto min-w-[130px] px-3 py-2 text-sm rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-800 dark:border-gray-700 dark:text-white [&>option]:dark:text-black transition-shadow shadow-sm"
-                    >
-                        <option value="">All Types</option>
-                        <option value="electricity">Electricity</option>
-                        <option value="other">Other</option>
-                    </select>
 
-                    <div className="flex w-full sm:w-auto gap-3">
-                        <input
-                            type="date"
-                            value={filters.start_date || ""}
-                            onChange={(e) => handleFilterChange("start_date", e.target.value)}
-                            className="w-full sm:w-32 px-3 py-2 text-sm rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-800 dark:border-gray-700 dark:text-white transition-shadow shadow-sm"
-                        />
-                        <input
-                            type="date"
-                            value={filters.end_date || ""}
-                            onChange={(e) => handleFilterChange("end_date", e.target.value)}
-                            className="w-full sm:w-32 px-3 py-2 text-sm rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-800 dark:border-gray-700 dark:text-white transition-shadow shadow-sm"
-                        />
+
+                    <DatePicker
+                        selected={filters.start_date ? new Date(filters.start_date) : null}
+                        onChange={(date: Date | null) =>
+                            handleFilterChange("start_date", date ? date.toLocaleDateString("en-CA") : "")
+                        }
+                        dateFormat="yyyy-MM-dd"
+                        placeholderText="Start Date"
+                        className="w-full sm:w-32 px-3 py-2 text-sm rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-800 dark:border-gray-700 dark:text-white transition-shadow shadow-sm font-medium"
+                    />
+
+                    <DatePicker
+                        selected={filters.end_date ? new Date(filters.end_date) : null}
+                        onChange={(date: Date | null) =>
+                            handleFilterChange("end_date", date ? date.toLocaleDateString("en-CA") : "")
+                        }
+                        dateFormat="yyyy-MM-dd"
+                        placeholderText="End Date"
+                        className="w-full sm:w-32 px-3 py-2 text-sm rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-800 dark:border-gray-700 dark:text-white transition-shadow shadow-sm font-medium"
+                    />
+
+                    {(searchTerm !== "" || Object.values(filters).some(v => !!v)) && (
+                        <button
+                            onClick={() => { setFilters({}); setSearchTerm(""); }}
+                            className="w-full sm:w-auto flex justify-center px-4 py-2 text-sm font-medium bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg dark:bg-gray-800 dark:hover:bg-gray-700 dark:text-gray-300 transition-colors shadow-sm"
+                        >
+                            Clear
+                        </button>
+                    )}
+
+                    <div className="relative inline-block text-left w-full sm:w-auto">
+                        <button
+                            onClick={handleDownload}
+                            className="w-full flex items-center justify-center px-4 py-2 text-sm font-medium bg-green-600 text-white rounded-lg hover:bg-green-700 transition-shadow shadow-sm"
+                        >
+                            📥 Ledger ({selectedFormat.toUpperCase()})
+                        </button>
+                        <select
+                            value={selectedFormat}
+                            onChange={(e) => setSelectedFormat(e.target.value as "excel" | "pdf")}
+                            className="absolute top-0 right-0 h-full w-full opacity-0 cursor-pointer"
+                        >
+                            <option value="excel">excel</option>
+                            <option value="pdf">pdf</option>
+                        </select>
                     </div>
-
-                    <button
-                        onClick={() => setFilters({})}
-                        className="w-full sm:w-auto flex justify-center px-4 py-2 text-sm font-medium bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg dark:bg-gray-800 dark:hover:bg-gray-700 dark:text-gray-300 transition-colors shadow-sm"
-                    >
-                        Clear
-                    </button>
                 </div>
             </div>
 
@@ -398,6 +592,7 @@ export default function ElectricityTransactionsTable() {
                                             {[
                                                 { width: "w-32", label: "Site Code" },
                                                 { width: "w-40", label: "Site Name" },
+                                                { width: "w-32", label: "Owner Name" },
                                                 { width: "w-40", label: "Unit" },
                                                 { width: "w-32", label: "Bill Amount" },
                                                 { width: "w-32", label: "Payment Date" },
@@ -427,6 +622,9 @@ export default function ElectricityTransactionsTable() {
                                             >
                                                 <TableCell className="w-32 px-6 py-4 text-gray-900 dark:text-gray-100">{item.siteId?.code || '-'}</TableCell>
                                                 <TableCell className="w-40 px-6 py-4 text-gray-900 dark:text-gray-100">{item.siteId?.siteName || '-'}</TableCell>
+                                                <TableCell className="w-32 px-6 py-4 text-gray-900 dark:text-gray-100 font-medium">
+                                                    {item.ownerName || "..."}
+                                                </TableCell>
                                                 <TableCell className="w-40 px-6 py-4 text-gray-900 dark:text-gray-100">{item.units || '-'}</TableCell>
                                                 <TableCell className="w-32 px-6 py-4 text-gray-900 dark:text-gray-100 font-medium">
                                                     {formatCurrency(Number(item.paymentAmount) || 0)}
@@ -497,13 +695,13 @@ export default function ElectricityTransactionsTable() {
                                                     <div className="flex space-x-2">
                                                         <button
                                                             onClick={() => handleUpdateClick(item)}
-                                                            className="px-3 py-1 text-xs font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700"
+                                                            className="px-2 py-1 text-xs font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700"
                                                         >
                                                             Edit
                                                         </button>
                                                         <button
                                                             onClick={() => handleDeleteClick(item)}
-                                                            className="px-3 py-1 text-xs font-medium text-white bg-red-600 rounded-md hover:bg-red-700"
+                                                            className="px-2 py-1 text-xs font-medium text-white bg-red-600 rounded-md hover:bg-red-700"
                                                         >
                                                             Delete
                                                         </button>

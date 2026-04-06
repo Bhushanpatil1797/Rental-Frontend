@@ -20,6 +20,40 @@ import Input from "@/components/form/input/InputField";
 import Label from "@/components/form/Label";
 import Select from "@/components/form/Select";
 
+const SiteOwnerCell = ({ siteId }: { siteId?: string }) => {
+    const [ownerName, setOwnerName] = useState<string>("...");
+
+    useEffect(() => {
+        if (!siteId) { setOwnerName("-"); return; }
+        const fetchOwner = async () => {
+            try {
+                const token = localStorage.getItem("token");
+                const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/rent/sites/${siteId}`, {
+                    headers: { Authorization: `Bearer ${token}` }
+                });
+                if (!res.ok) throw new Error();
+                const json = await res.json();
+                console.log(`Fetched site ${siteId} for owner name:`, json);
+                const siteData = json.data || json;
+                if (siteData.owners && siteData.owners.length > 0) {
+                    const names = siteData.owners.map((o: any) => 
+                        o.ownerId?.ownerName || o.ownerName || (typeof o.ownerId === 'string' ? o.ownerId : "Unknown")
+                    ).join(", ");
+                    setOwnerName(names);
+                } else {
+                    setOwnerName("-");
+                }
+            } catch (err) {
+                console.error(`Error fetching owner for site ${siteId}:`, err);
+                setOwnerName("-");
+            }
+        };
+        fetchOwner();
+    }, [siteId]);
+
+    return <span>{ownerName}</span>;
+};
+
 interface MaintenanceTransaction {
     _id: string;
     id: string;
@@ -38,6 +72,7 @@ interface MaintenanceTransaction {
     maintenanceDescription: string;
     image?: string;
     paymentType?: string;
+    ownerName?: string;
 }
 
 interface FilterParams {
@@ -84,6 +119,59 @@ export default function MaintenanceTransactionsTable() {
         fetchMaintenanceTransactions();
     }, [filters]);
 
+    // Effect to resolve owner names batch-wise for searchability
+    useEffect(() => {
+        const resolveOwners = async () => {
+            // Find transactions needing owner resolution
+            const needingResolution = transactions.filter(t => 
+                t.siteId?._id && (!t.ownerName || t.ownerName === "-" || t.ownerName === "...")
+            );
+            
+            if (needingResolution.length === 0) return;
+            
+            const uniqueSiteIds = Array.from(new Set(needingResolution.map(t => t.siteId?._id)));
+            const token = localStorage.getItem("token");
+            const ownerMap: Record<string, string> = {};
+            
+            await Promise.all(uniqueSiteIds.map(async (sid) => {
+                if (!sid) return;
+                try {
+                    const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/rent/sites/${sid}`, {
+                        headers: { Authorization: `Bearer ${token}` }
+                    });
+                    if (res.ok) {
+                        const json = await res.json();
+                        const siteData = json.data || json;
+                        if (siteData.owners && siteData.owners.length > 0) {
+                            const names = siteData.owners.map((o: any) => 
+                                o.ownerId?.ownerName || o.ownerName || (typeof o.ownerId === 'string' ? o.ownerId : "Unknown")
+                            ).join(", ");
+                            ownerMap[sid] = names;
+                        } else {
+                            ownerMap[sid] = "-";
+                        }
+                    }
+                } catch (e) {
+                    console.error(`Error resolving owners for site ${sid}:`, e);
+                }
+            }));
+            
+            if (Object.keys(ownerMap).length > 0) {
+                setTransactions(prev => prev.map(t => {
+                    const sid = t.siteId?._id;
+                    if (sid && ownerMap[sid]) {
+                        return { ...t, ownerName: ownerMap[sid] };
+                    }
+                    return t;
+                }));
+            }
+        };
+
+        if (!loading && transactions.length > 0) {
+            resolveOwners();
+        }
+    }, [transactions.length, loading]);
+
     const fetchMaintenanceTransactions = async () => {
         try {
             setLoading(true);
@@ -115,6 +203,7 @@ export default function MaintenanceTransactionsTable() {
             const normalized = dataArray.map((t: any) => ({
                 ...t,
                 id: t._id || t.id,
+                ownerName: t.siteId?.ownerName || t.ownerName || "-",
             }));
 
             setTransactions(normalized);
@@ -138,12 +227,28 @@ export default function MaintenanceTransactionsTable() {
             return (
                 (item.siteId?.siteName?.toLowerCase() || "").includes(searchString) ||
                 (item.siteId?.code?.toLowerCase() || "").includes(searchString) ||
+                (item.ownerName?.toLowerCase() || "").includes(searchString) ||
                 (item.maintenanceDescription?.toLowerCase() || "").includes(searchString) ||
                 (item.utrNumber?.toLowerCase() || "").includes(searchString)
             );
         })
         .filter((item) => {
             if (filters.paidStatus && item.paidStatus?.toLowerCase() !== filters.paidStatus.toLowerCase()) return false;
+            
+            // Client-side date range filter (robust)
+            if (filters.start_date) {
+                const start = new Date(filters.start_date);
+                start.setHours(0, 0, 0, 0);
+                const current = new Date(item.paymentDate);
+                if (current < start) return false;
+            }
+            if (filters.end_date) {
+                const end = new Date(filters.end_date);
+                end.setHours(23, 59, 59, 999);
+                const current = new Date(item.paymentDate);
+                if (current > end) return false;
+            }
+            
             return true;
         })
         .sort((a, b) => new Date(b.paymentDate).getTime() - new Date(a.paymentDate).getTime());
@@ -166,13 +271,14 @@ export default function MaintenanceTransactionsTable() {
         try {
             const token = localStorage.getItem("token");
             const queryParams = new URLSearchParams();
+            queryParams.append("model", "rent/maintenenceTransaction");
+
             Object.entries(filters).forEach(([key, value]) => {
                 if (value) queryParams.append(key, value);
             });
-            queryParams.append("category", "maintenance");
 
             const response = await fetch(
-                `${process.env.NEXT_PUBLIC_API_URL}/api/rent/ledger?${queryParams.toString()}`,
+                `${process.env.NEXT_PUBLIC_API_URL}/api/rent/export/ledger?${queryParams.toString()}`,
                 {
                     headers: { Authorization: `Bearer ${token}` },
                 }
@@ -326,24 +432,24 @@ export default function MaintenanceTransactionsTable() {
     return (
         <div className="space-y-4">
             {/* ── Top Bar ── */}
-            <div className="flex items-center justify-between gap-2 px-3 sticky top-0 z-20 py-2 border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-[#121212]">
-                <p className="text-sm text-gray-500 dark:text-gray-400">
-                    Showing {filteredTransactions.length} of {totalCount} transactions
+            <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-4 px-4 sticky top-0 z-20 py-4 bg-white dark:bg-[#121212] border-b border-gray-200 dark:border-gray-700 shadow-sm">
+                <p className="text-sm text-gray-600 dark:text-gray-400 font-medium whitespace-nowrap">
+                    Showing <span className="font-semibold text-gray-900 dark:text-gray-100">{filteredTransactions.length}</span> of <span className="font-semibold text-gray-900 dark:text-gray-100">{totalCount}</span> transactions
                 </p>
 
-                <div className="flex items-center gap-2">
+                <div className="flex flex-wrap items-center gap-3">
                     <input
                         type="text"
                         placeholder="Search..."
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
-                        className="w-40 px-2 py-1.5 text-sm rounded border border-gray-300 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:bg-white/[0.05] dark:border-white/[0.1] dark:text-white"
+                        className="w-full sm:w-48 px-3 py-2 text-sm rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-800 dark:border-gray-700 dark:text-white transition-shadow shadow-sm font-medium"
                     />
 
                     <select
                         value={filters.paidStatus || ""}
                         onChange={(e) => handleFilterChange("paidStatus", e.target.value)}
-                        className="w-32 px-2 py-1 text-sm rounded border border-gray-300 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:bg-white/[0.05] dark:border-white/[0.1] dark:text-white [&>option]:dark:text-black"
+                        className="w-full sm:w-auto min-w-[120px] px-3 py-2 text-sm rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-800 dark:border-gray-700 dark:text-white [&>option]:dark:text-black transition-shadow shadow-sm font-medium"
                     >
                         <option value="">All Status</option>
                         <option value="paid">Paid</option>
@@ -358,7 +464,7 @@ export default function MaintenanceTransactionsTable() {
                         }
                         dateFormat="yyyy-MM-dd"
                         placeholderText="Start Date"
-                        className="w-32 px-2 py-1 text-sm rounded border border-gray-300 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:bg-white/[0.05] dark:border-white/[0.1] dark:text-white"
+                        className="w-full sm:w-32 px-3 py-2 text-sm rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-800 dark:border-gray-700 dark:text-white transition-shadow shadow-sm font-medium"
                     />
 
                     <DatePicker
@@ -368,27 +474,29 @@ export default function MaintenanceTransactionsTable() {
                         }
                         dateFormat="yyyy-MM-dd"
                         placeholderText="End Date"
-                        className="w-32 px-2 py-1 text-sm rounded border border-gray-300 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:bg-white/[0.05] dark:border-white/[0.1] dark:text-white"
+                        className="w-full sm:w-32 px-3 py-2 text-sm rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-800 dark:border-gray-700 dark:text-white transition-shadow shadow-sm font-medium"
                     />
 
-                    <button
-                        onClick={() => { setFilters({}); setSearchTerm(""); }}
-                        className="px-2 py-1 text-sm bg-gray-200 hover:bg-gray-300 rounded dark:bg-gray-700 dark:hover:bg-gray-600 transition-colors"
-                    >
-                        Clear
-                    </button>
+                    {(searchTerm !== "" || Object.values(filters).some(v => !!v)) && (
+                        <button
+                            onClick={() => { setFilters({}); setSearchTerm(""); }}
+                            className="w-full sm:w-auto px-4 py-2 text-sm font-medium bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg dark:bg-gray-800 dark:hover:bg-gray-700 dark:text-gray-300 transition-colors shadow-sm"
+                        >
+                            Clear
+                        </button>
+                    )}
 
-                    <div className="relative inline-block text-left">
+                    <div className="relative inline-block text-left w-full sm:w-auto">
                         <button
                             onClick={handleDownload}
-                            className="px-3 py-1 text-sm bg-green-600 text-white rounded hover:bg-green-700 transition-colors"
+                            className="w-full flex items-center justify-center px-4 py-2 text-sm font-medium bg-green-600 text-white rounded-lg hover:bg-green-700 transition-shadow shadow-sm"
                         >
                             📥 Ledger ({selectedFormat.toUpperCase()})
                         </button>
                         <select
                             value={selectedFormat}
                             onChange={(e) => setSelectedFormat(e.target.value as "excel" | "pdf")}
-                            className="absolute top-0 right-0 h-full opacity-0 cursor-pointer"
+                            className="absolute top-0 right-0 h-full w-full opacity-0 cursor-pointer"
                         >
                             <option value="excel">excel</option>
                             <option value="pdf">pdf</option>
@@ -409,14 +517,15 @@ export default function MaintenanceTransactionsTable() {
                                             {[
                                                 { width: "w-16", label: "Site Code" },
                                                 { width: "w-24", label: "Site Name" },
+                                                { width: "w-32", label: "Owner Name" },
                                                 { width: "w-40", label: "Description" },
                                                 { width: "w-32", label: "Month/Year" },
                                                 { width: "w-32", label: "Date Paid" },
                                                 { width: "w-32", label: "Amount" },
                                                 { width: "w-32", label: "Payment Type" },
-                                                { width: "w-40", label: "Ref / UTR" },
+                                                { width: "w-40", label: "UTR Number" },
                                                 { width: "w-24", label: "Status" },
-                                                { width: "w-24", label: "Proof" },
+                                                { width: "w-24", label: "Image" },
                                                 { width: "w-28", label: "Actions" }
                                             ].map(({ width, label }) => (
                                                 <TableCell
@@ -433,6 +542,9 @@ export default function MaintenanceTransactionsTable() {
                                             <TableRow key={item.id} className="hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors">
                                                 <TableCell className="w-16 px-6 py-4 text-gray-900 dark:text-gray-100">{item.siteId?.code || "-"}</TableCell>
                                                 <TableCell className="w-24 px-6 py-4 text-gray-900 dark:text-gray-100">{item.siteId?.siteName || "-"}</TableCell>
+                                                <TableCell className="w-32 px-6 py-4 text-gray-900 dark:text-gray-100 font-medium">
+                                                    {item.ownerName || "..."}
+                                                </TableCell>
                                                 <TableCell className="w-40 px-6 py-4 text-gray-900 dark:text-gray-100 italic text-xs max-w-[200px] truncate" title={item.maintenanceDescription}>
                                                     {item.maintenanceDescription || "-"}
                                                 </TableCell>
