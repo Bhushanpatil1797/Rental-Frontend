@@ -2,7 +2,8 @@
 "use client";
 
 import React, { useState, useEffect, useCallback } from "react";
-import { Plus, Trash2, Building2, Users, FileText, Landmark, ChevronDown, ChevronUp, X, RefreshCw, Zap } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { Plus, Trash2, Building2, Users, FileText, Landmark, ChevronDown, ChevronUp, X, RefreshCw, Zap, ArrowLeft, Save } from "lucide-react";
 import { toast } from "react-hot-toast";
 import Label from "../Label";
 import Input from "../input/InputField";
@@ -90,6 +91,7 @@ function Field({ label, children, span2 = false }: { label: string; children: Re
 
 // ─── Main Component ───────────────────────────────────────────────────────────
 export default function AddSiteForm() {
+  const router = useRouter();
   // Centre
   const [centres, setCentres] = useState<Centre[]>([]);
   const [centresLoading, setCentresLoading] = useState(false);
@@ -260,10 +262,71 @@ export default function AddSiteForm() {
   const totalPct = assignments.reduce((sum, a) => sum + (Number(a.ownershipPercentage) || 0), 0);
 
   // ── Handle new owner created in modal ──────────────────────────────────────
-  const handleNewOwnerSaved = async (_payload: any) => {
-    // After modal saves, refresh owner list and wait
-    await fetchOwners();
-    toast.success("Owner created! You can now add them to this site.");
+  const handleNewOwnerSaved = async (formData: any) => {
+    try {
+      // 1. Create Owner Profile (Basic info + first bank)
+      const res = await fetch(`${API}/api/rent/owners/`, {
+        method: "POST",
+        headers: authHeaders(),
+        body: JSON.stringify({
+          ownerName: formData.ownerName,
+          mobileNo: formData.mobileNo,
+          ownerDetails: formData.ownerDetails,
+          ...(formData.bankAccounts?.[0] || {})
+        }),
+      });
+
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.message || "Failed to create owner profile");
+      }
+
+      const savedResponse = await res.json();
+      const ownerId = savedResponse.data?._id;
+
+      // 2. Add extra bank accounts if any
+      if (ownerId && formData.bankAccounts && formData.bankAccounts.length > 1) {
+        for (let i = 1; i < formData.bankAccounts.length; i++) {
+          const bank = formData.bankAccounts[i];
+          await fetch(`${API}/api/rent/owners/${ownerId}/bank-accounts`, {
+            method: "POST",
+            headers: authHeaders(),
+            body: JSON.stringify({
+              accountHolder: bank.accountHolder,
+              accountNo: bank.accountNo,
+              bankName: bank.bankName,
+              ifsc: bank.ifsc,
+              branchName: bank.branchName,
+              details: bank.details,
+            }),
+          });
+        }
+      }
+
+      // 3. Refresh owner list to include newly created owner
+      await fetchOwners();
+      
+      // 4. Find the newly created owner in the refreshed list and auto-assign
+      // We search for it to get the object with populated bank accounts if any
+      toast.success("Owner created and selected!");
+      
+      // We can use the information from the savedResponse if needed, but a fresh fetch ensures consistency
+      // However, fetchOwners() updates allOwners state. We need to find it there or use the saved one.
+      // But allOwners might not have updated yet in the current closure. 
+      // Let's call addOwnerAssignment directly with the data we have or the returned data.
+      
+      const newOwnerObj: Owner = {
+        _id: ownerId,
+        ownerName: formData.ownerName,
+        mobileNo: formData.mobileNo,
+        bankAccounts: formData.bankAccounts || []
+      };
+      
+      addOwnerAssignment(newOwnerObj);
+
+    } catch (err: any) {
+      toast.error(err.message || "Something went wrong creating owner");
+    }
   };
 
   // ── Submit ─────────────────────────────────────────────────────────────────
@@ -369,10 +432,19 @@ export default function AddSiteForm() {
 
   return (
     <div className="max-w-5xl mx-auto space-y-6 pb-12">
+      {/* ── Page Header ── */}
+      <div className="flex items-center justify-between">
+        <button onClick={() => router.back()} className="flex items-center gap-2 text-gray-400 hover:text-gray-800 dark:hover:text-white transition-colors">
+          <ArrowLeft size={18} />
+          <span className="text-sm font-medium">Cancel</span>
+        </button>
+        <h1 className="text-lg font-bold text-gray-800 dark:text-white">Add New Site</h1>
+      </div>
+
       {/* ── Page Hero ── */}
-      <div className="rounded-2xl bg-gradient-to-r from-indigo-600 to-violet-600 px-6 py-5 text-white">
-        <h1 className="text-xl font-bold">Add New Site</h1>
-        <p className="text-indigo-200 text-sm mt-1">Fill in all required details. Owners can be assigned after site creation.</p>
+      <div className="rounded-2xl bg-gradient-to-r from-indigo-600 to-violet-600 px-6 py-5 text-white shadow-lg shadow-indigo-500/20">
+        <h2 className="text-xl font-bold">Site Configuration</h2>
+        <p className="text-indigo-100 text-sm mt-1">Configure all site parameters, tenant info, and owner assignments in one place.</p>
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-6">
@@ -730,9 +802,19 @@ export default function AddSiteForm() {
           <button
             type="submit"
             disabled={submitting || totalPct > 100}
-            className="flex items-center gap-2 px-8 py-3 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold rounded-xl transition-colors shadow-md shadow-indigo-500/20"
+            className="flex items-center gap-2 px-8 py-3 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold rounded-xl transition-colors shadow-lg shadow-indigo-500/20"
           >
-            {submitting ? "Creating Site..." : "Create Site & Assign Details"}
+            {submitting ? (
+              <>
+                <RefreshCw size={18} className="animate-spin" />
+                <span>Creating Site...</span>
+              </>
+            ) : (
+              <>
+                <Save size={18} />
+                <span>Create Site & Assign Details</span>
+              </>
+            )}
           </button>
         </div>
       </form>

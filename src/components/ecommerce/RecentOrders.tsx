@@ -26,6 +26,8 @@ export default function UpcomingRentSitesTable() {
   const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
 
+  const [summary, setSummary] = useState<any>(null);
+
   useEffect(() => {
     const fetchRentSites = async () => {
       setLoading(true);
@@ -47,6 +49,7 @@ export default function UpcomingRentSitesTable() {
         console.log("Upcoming Rents Response:", data);
         if (data.success) {
           setRentSites(data.data || []);
+          setSummary(data.summary);
         }
       } catch (err: unknown) {
         setError(err instanceof Error ? err.message : "Something went wrong");
@@ -70,10 +73,33 @@ export default function UpcomingRentSitesTable() {
   }, [rentSites, searchTerm]);
 
   return (
-    <div className="w-full rounded-lg border shadow-sm border-gray-200 dark:border-gray-700">
+    <div className="w-full rounded-2xl border shadow-sm border-gray-200 dark:border-gray-700 bg-white dark:bg-white/[0.03] overflow-hidden">
+      {/* Summary Section */}
+      <div className="p-4 border-b border-gray-100 dark:border-gray-800 bg-gray-50/50 dark:bg-gray-800/20">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          <div className="flex flex-col">
+            <span className="text-[10px] font-medium text-gray-500 uppercase tracking-wider">Total</span>
+            <span className="text-lg font-bold text-gray-900 dark:text-white">{summary?.total ?? 0}</span>
+          </div>
+          <div className="flex flex-col">
+            <span className="text-[10px] font-medium text-emerald-500 uppercase tracking-wider">Paid</span>
+            <span className="text-lg font-bold text-emerald-600">{summary?.paid ?? 0}</span>
+          </div>
+          <div className="flex flex-col">
+            <span className="text-[10px] font-medium text-amber-500 uppercase tracking-wider">Pending</span>
+            <span className="text-lg font-bold text-amber-600">{summary?.pending ?? 0}</span>
+          </div>
+          <div className="flex flex-col">
+            <span className="text-[10px] font-medium text-purple-500 uppercase tracking-wider">Partial</span>
+            <span className="text-lg font-bold text-purple-600">{summary?.partial ?? 0}</span>
+          </div>
+        </div>
+      </div>
+
       {/* Search Bar */}
-      <div className="p-2">
+      <div className="p-4">
         <div className="relative">
+
           <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
             <Search size={20} className="text-gray-400 " />
           </div>

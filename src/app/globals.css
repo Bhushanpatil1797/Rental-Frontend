@@ -505,8 +505,8 @@ span.flatpickr-weekday,
   fill: none!important;
 }
 
-.flatpickr-calendar.static {
-  @apply right-0;
+.flatpickr-calendar {
+  z-index: 9999 !important;
 }
 
 .fc .fc-view-harness {

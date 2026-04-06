@@ -9,14 +9,28 @@ import {
   HorizontaLDots,
   ListIcon,
 } from "../icons/index";
-import { BuildingIcon, FileTextIcon, FolderIcon, PlusCircleIcon, ZapIcon, Wrench, LayoutDashboard, CreditCard, ArrowRightLeft } from "lucide-react";
+import { 
+  BuildingIcon, 
+  FileTextIcon, 
+  FolderIcon, 
+  PlusCircleIcon, 
+  ZapIcon, 
+  Wrench, 
+  LayoutDashboard, 
+  CreditCard, 
+  ArrowRightLeft,
+  UserPlus,
+  Wallet,
+  History,
+  Plus
+} from "lucide-react";
 
 type NavItem = {
   name: string;
   icon: React.ReactNode;
   path?: string;
   subtitle?: string;
-  subItems?: { name: string; path: string; pro?: boolean; new?: boolean }[];
+  subItems?: { name: string; path: string; icon?: React.ReactNode; pro?: boolean; new?: boolean }[];
 };
 
 export const navItems: NavItem[] = [
@@ -30,9 +44,9 @@ export const navItems: NavItem[] = [
     name: "Create",
     subtitle: "site/owner/consumer",
     subItems: [
-      { name: "Add Site", path: "/form-elements" },
-      { name: "Add Owner", path: "/owners" },
-      { name: "Add Consumer", path: "/consumers" },
+      { name: "Add Site", path: "/form-elements", icon: <Plus size={14} /> },
+      { name: "Add/Owner", path: "/owners", icon: <UserPlus size={14} /> },
+      { name: "Add/Consumer", path: "/consumers", icon: <ZapIcon size={14} /> },
     ],
   },
   {
@@ -40,9 +54,9 @@ export const navItems: NavItem[] = [
     name: "Payments",
     subtitle: "rent/elec/maint",
     subItems: [
-      { name: "Rent Payment", path: "/blank" },
-      { name: "Electricity Payment", path: "/electricity" },
-      { name: "Maintenance Payment", path: "/maintenance" },
+      { name: "Rent Payment", path: "/blank", icon: <Wallet size={14} /> },
+      { name: "Electricity Payment", path: "/electricity", icon: <ZapIcon size={14} /> },
+      { name: "Maintenance Payment", path: "/maintenance", icon: <Wrench size={14} /> },
     ],
   },
   {
@@ -50,9 +64,9 @@ export const navItems: NavItem[] = [
     name: "Transactions",
     subtitle: "history/ledger",
     subItems: [
-      { name: "Rent Transactions", path: "/rent-transactions" },
-      { name: "Electricity Transactions", path: "/electricity-bills" },
-      { name: "Maintenance Transactions", path: "/maintenance-transactions" },
+      { name: "Rent Transactions", path: "/rent-transactions", icon: <History size={14} /> },
+      { name: "Electricity Transactions", path: "/electricity-bills", icon: <ZapIcon size={14} /> },
+      { name: "Maintenance Transactions", path: "/maintenance-transactions", icon: <History size={14} /> },
     ],
   },
   {
@@ -226,18 +240,23 @@ const AppSidebar: React.FC = () => {
                     : "0px",
               }}
             >
-              <ul className="mt-2 space-y-1 ml-9">
-                {nav.subItems.map((subItem: { name: string; path: string; pro?: boolean; new?: boolean }) => (
+              <ul className="mt-2 space-y-1 ml-6">
+                {nav.subItems.map((subItem: { name: string; path: string; icon?: React.ReactNode; pro?: boolean; new?: boolean }) => (
                   <li key={subItem.name}>
                     <Link
                       href={subItem.path}
-                      className={`menu-dropdown-item ${isActive(subItem.path)
+                      className={`menu-dropdown-item flex items-center gap-3 ${isActive(subItem.path)
                         ? "menu-dropdown-item-active"
                         : "menu-dropdown-item-inactive"
                         }`}
                     >
-                      {subItem.name}
-                      <span className="flex items-center gap-1 ml-auto">
+                      {subItem.icon && (
+                        <span className="flex-shrink-0 text-gray-400 group-hover:text-brand-500 transition-colors">
+                          {subItem.icon}
+                        </span>
+                      )}
+                      <span className="truncate">{subItem.name}</span>
+                      <span className="flex items-center gap-1 ml-auto font-medium">
                         {subItem.new && (
                           <span
                             className={`ml-auto ${isActive(subItem.path)

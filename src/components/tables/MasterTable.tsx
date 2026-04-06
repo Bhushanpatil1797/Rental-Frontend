@@ -13,7 +13,7 @@ import {
 } from "../ui/table";
 import Badge from "../ui/badge/Badge";
 
-import { Pencil, Trash2 } from "lucide-react";
+import { Pencil, Trash2, Search, Plus, Calendar, MapPin, Building2, User } from "lucide-react";
 import Button from "../ui/button/Button";
 
 interface MasterData {
@@ -278,6 +278,41 @@ const EditModal: React.FC<EditModalProps> = ({ isOpen, onClose, data, onSave, mo
   );
 };
 
+const SiteOwnerCell = ({ siteId }: { siteId?: string }) => {
+  const [ownerName, setOwnerName] = useState<string>("Loading...");
+
+  useEffect(() => {
+    if (!siteId) {
+      setOwnerName("-");
+      return;
+    }
+
+    const fetchOwner = async () => {
+      try {
+        const token = localStorage.getItem("token");
+        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/rent/sites/${siteId}`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        if (!res.ok) throw new Error();
+        const json = await res.json();
+        const siteData = json.data || json;
+        if (siteData.owners && siteData.owners.length > 0) {
+          const names = siteData.owners.map((o: any) => o.ownerId?.ownerName || "Unknown").join(", ");
+          setOwnerName(names);
+        } else {
+          setOwnerName("-");
+        }
+      } catch (err) {
+        setOwnerName("-");
+      }
+    };
+
+    fetchOwner();
+  }, [siteId]);
+
+  return <span>{ownerName}</span>;
+};
+
 export default function MasterTable() {
   const [masterData, setMasterData] = useState<MasterData[]>([]);
   const [loading, setLoading] = useState(true);
@@ -513,20 +548,23 @@ export default function MasterTable() {
       )}
       {/* Add New Button */}
       <div className="flex items-center justify-between px-3 py-2 border-b border-gray-200 dark:border-gray-700">
-        <input
-          type="text"
-          placeholder="Search..."
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          className="w-full max-w-sm px-3 py-1.5 rounded-lg border border-gray-300 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:bg-white/[0.05] dark:border-white/[0.1] dark:text-white text-sm"
-        />
+        <div className="relative w-full max-w-sm">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
+          <input
+            type="text"
+            placeholder="Search records..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="w-full pl-9 pr-3 py-1.5 rounded-lg border border-gray-300 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:bg-white/[0.05] dark:border-white/[0.1] dark:text-white text-sm"
+          />
+        </div>
         <Button
           variant="primary"
           onClick={handleAddClick}
-          className="flex items-center justify-center gap-1 text-xs py-1 px-2.5 rounded-lg shadow-sm transition-all hover:shadow"
+          className="flex items-center justify-center gap-1.5 text-xs py-1.5 px-3 rounded-lg shadow-sm transition-all hover:shadow-md"
           size="sm"
         >
-          <span className="font-medium">+</span>
+          <Plus size={14} strokeWidth={2.5} />
           <span>Add New</span>
         </Button>
       </div>
@@ -577,7 +615,9 @@ export default function MasterTable() {
                         <TableCell className="w-16 px-6 py-4 text-gray-900 dark:text-gray-100">{item.spaName}</TableCell>
                         <TableCell className="w-16 px-6 py-4 text-gray-900 dark:text-gray-100">{item.cityName}</TableCell>
                         <TableCell className="w-16 px-6 py-4 text-gray-900 dark:text-gray-100">{item.area}</TableCell>
-                        <TableCell className="w-16 px-6 py-4 text-gray-900 dark:text-gray-100">{item.ownerName}</TableCell>
+                        <TableCell className="w-16 px-6 py-4 text-gray-900 dark:text-gray-100 font-medium">
+                          <SiteOwnerCell siteId={item._id} />
+                        </TableCell>
                         <TableCell className="w-16 px-6 py-4 text-gray-900 dark:text-gray-100">
                           {item.openingDate ? new Date(item.openingDate).toLocaleDateString() : '-'}
                         </TableCell>

@@ -32,6 +32,41 @@ interface Site {
   status: string;
 }
 
+const SiteOwnerCell = ({ siteId }: { siteId?: string }) => {
+    const [ownerName, setOwnerName] = useState<string>("Loading...");
+
+    useEffect(() => {
+        if (!siteId) {
+            setOwnerName("-");
+            return;
+        }
+
+        const fetchOwner = async () => {
+            try {
+                const token = localStorage.getItem("token");
+                const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/rent/sites/${siteId}`, {
+                    headers: { Authorization: `Bearer ${token}` }
+                });
+                if (!res.ok) throw new Error();
+                const json = await res.json();
+                const siteData = json.data || json;
+                if (siteData.owners && siteData.owners.length > 0) {
+                    const names = siteData.owners.map((o: any) => o.ownerId?.ownerName || "Unknown").join(", ");
+                    setOwnerName(names);
+                } else {
+                    setOwnerName("-");
+                }
+            } catch (err) {
+                setOwnerName("-");
+            }
+        };
+
+        fetchOwner();
+    }, [siteId]);
+
+    return <span>{ownerName}</span>;
+};
+
 export default function BasicTableOne() {
   const router = useRouter();
   const [sites, setSites] = useState<Site[]>([]);
@@ -165,8 +200,8 @@ export default function BasicTableOne() {
                         <TableCell className="w-40 px-6 py-4 text-gray-900 dark:text-gray-100">
                           {site.propertyLocation}
                         </TableCell>
-                        <TableCell className="w-32 px-6 py-4 text-gray-900 dark:text-gray-100">
-                          {site.owners?.map((o) => o.ownerName).join(', ') ?? 'N/A'}
+                        <TableCell className="w-32 px-6 py-4 text-gray-900 dark:text-gray-100 font-medium">
+                          <SiteOwnerCell siteId={site._id || site.id} />
                         </TableCell>
                         <TableCell className="w-24 px-6 py-4 text-gray-900 dark:text-gray-100">
                           <Badge

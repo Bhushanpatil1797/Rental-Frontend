@@ -14,7 +14,7 @@ import {
 import Badge from "../ui/badge/Badge";
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
-import { Download, Eye, X, Edit, Trash2 } from "lucide-react";
+import { Download, Eye, X, Edit, Trash2, Upload } from "lucide-react";
 import { toast } from "react-hot-toast";
 import Input from "@/components/form/input/InputField";
 import Label from "@/components/form/Label";
@@ -34,10 +34,10 @@ interface MaintenanceTransaction {
     paymentDate: string;
     paymentAmount: string;
     paidStatus: string;
-    paymentType: string;
     utrNumber: string;
     maintenanceDescription: string;
     image?: string;
+    paymentType?: string;
 }
 
 interface FilterParams {
@@ -69,7 +69,8 @@ export default function MaintenanceTransactionsTable() {
         paymentDate: "",
         utrNumber: "",
         maintenanceDescription: "",
-        monthYear: ""
+        monthYear: "",
+        paymentType: ""
     });
     const [formErrors, setFormErrors] = useState<Record<string, string>>({});
     const [updateLoading, setUpdateLoading] = useState(false);
@@ -237,8 +238,11 @@ export default function MaintenanceTransactionsTable() {
             paymentDate: t.paymentDate ? new Date(t.paymentDate).toISOString().split('T')[0] : "",
             utrNumber: t.utrNumber || "",
             maintenanceDescription: t.maintenanceDescription || "",
-            monthYear: t.monthYear || ""
+            monthYear: t.monthYear || "",
+            paymentType: t.paymentType || "Online"
         });
+        setNewImageFile(null);
+        setRemoveImageFlag(false);
         setIsUpdateModalOpen(true);
     };
 
@@ -265,9 +269,10 @@ export default function MaintenanceTransactionsTable() {
                 formData.append("image", newImageFile);
             } else if (removeImageFlag) {
                 formData.append("removeImage", "true");
+                formData.append("image", ""); // Ensure image field is explicitly empty for backend
             }
 
-            const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/rent/maintenance/${selectedTransaction.id}`, {
+            const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/rent/siteTransaction/${selectedTransaction.id}`, {
                 method: "PUT",
                 headers: {
                     Authorization: `Bearer ${token}`,
@@ -298,7 +303,7 @@ export default function MaintenanceTransactionsTable() {
         try {
             setDeleteLoading(true);
             const token = localStorage.getItem("token");
-            const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/rent/maintenance/${selectedTransaction.id}`, {
+            const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/rent/siteTransaction/${selectedTransaction.id}`, {
                 method: "DELETE",
                 headers: { Authorization: `Bearer ${token}` }
             });
@@ -408,6 +413,7 @@ export default function MaintenanceTransactionsTable() {
                                                 { width: "w-32", label: "Month/Year" },
                                                 { width: "w-32", label: "Date Paid" },
                                                 { width: "w-32", label: "Amount" },
+                                                { width: "w-32", label: "Payment Type" },
                                                 { width: "w-40", label: "Ref / UTR" },
                                                 { width: "w-24", label: "Status" },
                                                 { width: "w-24", label: "Proof" },
@@ -433,6 +439,11 @@ export default function MaintenanceTransactionsTable() {
                                                 <TableCell className="w-32 px-6 py-4 text-gray-900 dark:text-gray-100 font-medium uppercase">{item.monthYear || "-"}</TableCell>
                                                 <TableCell className="w-32 px-6 py-4 text-gray-900 dark:text-gray-100">{formatDate(item.paymentDate)}</TableCell>
                                                 <TableCell className="w-32 px-6 py-4 text-gray-900 dark:text-gray-100 font-black text-emerald-600">{formatCurrency(item.paymentAmount)}</TableCell>
+                                                <TableCell className="w-32 px-6 py-4 text-gray-900 dark:text-gray-100 font-medium">
+                                                    <Badge size="sm" color="light" variant="light">
+                                                        {item.paymentType || "Online"}
+                                                    </Badge>
+                                                </TableCell>
                                                 <TableCell className="w-40 px-6 py-4 text-gray-900 dark:text-gray-100 font-mono text-[10px] break-all">{item.utrNumber || "-"}</TableCell>
                                                 <TableCell className="w-24 px-6 py-4 text-gray-900 dark:text-gray-100">
                                                     <Badge size="sm" color={item.paidStatus?.toLowerCase() === "paid" ? "success" : item.paidStatus?.toLowerCase() === "pending" ? "warning" : "error"}>
@@ -535,14 +546,82 @@ export default function MaintenanceTransactionsTable() {
                                 <textarea className="w-full p-3 text-sm bg-gray-50 dark:bg-white/[0.02] border border-gray-300 dark:border-white/[0.1] rounded-xl outline-none min-h-[80px] dark:text-white" value={updateFormData.maintenanceDescription} onChange={(e) => setUpdateFormData({ ...updateFormData, maintenanceDescription: e.target.value })} />
                             </div>
 
-                            <div className="flex space-x-4">
-                                <div className="flex-1">
-                                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">UTR Number</label>
-                                    <input type="text" value={updateFormData.utrNumber} onChange={(e) => setUpdateFormData({ ...updateFormData, utrNumber: e.target.value })} className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md dark:bg-gray-700 dark:text-white" />
+                            <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Payment Type</label>
+                                    <select 
+                                        value={updateFormData.paymentType} 
+                                        onChange={(e) => setUpdateFormData({ ...updateFormData, paymentType: e.target.value })} 
+                                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md dark:bg-gray-700 dark:text-white text-sm"
+                                    >
+                                        <option value="Online">Online</option>
+                                        <option value="Cash">Cash</option>
+                                        <option value="Cheque">Cheque</option>
+                                        <option value="Other">Other</option>
+                                    </select>
                                 </div>
-                                <div className="flex-1">
-                                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Update Proof</label>
-                                    <input type="file" onChange={(e) => e.target.files && setNewImageFile(e.target.files[0])} className="block w-full text-xs text-gray-500 file:mr-2 file:py-1 file:px-2 file:rounded-md file:border-0 file:bg-blue-600 file:text-white" />
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">UTR Number</label>
+                                    <input type="text" value={updateFormData.utrNumber} onChange={(e) => setUpdateFormData({ ...updateFormData, utrNumber: e.target.value })} className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md dark:bg-gray-700 dark:text-white text-sm" />
+                                </div>
+                            </div>
+
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Proof of Payment</label>
+                                
+                                {/* Image Preview / Current Image Area */}
+                                {(selectedTransaction.image || newImageFile) && !removeImageFlag ? (
+                                    <div className="relative mb-3 w-full h-40 bg-gray-100 dark:bg-white/[0.03] rounded-xl overflow-hidden border border-gray-200 dark:border-white/[0.1] flex items-center justify-center">
+                                        {newImageFile ? (
+                                            <img src={URL.createObjectURL(newImageFile)} alt="Preview" className="h-full w-auto object-contain" />
+                                        ) : (
+                                            <img src={selectedTransaction.image} alt="Current Proof" className="h-full w-auto object-contain" />
+                                        )}
+                                        <button 
+                                            type="button" 
+                                            onClick={() => {
+                                                setNewImageFile(null);
+                                                setRemoveImageFlag(true);
+                                            }}
+                                            className="absolute top-2 right-2 p-1.5 bg-red-500 text-white rounded-full hover:bg-red-600 shadow-lg transition-colors"
+                                            title="Remove Image"
+                                        >
+                                            <X size={14} />
+                                        </button>
+                                        <div className="absolute bottom-0 left-0 right-0 bg-black/40 backdrop-blur-sm py-1 px-3">
+                                            <span className="text-[10px] text-white font-bold uppercase tracking-wider">
+                                                {newImageFile ? "New Upload Ready" : "Current Proof"}
+                                            </span>
+                                        </div>
+                                    </div>
+                                ) : (
+                                    <div className="mb-3 p-4 border-2 border-dashed border-gray-200 dark:border-white/[0.1] rounded-xl text-center bg-gray-50/50 dark:bg-white/[0.02]">
+                                        <p className="text-xs text-gray-500 italic">No image attached or image scheduled for removal</p>
+                                        {removeImageFlag && <button type="button" onClick={() => setRemoveImageFlag(false)} className="mt-2 text-xs text-blue-600 underline font-bold uppercase tracking-wider">Undo Removal</button>}
+                                    </div>
+                                )}
+
+                                <div className="relative group">
+                                    <input 
+                                        type="file" 
+                                        id="update-file-input"
+                                        onChange={(e) => {
+                                            if (e.target.files && e.target.files[0]) {
+                                                setNewImageFile(e.target.files[0]);
+                                                setRemoveImageFlag(false);
+                                            }
+                                        }} 
+                                        className="hidden"
+                                    />
+                                    <label 
+                                        htmlFor="update-file-input"
+                                        className="flex items-center justify-center gap-2 w-full py-2.5 px-4 bg-gray-100 dark:bg-white/[0.05] border border-gray-200 dark:border-white/[0.1] rounded-xl cursor-pointer hover:bg-gray-200 dark:hover:bg-white/[0.1] transition-all active:scale-[0.98]"
+                                    >
+                                        <Upload size={14} className="text-blue-600" />
+                                        <span className="text-xs text-gray-700 dark:text-gray-300 font-bold uppercase tracking-wider">
+                                            {newImageFile ? "Change Selection" : selectedTransaction.image && !removeImageFlag ? "Replace Image" : "Upload Image"}
+                                        </span>
+                                    </label>
                                 </div>
                             </div>
 

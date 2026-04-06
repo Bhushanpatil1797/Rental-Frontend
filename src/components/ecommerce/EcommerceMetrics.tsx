@@ -1,7 +1,16 @@
 "use client";
 import React, { useEffect, useState } from "react";
 import { BoxIconLine, GroupIcon, } from "@/icons";
-import { ReceiptCentIcon } from "lucide-react";
+import { 
+  Building2, 
+  IndianRupee, 
+  AlertCircle, 
+  Users, 
+  TrendingUp, 
+  Zap, 
+  Wrench,
+  FileText
+} from "lucide-react";
 
 export const EcommerceMetrics = () => {
   const [stats, setStats] = useState<any>(null);
@@ -89,26 +98,26 @@ export const EcommerceMetrics = () => {
   );
 
   return (
-    <div className="w-full">
-      {/* Metrics Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+    <div className="w-full space-y-6">
+      {/* Top Level Overview */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <div onClick={() => window.location.href = "/basic-tables"} className="cursor-pointer">
           <MetricCard
-            icon={GroupIcon}
+            icon={Building2}
             title="Total Sites"
             value={stats?.sites?.total ?? 0}
-            description="All registered rental sites"
+            description={`${stats?.sites?.active ?? 0} Active / ${stats?.sites?.inactive ?? 0} Inactive`}
             gradient="bg-gradient-to-br from-blue-500 to-blue-600"
             iconBg="bg-gradient-to-br from-blue-500 to-blue-600 shadow-blue-500/25 shadow-lg"
           />
         </div>
 
-        <div onClick={() => window.location.href = "/basic-tables"} className="cursor-pointer">
+        <div onClick={() => window.location.href = "/total-paid"} className="cursor-pointer">
           <MetricCard
-            icon={BoxIconLine}
-            title="Active Sites"
-            value={stats?.sites?.active ?? 0}
-            description="Sites currently generating rent"
+            icon={IndianRupee}
+            title="Total Revenue"
+            value={`₹${(stats?.transactions?.totalAmount ?? 0).toLocaleString()}`}
+            description={`Collected: ₹${(stats?.transactions?.paidAmount ?? 0).toLocaleString()}`}
             gradient="bg-gradient-to-br from-emerald-500 to-emerald-600"
             iconBg="bg-gradient-to-br from-emerald-500 to-emerald-600 shadow-emerald-500/25 shadow-lg"
           />
@@ -116,23 +125,120 @@ export const EcommerceMetrics = () => {
 
         <div onClick={() => window.location.href = "/pending-payment"} className="cursor-pointer">
           <MetricCard
-            icon={ReceiptCentIcon}
+            icon={AlertCircle}
             title="Pending Payments"
             value={stats?.transactions?.pending ?? 0}
-            description="Transactions awaiting payment"
+            description={`Remaining: ₹${(stats?.transactions?.pendingAmount ?? 0).toLocaleString()}`}
             gradient="bg-gradient-to-br from-amber-500 to-amber-600"
             iconBg="bg-gradient-to-br from-amber-500 to-amber-600 shadow-amber-500/25 shadow-lg"
           />
         </div>
 
-        <div onClick={() => window.location.href = "/total-paid"} className="cursor-pointer">
+        <div className="cursor-default">
           <MetricCard
-            icon={ReceiptCentIcon}
-            title="Total Paid"
-            value={`₹${(stats?.transactions?.paidAmount ?? 0).toLocaleString()}`}
-            description="Total revenue collected"
+            icon={Users}
+            title="Platform Users"
+            value={(stats?.owners?.total ?? 0) + (stats?.consumers?.total ?? 0)}
+            description={`${stats?.owners?.total ?? 0} Owners / ${stats?.consumers?.total ?? 0} Consumers`}
             gradient="bg-gradient-to-br from-purple-500 to-purple-600"
-            iconBg="bg-gradient-to-br from-purple-500 to-purple-600 shadow-purple-500/25 shadow-lg" />
+            iconBg="bg-gradient-to-br from-purple-500 to-purple-600 shadow-purple-500/25 shadow-lg"
+          />
+        </div>
+      </div>
+
+      {/* Category Wise Breakdown */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        {/* Rent Card */}
+        <div className="p-4 rounded-2xl bg-white border border-gray-100 dark:bg-[#121212]/50 dark:border-gray-800/70">
+          <div className="flex justify-between items-center mb-4">
+            <div className="flex items-center gap-2">
+              <div className="p-1.5 bg-blue-50 dark:bg-blue-900/30 rounded-lg">
+                <FileText size={16} className="text-blue-600 dark:text-blue-400" />
+              </div>
+              <h4 className="text-sm font-bold text-gray-900 dark:text-white uppercase tracking-wider">Rent</h4>
+            </div>
+            <span className="px-2 py-1 text-[10px] font-bold bg-blue-100 text-blue-600 rounded-full dark:bg-blue-900/30 dark:text-blue-400">
+              {stats?.rent?.count ?? 0} Transactions
+            </span>
+          </div>
+          <div className="space-y-3">
+            <div className="flex justify-between text-xs">
+              <span className="text-gray-500">Collected</span>
+              <span className="font-semibold text-emerald-600">₹{(stats?.rent?.paidAmount ?? 0).toLocaleString()}</span>
+            </div>
+            <div className="flex justify-between text-xs">
+              <span className="text-gray-500">Pending</span>
+              <span className="font-semibold text-amber-600">₹{(stats?.rent?.pendingAmount ?? 0).toLocaleString()}</span>
+            </div>
+            <div className="w-full bg-gray-100 h-1.5 rounded-full overflow-hidden dark:bg-gray-800">
+              <div 
+                className="bg-blue-500 h-full rounded-full transition-all duration-1000" 
+                style={{ width: `${(stats?.rent?.paidAmount / (stats?.rent?.totalAmount || 1)) * 100}%` }}
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* Electricity Card */}
+        <div className="p-4 rounded-2xl bg-white border border-gray-100 dark:bg-[#121212]/50 dark:border-gray-800/70">
+          <div className="flex justify-between items-center mb-4">
+             <div className="flex items-center gap-2">
+              <div className="p-1.5 bg-amber-50 dark:bg-amber-900/30 rounded-lg">
+                <Zap size={16} className="text-amber-600 dark:text-amber-400" />
+              </div>
+              <h4 className="text-sm font-bold text-gray-900 dark:text-white uppercase tracking-wider">Electricity</h4>
+            </div>
+            <span className="px-2 py-1 text-[10px] font-bold bg-amber-100 text-amber-600 rounded-full dark:bg-amber-900/30 dark:text-amber-400">
+              {stats?.electricity?.count ?? 0} Transactions
+            </span>
+          </div>
+          <div className="space-y-3">
+            <div className="flex justify-between text-xs">
+              <span className="text-gray-500">Collected</span>
+              <span className="font-semibold text-emerald-600">₹{(stats?.electricity?.paidAmount ?? 0).toLocaleString()}</span>
+            </div>
+            <div className="flex justify-between text-xs">
+              <span className="text-gray-500">Pending</span>
+              <span className="font-semibold text-amber-600">₹{(stats?.electricity?.pendingAmount ?? 0).toLocaleString()}</span>
+            </div>
+            <div className="w-full bg-gray-100 h-1.5 rounded-full overflow-hidden dark:bg-gray-800">
+              <div 
+                className="bg-amber-500 h-full rounded-full transition-all duration-1000" 
+                style={{ width: `${(stats?.electricity?.paidAmount / (stats?.electricity?.totalAmount || 1)) * 100}%` }}
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* Maintenance Card */}
+        <div className="p-4 rounded-2xl bg-white border border-gray-100 dark:bg-[#121212]/50 dark:border-gray-800/70">
+          <div className="flex justify-between items-center mb-4">
+            <div className="flex items-center gap-2">
+              <div className="p-1.5 bg-purple-50 dark:bg-purple-900/30 rounded-lg">
+                <Wrench size={16} className="text-purple-600 dark:text-purple-400" />
+              </div>
+              <h4 className="text-sm font-bold text-gray-900 dark:text-white uppercase tracking-wider">Maintenance</h4>
+            </div>
+            <span className="px-2 py-1 text-[10px] font-bold bg-purple-100 text-purple-600 rounded-full dark:bg-purple-900/30 dark:text-purple-400">
+              {stats?.maintenance?.count ?? 0} Transactions
+            </span>
+          </div>
+          <div className="space-y-3">
+            <div className="flex justify-between text-xs">
+              <span className="text-gray-500">Collected</span>
+              <span className="font-semibold text-emerald-600">₹{(stats?.maintenance?.paidAmount ?? 0).toLocaleString()}</span>
+            </div>
+            <div className="flex justify-between text-xs">
+              <span className="text-gray-500">Pending</span>
+              <span className="font-semibold text-amber-600">₹{(stats?.maintenance?.pendingAmount ?? 0).toLocaleString()}</span>
+            </div>
+            <div className="w-full bg-gray-100 h-1.5 rounded-full overflow-hidden dark:bg-gray-800">
+              <div 
+                className="bg-purple-500 h-full rounded-full transition-all duration-1000" 
+                style={{ width: `${(stats?.maintenance?.paidAmount / (stats?.maintenance?.totalAmount || 1)) * 100}%` }}
+              />
+            </div>
+          </div>
         </div>
       </div>
 
@@ -150,3 +256,4 @@ export const EcommerceMetrics = () => {
     </div>
   );
 };
+

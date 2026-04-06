@@ -62,6 +62,16 @@ function parseJwt(token: string) {
 
 const EMPTY_NEW_BANK = { accountHolder: "", accountNo: "", bankName: "", ifsc: "", branchName: "", details: "" };
 
+const INITIAL_FORM = {
+  centreId: "", code: "", siteName: "", propertyType: "", propertyLocation: "", propertyAddress: "", city: "", pincode: "",
+  areaSize: "", unit: "", glocationLink: "", websiteLink: "", gdriveLink: "", siteMobileNo: "", tenantName: "",
+  tenantAddress: "", tenantMobileNo: "", tenantEmail: "", agreementDate: "", agreementExpiring: "", agreementYears: "",
+  rentStartDate: "", fitoutTime: "", rentType: "", monthlyRent: "", increasedRent: "", deposit: "",
+  yearlyEscalationPercentage: "", escalationPercentage: "", maintenanceCharges: "", municipalTax: "", cmaCharges: "",
+  gstCharges: "", waterCharges: "", msebDeposit: "", agentDetails: "", agentCost: "", managedBy: "", authorisedBy: "",
+  authorisedPersonCommission: "", paymentDay: "", status: "active",
+};
+
 // ─── Section header helper ────────────────────────────────────────────────────
 function SectionHeader({ icon: Icon, title, subtitle, action }: { icon: any; title: string; subtitle?: string; action?: React.ReactNode }) {
   return (
@@ -105,15 +115,7 @@ export default function UpdateSitesForm() {
   const [ownerSearch, setOwnerSearch] = useState("");
 
   // Form State
-  const [form, setForm] = useState({
-    centreId: "", code: "", siteName: "", propertyType: "", propertyLocation: "", propertyAddress: "", city: "", pincode: "",
-    areaSize: "", unit: "", glocationLink: "", websiteLink: "", gdriveLink: "", siteMobileNo: "", tenantName: "",
-    tenantAddress: "", tenantMobileNo: "", tenantEmail: "", agreementDate: "", agreementExpiring: "", agreementYears: "",
-    rentStartDate: "", fitoutTime: "", rentType: "", monthlyRent: "", increasedRent: "", deposit: "",
-    yearlyEscalationPercentage: "", escalationPercentage: "", maintenanceCharges: "", municipalTax: "", cmaCharges: "",
-    gstCharges: "", waterCharges: "", msebDeposit: "", agentDetails: "", agentCost: "", managedBy: "", authorisedBy: "",
-    authorisedPersonCommission: "", paymentDay: "", status: "active",
-  });
+  const [form, setForm] = useState(INITIAL_FORM as any);
 
   const [assignments, setAssignments] = useState<OwnerAssignment[]>([]);
   const [expandedAssign, setExpandedAssign] = useState<boolean[]>([]);
@@ -148,8 +150,8 @@ export default function UpdateSitesForm() {
       const siteData = sJson.data || sJson;
 
       // Map site core fields
-      const newForm: any = { ...form };
-      Object.keys(form).forEach(k => {
+      const newForm: any = { ...INITIAL_FORM };
+      Object.keys(INITIAL_FORM).forEach(k => {
         if (siteData[k] !== undefined) {
            if (k.toLowerCase().includes("date") && siteData[k]) {
              newForm[k] = siteData[k].split("T")[0];
@@ -221,8 +223,8 @@ export default function UpdateSitesForm() {
   useEffect(() => { if (params.id) fetchData(); }, [params.id, fetchData]);
 
   // ── Form Handlers ───────────────────────────────────────────────────────────
-  const setField = (field: string) => (e: React.ChangeEvent<HTMLInputElement>) => setForm(p => ({ ...p, [field]: e.target.value }));
-  const setSelect = (field: string) => (value: string) => setForm(p => ({ ...p, [field]: value }));
+  const setField = (field: string) => (e: React.ChangeEvent<HTMLInputElement>) => setForm((p: any) => ({ ...p, [field]: e.target.value }));
+  const setSelect = (field: string) => (value: string) => setForm((p: any) => ({ ...p, [field]: value }));
 
   // Owners
   const addOwnerAssignment = (owner: Owner) => {
@@ -338,6 +340,67 @@ export default function UpdateSitesForm() {
     }
   };
 
+  // ── Handle new owner created in modal ──────────────────────────────────────
+  const handleNewOwnerSaved = async (formData: any) => {
+    try {
+      // 1. Create Owner Profile (Basic info + first bank)
+      const res = await fetch(`${API}/api/rent/owners/`, {
+        method: "POST",
+        headers: authHeaders(),
+        body: JSON.stringify({
+          ownerName: formData.ownerName,
+          mobileNo: formData.mobileNo,
+          ownerDetails: formData.ownerDetails,
+          ...(formData.bankAccounts?.[0] || {})
+        }),
+      });
+
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.message || "Failed to create owner profile");
+      }
+
+      const savedResponse = await res.json();
+      const ownerId = savedResponse.data?._id;
+
+      // 2. Add extra bank accounts if any
+      if (ownerId && formData.bankAccounts && formData.bankAccounts.length > 1) {
+        for (let i = 1; i < formData.bankAccounts.length; i++) {
+          const bank = formData.bankAccounts[i];
+          await fetch(`${API}/api/rent/owners/${ownerId}/bank-accounts`, {
+            method: "POST",
+            headers: authHeaders(),
+            body: JSON.stringify({
+              accountHolder: bank.accountHolder,
+              accountNo: bank.accountNo,
+              bankName: bank.bankName,
+              ifsc: bank.ifsc,
+              branchName: bank.branchName,
+              details: bank.details,
+            }),
+          });
+        }
+      }
+
+      // 3. Refresh owner list
+      await fetchOwners();
+      
+      toast.success("Owner created and selected!");
+      
+      const newOwnerObj: Owner = {
+        _id: ownerId,
+        ownerName: formData.ownerName,
+        mobileNo: formData.mobileNo,
+        bankAccounts: formData.bankAccounts || []
+      };
+      
+      addOwnerAssignment(newOwnerObj);
+
+    } catch (err: any) {
+      toast.error(err.message || "Something went wrong creating owner");
+    }
+  };
+
   if (loading) return <div className="p-10 text-center">Loading site for edit...</div>;
 
   return (
@@ -358,7 +421,7 @@ export default function UpdateSitesForm() {
              <div className="sm:col-span-2">
                <Label>Centre *</Label>
                <div className="relative">
-                 <select value={form.centreId} onChange={(e) => setForm(p => ({ ...p, centreId: e.target.value }))} required className="w-full px-3 py-2 text-sm border border-gray-200 dark:border-white/[0.08] rounded-lg bg-white dark:bg-white/[0.03] text-gray-800 dark:text-white appearance-none pr-8">
+                 <select value={form.centreId} onChange={(e) => setForm((p: any) => ({ ...p, centreId: e.target.value }))} required className="w-full px-3 py-2 text-sm border border-gray-200 dark:border-white/[0.08] rounded-lg bg-white dark:bg-white/[0.03] text-gray-800 dark:text-white appearance-none pr-8">
                    <option value="">Select Centre</option>
                    {centres.map(c => <option key={c._id} value={c._id}>{c.name}</option>)}
                  </select>
@@ -535,7 +598,7 @@ export default function UpdateSitesForm() {
         </div>
       </form>
 
-      <OwnerModal isOpen={isNewOwnerModalOpen} onClose={() => setIsNewOwnerModalOpen(false)} onSave={() => fetchOwners()} />
+      <OwnerModal isOpen={isNewOwnerModalOpen} onClose={() => setIsNewOwnerModalOpen(false)} onSave={handleNewOwnerSaved} />
     </div>
   );
 }
