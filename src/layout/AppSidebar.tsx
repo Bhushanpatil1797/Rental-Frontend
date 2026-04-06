@@ -9,7 +9,7 @@ import {
   HorizontaLDots,
   ListIcon,
 } from "../icons/index";
-import { BuildingIcon, FileTextIcon, FolderIcon, PlusCircleIcon, ZapIcon, Wrench, LayoutDashboard } from "lucide-react";
+import { BuildingIcon, FileTextIcon, FolderIcon, PlusCircleIcon, ZapIcon, Wrench, LayoutDashboard, CreditCard, ArrowRightLeft } from "lucide-react";
 
 type NavItem = {
   name: string;
@@ -36,27 +36,23 @@ export const navItems: NavItem[] = [
     ],
   },
   {
-    icon: <FileTextIcon />,
-    name: "Rent Payment",
+    icon: <CreditCard />,
+    name: "Payments",
+    subtitle: "rent/elec/maint",
     subItems: [
       { name: "Rent Payment", path: "/blank" },
-      { name: "Rent Transaction", path: "/rent-transactions" },
+      { name: "Electricity Payment", path: "/electricity" },
+      { name: "Maintenance Payment", path: "/maintenance" },
     ],
   },
   {
-    icon: <ZapIcon />,
-    name: "Electricity Bill",
+    icon: <ArrowRightLeft />,
+    name: "Transactions",
+    subtitle: "history/ledger",
     subItems: [
-      { name: "Electricity Bill", path: "/electricity" },
-      { name: "Electricity Bill's", path: "/electricity-bills" },
-    ],
-  },
-  {
-    icon: <Wrench />,
-    name: "Maintenance",
-    subItems: [
-      { name: "Maintenance", path: "/maintenance" },
-      { name: "Maintenance Transaction's", path: "/maintenance-transactions" },
+      { name: "Rent Transactions", path: "/rent-transactions" },
+      { name: "Electricity Transactions", path: "/electricity-bills" },
+      { name: "Maintenance Transactions", path: "/maintenance-transactions" },
     ],
   },
   {

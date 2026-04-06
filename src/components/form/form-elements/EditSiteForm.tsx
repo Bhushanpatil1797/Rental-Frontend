@@ -222,15 +222,16 @@ export default function EditSiteForm() {
           <div className="bg-white dark:bg-white/[0.02] border border-gray-100 dark:border-white/[0.06] rounded-2xl p-6 shadow-sm">
             <SectionHeader icon={Building2} title="Site Metadata" subtitle="Core identifiers and location details" />
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <ViewField label="Site Name" value={site.siteName} />
+              <ViewField label="Centre" value={site.centreId?.name || "—"} />
               <ViewField label="Site Code" value={site.code} />
+              <ViewField label="Site Name" value={site.siteName} />
               <ViewField label="Property Type" value={site.propertyType} />
               <ViewField label="Managed By" value={site.managedBy} />
+              <ViewField label="Payment Day" value={site.paymentDay ? `Day ${site.paymentDay}` : "—"} />
               <ViewField label="City" value={site.city} />
               <ViewField label="Pincode" value={site.pincode} />
-              <ViewField label="Area Size" value={`${site.areaSize || "—"} ${site.unit || ""}`} />
-              <ViewField label="Unit (sq.ft / sq.m)" value={site.unit} />
-              <ViewField label="Payment Day" value={site.paymentDay ? `Day ${site.paymentDay}` : "—"} />
+              <ViewField label="Area Size" value={site.areaSize} />
+              <ViewField label="Unit" value={site.unit} />
               <ViewField label="Property Location" value={site.propertyLocation} span2 />
               <ViewField label="Property Address" value={site.propertyAddress} span2 />
             </div>

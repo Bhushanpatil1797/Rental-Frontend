@@ -569,7 +569,7 @@ export default function MasterTable() {
                   <TableBody className="divide-y divide-gray-200 dark:divide-gray-700">
                     {filteredData.map((item) => (
                       <TableRow
-                        key={item.srNo}
+                        key={item._id || item.srNo}
                         className="hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors"
                       >
                         <TableCell className="w-16 px-6 py-4 text-gray-900 dark:text-gray-100">{item.srNo}</TableCell>
