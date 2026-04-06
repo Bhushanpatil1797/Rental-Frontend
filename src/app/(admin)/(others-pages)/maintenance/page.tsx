@@ -1,9 +1,8 @@
 'use client'
 
 import React, { useState, useEffect } from 'react'
-import { ChevronDown, ChevronUp, MapPin, Calendar, Phone, CreditCard, Building2, Users, Landmark, FileText, Globe, ArrowLeft, MoreVertical, CheckCircle2, ExternalLink, ShieldCheck, Banknote, HelpCircle, UserCheck } from 'lucide-react'
-import ElectricityPaymentForm from '@/components/form/form-elements/ElectricityPayments'
-import RentEscalationTable from '@/components/form/form-elements/RentEscalationTable'
+import { ChevronDown, ChevronUp, MapPin, Calendar, Phone, CreditCard, Building2, Users, Landmark, FileText, Globe, ArrowLeft, MoreVertical, CheckCircle2, ExternalLink, ShieldCheck, Banknote, HelpCircle, UserCheck, Wrench } from 'lucide-react'
+import MaintenancePaymentForm from '@/components/form/form-elements/MaintenancePayments'
 import { Toaster } from 'react-hot-toast'
 import Badge from '@/components/ui/badge/Badge'
 
@@ -39,7 +38,7 @@ const ComponentCard = ({ children }: { children: React.ReactNode }) => (
     </div>
 );
 
-const Page = () => {
+const MaintenancePage = () => {
   const [sites, setSites] = useState<any[]>([])
   const [query, setQuery] = useState('')
   const [error, setError] = useState<string | null>(null)
@@ -122,7 +121,7 @@ const Page = () => {
       if (!res.ok) throw new Error(`HTTP error! Status: ${res.status}`)
       const data = await res.json()
       const details = data.data || data
-      console.log("Fetched Electricity Site Details:", details);
+      console.log("Fetched Maintenance Site Details:", details);
       setSiteDetails(details)
 
       const owners = details.owners || details.ownerId || []
@@ -143,7 +142,7 @@ const Page = () => {
   }
 
   const handleSiteClick = async (site: any) => {
-    console.log("Electricity Site Clicked:", site);
+    console.log("Maintenance Site Clicked:", site);
     setSelectedSite(site)
     await fetchSiteDetails(site._id || site.id)
   }
@@ -157,25 +156,16 @@ const Page = () => {
     setExpandedOwners(prev => ({ ...prev, [index]: !prev[index] }))
   }
 
-  const formatDate = (dateString: string | null | undefined) => {
-    if (!dateString) return 'N/A'
-    try {
-      return new Date(dateString).toLocaleDateString()
-    } catch (e) {
-      return 'Invalid Date'
-    }
-  }
-
   return (
     <div className="p-4">
-      <Toaster position="top-center" />
+      <Toaster position="top-right" />
       {!selectedSite ? (
         <>
-          <h1 className="text-xl font-semibold mb-4 dark:text-white">Search Site's</h1>
+          <h1 className="text-xl font-semibold mb-4 dark:text-white uppercase tracking-tight">Search Site's</h1>
           <div className="flex gap-2 mb-4">
             <input
               type="text"
-              placeholder="Search by site name or code..."
+              placeholder="Search site name or code..."
               value={query}
               onChange={(e) => { setQuery(e.target.value); setCurrentPage(1); }}
               className="p-2 w-full rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-white/[0.05] dark:border-white/[0.1] dark:text-white font-medium"
@@ -218,7 +208,7 @@ const Page = () => {
                 <p className="text-gray-400 font-black uppercase tracking-[0.2em] text-[10px]">Accessing Records...</p>
             </div>
           ) : error ? (
-            <div className="p-6 bg-red-50 border border-red-100 rounded-2xl text-red-600 flex items-center gap-3">
+            <div className="p-6 bg-red-50 border border-red-100 rounded-2xl text-red-600 flex items-center gap-3 font-bold">
               Error: {error}
             </div>
           ) : (
@@ -253,7 +243,7 @@ const Page = () => {
                   </div>
                 ))
               ) : (
-                <div className="p-4 text-center text-gray-500">No results found</div>
+                <div className="p-4 text-center text-gray-500 font-bold">No results found</div>
               )}
               {totalPages > 1 && (
                 <div className="flex justify-center items-center gap-2 p-2">
@@ -271,12 +261,12 @@ const Page = () => {
         <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
            <div className="relative overflow-hidden mb-8 p-8 rounded-3xl bg-indigo-600 text-white shadow-2xl shadow-indigo-600/20">
               <div className="absolute top-0 right-0 p-8 transform translate-x-1/4 -translate-y-1/4">
-                <Building2 size={240} className="text-white/10" />
+                <Wrench size={240} className="text-white/10" />
               </div>
               <div className="relative z-10">
                 <div className="flex items-center gap-2 mb-4">
                   <Badge size="sm" color="info" variant="light">{siteDetails?.code || "SITE-NO-CODE"}</Badge>
-                  <Badge size="sm" color="success" variant="light">Active Site</Badge>
+                  <Badge size="sm" color="success" variant="light">Maintenance Mode</Badge>
                 </div>
                 <div className="flex items-end justify-between gap-4">
                   <div>
@@ -297,38 +287,31 @@ const Page = () => {
           {loadingDetails ? (
             <div className="py-20 text-center animate-pulse">
               <div className="inline-block h-10 w-10 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin mb-4" />
-              <p className="text-gray-400 font-black uppercase tracking-widest text-[11px]">Assembling Site Records...</p>
+              <p className="text-gray-400 font-black uppercase tracking-widest text-[11px]">Assembling Property Records...</p>
             </div>
           ) : siteDetails ? (
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-start">
               <div className="space-y-8">
-                <ElectricityPaymentForm
-                  siteId={selectedSite._id || selectedSite.id}
+                <MaintenancePaymentForm 
+                  siteId={selectedSite._id || selectedSite.id} 
                   owners={(siteDetails.owners || siteDetails.ownerId || []).map((owner: any) => ({
                     id: owner.ownerId?._id || owner._id || owner.id,
                     owner_name: owner.ownerId?.ownerName || owner.ownerName || owner.owner_name,
                     owner_monthly_rent: Number(owner.ownerMonthlyRent || owner.owner_monthly_rent) || 0
                   }))}
                   currentMonthlyRent={Number(siteDetails.monthlyRent || siteDetails.monthly_rent) || 0}
-                  consumers={siteDetails.electricityConsumers || siteDetails.electricity_consumers || []}
                 />
 
                 <ComponentCard>
-                  <SectionHeader icon={Building2} title="Electricity Metadata" />
+                  <SectionHeader icon={Building2} title="Maintenance Details" />
                   <div className="grid grid-cols-2 gap-3">
-                    {(() => {
-                      const consumer = (siteDetails.electricityConsumers || siteDetails.electricity_consumers)?.[0];
-                      return (
-                        <>
-                          <ViewField label="Consumer Name" value={siteDetails.consumerName || siteDetails.consumer_name || consumer?.consumerName} />
-                          <ViewField label="Provider" value={siteDetails.electricityProvider || siteDetails.electricity_provider || consumer?.electricityProvider || consumer?.providerName || consumer?.provider} />
-                          <ViewField label="Consumer No" value={siteDetails.electricityConsumerNo || siteDetails.electricity_consumerno || consumer?.consumerNo} />
-                          <ViewField label="Units" value={siteDetails.unit} />
-                          <ViewField label="Charges" value={`₹${(siteDetails.electricityCharges || 0).toLocaleString()}`} icon={Landmark} />
-                          <ViewField label="Status" value={siteDetails.electricityStatus || siteDetails.electricity_status || (consumer ? "Active" : null)} />
-                        </>
-                      );
-                    })()}
+                    <ViewField label="Site Name" value={siteDetails.siteName || siteDetails.site_name} />
+                    <ViewField label="Site Code" value={siteDetails.code} />
+                    <ViewField label="Managed By" value={siteDetails.managedBy || siteDetails.manage_by} />
+                    <ViewField label="Location" value={siteDetails.propertyLocation || siteDetails.property_location} />
+                    <ViewField label="Maint. Charges (₹)" value={`₹${(siteDetails.maintenanceCharges || siteDetails.maintenance_charges || 0).toLocaleString()}`} icon={Wrench} />
+                    <ViewField label="Monthly Rent (₹)" value={`₹${(siteDetails.monthlyRent || siteDetails.monthly_rent || 0).toLocaleString()}`} icon={Landmark} />
+                    <ViewField label="Property Address" value={siteDetails.propertyAddress || siteDetails.property_address} span2 />
                   </div>
                 </ComponentCard>
               </div>
@@ -381,4 +364,4 @@ const Page = () => {
   )
 }
 
-export default Page
+export default MaintenancePage

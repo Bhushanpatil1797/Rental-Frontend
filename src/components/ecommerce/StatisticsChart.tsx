@@ -11,41 +11,15 @@ const ReactApexChart = dynamic(() => import("react-apexcharts"), {
 });
 
 // Define interfaces for API response data
-interface TransactionSummary {
-  total_count: number;
-  total_amount: number;
-  daily: DailyData[];
-  weekly: WeeklyData[];
-  monthly: MonthlyData[];
-  yearly: YearlyData[];
-}
-
-interface DailyData {
-  date: string;
+interface ChartDataPoint {
+  label: string;
   count: number;
-  total_amount: number;
-}
-
-interface WeeklyData {
-  week: string;
-  count: number;
-  total_amount: number;
-}
-
-interface MonthlyData {
-  month: string;
-  count: number;
-  total_amount: number;
-}
-
-interface YearlyData {
-  year: string;
-  count: number;
-  total_amount: number;
+  totalAmount: number;
+  paidAmount: number;
 }
 
 export default function StatisticsChart() {
-  const [summaryData, setSummaryData] = useState<TransactionSummary | null>(null);
+  const [chartData, setChartData] = useState<ChartDataPoint[]>([]);
   const [loading, setLoading] = useState(true);
   const [timeFrame, setTimeFrame] = useState<'daily' | 'weekly' | 'monthly' | 'yearly'>('monthly');
   const [error, setError] = useState<string | null>(null);
@@ -64,7 +38,7 @@ export default function StatisticsChart() {
 
       try {
         const response = await fetch(
-          `${process.env.NEXT_PUBLIC_API_URL}/api/rent/summary`,
+          `${process.env.NEXT_PUBLIC_API_URL}/api/rent/dashboard/chart?period=${timeFrame}`,
           {
             headers: {
               "Content-Type": "application/json",
@@ -72,9 +46,6 @@ export default function StatisticsChart() {
             },
           }
         );
-        console.log("API Response:", response);
-
-        console.log("API Response Status:", response.status);
 
         if (!response.ok) {
           if (response.status === 401) {
@@ -82,12 +53,14 @@ export default function StatisticsChart() {
           } else {
             setError("Failed to load data. Please try again later.");
           }
-          setLoading(false);
           return;
         }
 
         const data = await response.json();
-        setSummaryData(data);
+        console.log("Statistics Chart Response:", data);
+        if (data.success) {
+          setChartData(data.data || []);
+        }
       } catch (err) {
         setError("Failed to load data. Please try again later.");
       } finally {
@@ -96,66 +69,13 @@ export default function StatisticsChart() {
     };
 
     fetchData();
-  }, []);
+  }, [timeFrame]);
 
-  // Prepare chart data based on the selected timeframe
+  // Prepare chart data based on the fetched data
   const getChartData = () => {
-    if (!summaryData) return { categories: [], countData: [], amountData: [] };
-
-    let categories: string[] = [];
-    let countData: number[] = [];
-    let amountData: number[] = [];
-
-    switch (timeFrame) {
-      case 'daily':
-        const sortedDaily = [...summaryData.daily].sort((a, b) =>
-          new Date(a.date).getTime() - new Date(b.date).getTime()
-        );
-        categories = sortedDaily.map(item => {
-          const date = new Date(item.date);
-          return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-        });
-        countData = sortedDaily.map(item => item.count);
-        amountData = sortedDaily.map(item => item.total_amount); // <-- full amount
-        break;
-      case 'weekly':
-        const sortedWeekly = [...summaryData.weekly].sort((a, b) => a.week.localeCompare(b.week));
-        categories = sortedWeekly.map(item => {
-          const [year, week] = item.week.split('-W');
-          return `W${week}`;
-        });
-        countData = sortedWeekly.map(item => item.count);
-        amountData = sortedWeekly.map(item => item.total_amount); // <-- full amount
-        break;
-      case 'yearly':
-        const sortedYearly = [...summaryData.yearly].sort((a, b) => a.year.localeCompare(b.year));
-        categories = sortedYearly.map(item => item.year);
-        countData = sortedYearly.map(item => item.count);
-        amountData = sortedYearly.map(item => item.total_amount); // <-- full amount
-        break;
-      case 'monthly':
-      default:
-        const monthNames = [
-          "Jan", "Feb", "Mar", "Apr", "May", "Jun",
-          "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"
-        ];
-        const monthDataMap = new Map();
-        summaryData.monthly.forEach(item => {
-          const [year, month] = item.month.split('-');
-          const monthIndex = parseInt(month) - 1;
-          monthDataMap.set(monthIndex, item);
-        });
-        categories = monthNames;
-        countData = monthNames.map((_, idx) => {
-          const monthData = monthDataMap.get(idx);
-          return monthData ? monthData.count : 0;
-        });
-        amountData = monthNames.map((_, idx) => {
-          const monthData = monthDataMap.get(idx);
-          return monthData ? monthData.total_amount : 0;
-        });
-        break;
-    }
+    const categories = chartData.map(item => item.label);
+    const countData = chartData.map(item => item.count);
+    const amountData = chartData.map(item => item.paidAmount);
     return { categories, countData, amountData };
   };
 
@@ -288,7 +208,7 @@ export default function StatisticsChart() {
             Transaction Statistics
           </h3>
           <p className="mt-1 text-gray-500 text-theme-sm dark:text-gray-400">
-            {summaryData && `Total: ${summaryData.total_count} transactions | ₹${summaryData.total_amount} Total Amount`}
+            {chartData.length > 0 && `Showing data for ${chartData.length} ${timeFrame} intervals`}
           </p>
         </div>
         <div className="flex items-start w-full gap-3 sm:justify-end">
@@ -306,7 +226,7 @@ export default function StatisticsChart() {
             <div className="flex justify-center items-center h-[310px]">
               <p className="text-red-500">{error}</p>
             </div>
-          ) : summaryData ? (
+          ) : chartData.length > 0 ? (
             <ReactApexChart
               options={options}
               series={series}

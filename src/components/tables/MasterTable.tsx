@@ -17,8 +17,8 @@ import { Pencil, Trash2 } from "lucide-react";
 import Button from "../ui/button/Button";
 
 interface MasterData {
+  _id?: string; // Correct ID field name
   srNo: number;
-  id?: number; // Adding id field for API operations
   cityName: string;
   spaName: string;
   area: string;
@@ -302,7 +302,7 @@ export default function MasterTable() {
       const token = localStorage.getItem("token");
       if (!token) throw new Error("Authentication token not found");
 
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/masters/`, {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/rent/master/`, {
         headers: {
           Authorization: `Bearer ${token}`,
           "Content-Type": "application/json",
@@ -340,14 +340,14 @@ export default function MasterTable() {
       if (!token) throw new Error("Authentication token not found");
 
       const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/api/masters/`,
+        `${process.env.NEXT_PUBLIC_API_URL}/api/rent/master/`,
         {
           method: "POST",
           headers: {
             Authorization: `Bearer ${token}`,
             "Content-Type": "application/json",
           },
-          body: JSON.stringify({ data: newData })
+          body: JSON.stringify(newData) // Use flat object
         }
       );
 
@@ -385,20 +385,18 @@ export default function MasterTable() {
       const token = localStorage.getItem("token");
       if (!token) throw new Error("Authentication token not found");
 
-      // Use Sr_No for the API call if id isn't available
-      const recordId = updatedData.id || updatedData.srNo;
-
-      console.log("Record ID:", updatedData.id, updatedData.srNo);
+      // Use _id for the API call
+      const recordId = updatedData._id;
 
       const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/api/masters/${recordId}`,
+        `${process.env.NEXT_PUBLIC_API_URL}/api/rent/master/${recordId}`,
         {
           method: "PUT",
           headers: {
             Authorization: `Bearer ${token}`,
             "Content-Type": "application/json",
           },
-          body: JSON.stringify({ data: updatedData }),
+          body: JSON.stringify(updatedData), // Use flat object
         }
       );
 
@@ -446,9 +444,9 @@ export default function MasterTable() {
       const token = localStorage.getItem("token");
       if (!token) throw new Error("Authentication token not found");
 
-      const recordId = record.id || record.srNo;
+      const recordId = record._id;
       const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/api/masters/${recordId}`,
+        `${process.env.NEXT_PUBLIC_API_URL}/api/rent/master/${recordId}`,
         {
           method: "DELETE",
           headers: {

@@ -4,24 +4,24 @@ import { BoxIconLine, GroupIcon, } from "@/icons";
 import { ReceiptCentIcon } from "lucide-react";
 
 export const EcommerceMetrics = () => {
-  const [stats, setStats] = useState<{
-    totalSites: number;
-    upcomingRentSitesCount: number;
-    totalPaidRentSites?: number;
-  } | null>(null);
-
+  const [stats, setStats] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const fetchStats = async () => {
       try {
-        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/rental-dashboard/stats`);
-        const data = await res.json();
-        setStats({
-          totalSites: data.totalSites,
-          upcomingRentSitesCount: data.upcomingRentSitesCount,
-          totalPaidRentSites: data.totalPaidRentSites,
+        const token = localStorage.getItem("token");
+        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/rent/dashboard/stats`, {
+          headers: {
+            "Authorization": `Bearer ${token}`,
+            "Content-Type": "application/json"
+          }
         });
+        const data = await res.json();
+        console.log("Dashboard Metrics Response:", data);
+        if (data.success) {
+          setStats(data.data);
+        }
       } catch (error) {
         console.error("Failed to fetch dashboard stats", error);
       } finally {
@@ -47,7 +47,7 @@ export const EcommerceMetrics = () => {
     gradient: string;
     iconBg: string;
   }) => (
-    <div className="group relative overflow-hidden rounded-2xl bg-white p-4 shadow-sm border border-gray-300 hover:shadow-xl transition-all duration-300 hover:-translate-y-1 dark:bg-[#121212]/50 dark:border-gray-800/70">
+    <div className="group relative overflow-hidden rounded-2xl bg-white p-4 shadow-sm border border-gray-100 hover:shadow-xl transition-all duration-300 hover:-translate-y-1 dark:bg-[#121212]/50 dark:border-gray-800/70">
       {/* Gradient overlay */}
       <div className={`absolute inset-0 opacity-0 group-hover:opacity-5 transition-opacity duration-300 ${gradient}`} />
 
@@ -72,7 +72,7 @@ export const EcommerceMetrics = () => {
                 </div>
               ) : (
                 <span className="bg-gradient-to-r from-gray-900 to-gray-600 bg-clip-text text-transparent dark:from-white dark:to-gray-300">
-                  {value.toLocaleString()}
+                  {typeof value === 'number' ? value.toLocaleString() : value}
                 </span>
               )}
             </h3>
@@ -96,48 +96,49 @@ export const EcommerceMetrics = () => {
           <MetricCard
             icon={GroupIcon}
             title="Total Sites"
-            value={stats?.totalSites ?? 0}
-            description="Active rental sites"
-            gradient="bg-gradient-to-br from-emerald-500 to-emerald-600"
-            iconBg="bg-gradient-to-br from-emerald-500 to-emerald-600 shadow-emerald-500/25 shadow-lg"
+            value={stats?.sites?.total ?? 0}
+            description="All registered rental sites"
+            gradient="bg-gradient-to-br from-blue-500 to-blue-600"
+            iconBg="bg-gradient-to-br from-blue-500 to-blue-600 shadow-blue-500/25 shadow-lg"
           />
         </div>
 
-        <div onClick={() => window.location.href = "/blank"} className="cursor-pointer">
+        <div onClick={() => window.location.href = "/basic-tables"} className="cursor-pointer">
           <MetricCard
             icon={BoxIconLine}
-            title="Upcoming Payments"
-            value={stats?.upcomingRentSitesCount ?? 0}
-            description="Sites with rent due (Monthly)"
+            title="Active Sites"
+            value={stats?.sites?.active ?? 0}
+            description="Sites currently generating rent"
             gradient="bg-gradient-to-br from-emerald-500 to-emerald-600"
             iconBg="bg-gradient-to-br from-emerald-500 to-emerald-600 shadow-emerald-500/25 shadow-lg"
           />
         </div>
 
-        {/* <div onClick={() => window.location.href = "/basic-tables"} className="cursor-pointer"> */}
-        <MetricCard
-          icon={ReceiptCentIcon}
-          title="Total Paid Rent Sites"
-          value={stats?.totalPaidRentSites ?? 0}
-          description="Sites with rent paid (Monthly)"
-          gradient="bg-gradient-to-br from-emerald-500 to-emerald-600"
-          iconBg="bg-gradient-to-br from-emerald-500 to-emerald-600 shadow-emerald-500/25 shadow-lg"
-        />
         <div onClick={() => window.location.href = "/electricity"} className="cursor-pointer">
           <MetricCard
             icon={ReceiptCentIcon}
-            title="Electricity Bill's"
-            value={stats?.totalPaidRentSites ?? 0}
-            description="Sites with rent paid (Monthly)"
-            gradient="bg-gradient-to-br from-emerald-500 to-emerald-600"
-            iconBg="bg-gradient-to-br from-emerald-500 to-emerald-600 shadow-emerald-500/25 shadow-lg" />
+            title="Pending Payments"
+            value={stats?.transactions?.pending ?? 0}
+            description="Transactions awaiting payment"
+            gradient="bg-gradient-to-br from-amber-500 to-amber-600"
+            iconBg="bg-gradient-to-br from-amber-500 to-amber-600 shadow-amber-500/25 shadow-lg"
+          />
         </div>
-        {/* </div> */}
+
+        <div onClick={() => window.location.href = "/electricity"} className="cursor-pointer">
+          <MetricCard
+            icon={ReceiptCentIcon}
+            title="Total Paid"
+            value={`₹${(stats?.transactions?.paidAmount ?? 0).toLocaleString()}`}
+            description="Total revenue collected"
+            gradient="bg-gradient-to-br from-purple-500 to-purple-600"
+            iconBg="bg-gradient-to-br from-purple-500 to-purple-600 shadow-purple-500/25 shadow-lg" />
+        </div>
       </div>
 
       {/* Loading overlay */}
       {loading && (
-        <div className="absolute inset-0 bg-white/50 dark:bg-[#121212]/50 backdrop-blur-sm rounded-3xl flex items-center justify-center">
+        <div className="absolute inset-0 z-50 bg-white/50 dark:bg-[#121212]/50 backdrop-blur-sm rounded-3xl flex items-center justify-center">
           <div className="flex items-center space-x-2">
             <div className="w-5 h-5 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
             <span className="text-xs font-medium text-gray-600 dark:text-gray-400">

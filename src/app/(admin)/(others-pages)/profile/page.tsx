@@ -116,183 +116,213 @@ export default function ProfilePage() {
     : 'U';
 
   const assignedCentres: any[] = user?.centreIds ?? [];
+  const fmt = (d?: string) => d ? new Date(d).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : undefined;
 
-  const fmt = (d?: string) => d ? new Date(d).toLocaleDateString('en-IN') : undefined;
+  if (loading && !user) {
+    return (
+      <div className="max-w-6xl mx-auto p-4 space-y-6">
+        <div className="h-48 bg-gray-100 dark:bg-white/[0.05] rounded-3xl animate-pulse" />
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          {[1, 2, 3, 4].map(i => <div key={i} className="h-24 bg-gray-100 dark:bg-white/[0.05] rounded-2xl animate-pulse" />)}
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="max-w-xl mx-auto mt-20 text-center p-8 bg-red-50 dark:bg-red-900/10 rounded-3xl border border-red-100 dark:border-red-900/20">
+        <XCircle className="mx-auto text-red-500 mb-4" size={40} />
+        <h2 className="text-lg font-bold text-red-900 dark:text-red-400">Profile Error</h2>
+        <p className="text-red-600 dark:text-red-500/80 mt-2">{error}</p>
+        <button onClick={fetchProfile} className="mt-6 px-6 py-2 bg-red-500 text-white rounded-xl hover:bg-red-600 transition-colors font-semibold">Try Again</button>
+      </div>
+    );
+  }
 
   return (
-    <div className="max-w-5xl mx-auto space-y-6 pb-10">
+    <div className="max-w-6xl mx-auto space-y-6 pb-20 px-4 sm:px-6 lg:px-8">
+      
+      {/* ── Compact Professional Header ── */}
+      <div className="relative group">
+        {/* Cover Pattern - Compact */}
+        <div className="h-24 sm:h-32 w-full rounded-t-[2rem] bg-indigo-600 relative overflow-hidden">
+          <div className="absolute inset-0 opacity-10" style={{ backgroundImage: 'radial-gradient(circle at 2px 2px, white 1px, transparent 0)', backgroundSize: '24px 24px' }} />
+          <div className="absolute inset-0 bg-gradient-to-r from-black/10 via-transparent to-black/10" />
+          <button 
+             onClick={fetchProfile}
+             className="absolute top-4 right-4 p-2 bg-white/10 hover:bg-white/20 backdrop-blur-md rounded-full text-white transition-all hover:rotate-180 z-20"
+          >
+            <RefreshCw size={18} />
+          </button>
+        </div>
 
-      {/* ── Hero Card ── */}
-      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-indigo-600 via-purple-600 to-violet-700 p-6 shadow-xl">
-        <div className="absolute -top-12 -right-12 w-48 h-48 bg-white/5 rounded-full pointer-events-none" />
-        <div className="absolute -bottom-8 -left-8 w-32 h-32 bg-white/5 rounded-full pointer-events-none" />
-
-        {loading ? (
-          <div className="flex items-center gap-4">
-            <div className="w-20 h-20 rounded-full bg-white/20 animate-pulse" />
-            <div className="space-y-2">
-              <div className="h-6 w-40 bg-white/20 rounded-lg animate-pulse" />
-              <div className="h-4 w-24 bg-white/10 rounded-lg animate-pulse" />
+        {/* Profile Identity Bar */}
+        <div className="bg-white dark:bg-[#1A1A1A] rounded-b-[2rem] border-x border-b border-gray-100 dark:border-white/[0.06] px-6 py-4 shadow-sm">
+          <div className="flex flex-col sm:flex-row items-center sm:items-end gap-6 -mt-12 sm:-mt-16 relative z-10">
+            {/* Avatar */}
+            <div className="w-20 h-20 sm:w-28 sm:h-28 rounded-3xl bg-white dark:bg-[#222] p-1 shadow-2xl ring-4 ring-white dark:ring-[#1A1A1A]">
+               <div className="w-full h-full rounded-2xl bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center text-white text-2xl sm:text-3xl font-bold">
+                 {initials}
+               </div>
             </div>
-          </div>
-        ) : error ? (
-          <div className="text-white/80">{error}</div>
-        ) : (
-          <div className="relative flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-            <div className="flex items-center gap-4">
-              <div className="w-20 h-20 rounded-full bg-white/20 flex items-center justify-center text-white text-2xl font-bold border-2 border-white/30 flex-shrink-0">
-                {initials}
+            
+            {/* Basic Info */}
+            <div className="flex-1 text-center sm:text-left pb-1">
+              <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+                <h1 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white tracking-tight">
+                  {user.name}
+                </h1>
+                <span className={`inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-widest ${
+                  user.status === 'Active' ? 'bg-emerald-500/10 text-emerald-500' : 'bg-red-500/10 text-red-500'
+                }`}>
+                  <span className={`w-1.5 h-1.5 rounded-full ${user.status === 'Active' ? 'bg-emerald-500' : 'bg-red-500'} animate-pulse`} />
+                  {user.status || 'Active'}
+                </span>
               </div>
-              <div>
-                <h1 className="text-2xl font-bold text-white">{user.name}</h1>
-                <div className="flex items-center gap-2 mt-1 flex-wrap">
-                  <span className="inline-flex items-center gap-1.5 bg-white/20 px-3 py-1 rounded-full text-sm text-white font-medium">
-                    <Shield size={13} />{user.role}
-                  </span>
-                  {user.loginId && (
-                    <span className="inline-flex items-center gap-1.5 bg-white/10 px-3 py-1 rounded-full text-sm text-white/80">
-                      <Hash size={12} />ID: {user.loginId}
-                    </span>
-                  )}
-                  <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold ${
-                    user.status === 'Active'
-                      ? 'bg-emerald-400/20 text-emerald-100'
-                      : 'bg-red-400/20 text-red-100'
-                  }`}>
-                    <Activity size={10} />{user.status ?? 'Active'}
-                  </span>
+              <div className="flex flex-wrap items-center justify-center sm:justify-start gap-3 mt-2 text-xs text-gray-500 dark:text-gray-400 font-medium">
+                <div className="flex items-center gap-1.5 bg-gray-100 dark:bg-white/[0.05] px-2.5 py-0.5 rounded-lg">
+                  <Shield size={12} className="text-indigo-500" /> {user.role}
                 </div>
-              </div>
-            </div>
-            <button
-              onClick={fetchProfile}
-              className="p-2 bg-white/10 hover:bg-white/20 rounded-lg text-white transition-colors self-start sm:self-center"
-              title="Refresh"
-            >
-              <RefreshCw size={16} />
-            </button>
-          </div>
-        )}
-      </div>
-
-      {!loading && !error && user && (
-        <>
-          {/* ── Quick Stats ── */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-            {[
-              { label: 'Assigned Centres', value: assignedCentres.length, icon: <Building2 size={18} className="text-indigo-600" />, bg: 'bg-indigo-50 dark:bg-indigo-900/20 border-indigo-100 dark:border-indigo-800/30' },
-              { label: 'Active Today', value: user.activeCount ?? 0, icon: <CheckCircle2 size={18} className="text-emerald-600" />, bg: 'bg-emerald-50 dark:bg-emerald-900/20 border-emerald-100 dark:border-emerald-800/30' },
-              { label: 'Inactive Today', value: user.inactiveCount ?? 0, icon: <XCircle size={18} className="text-red-500" />, bg: 'bg-red-50 dark:bg-red-900/20 border-red-100 dark:border-red-800/30' },
-              { label: 'Branches', value: user.branchIds?.length ?? 0, icon: <MapPin size={18} className="text-amber-600" />, bg: 'bg-amber-50 dark:bg-amber-900/20 border-amber-100 dark:border-amber-800/30' },
-            ].map(s => (
-              <div key={s.label} className={`flex items-center gap-3 p-4 rounded-xl border ${s.bg}`}>
-                <div className="p-2 bg-white dark:bg-gray-900 rounded-xl shadow-sm">{s.icon}</div>
-                <div>
-                  <div className="text-xs text-gray-500 dark:text-gray-400">{s.label}</div>
-                  <div className="font-bold text-gray-900 dark:text-white text-lg">{s.value}</div>
-                </div>
-              </div>
-            ))}
-          </div>
-
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            {/* ── Personal Info ── */}
-            <div className="space-y-4">
-              <div className="bg-white dark:bg-white/[0.02] rounded-2xl border border-gray-100 dark:border-white/[0.06] p-5">
-                <h3 className="font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
-                  <User size={15} className="text-indigo-500" />Personal Information
-                </h3>
-                <dl>
-                  <InfoRow label="Full Name" value={user.name} />
-                  <InfoRow label="Role" value={user.role} />
-                  <InfoRow label="Login ID" value={user.loginId} />
-                  <InfoRow label="Status" value={
-                    <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${user.status === 'Active' ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'}`}>
-                      {user.status}
-                    </span>
-                  } />
-                  <InfoRow label="Last Login" value={user.lastLoginAt ? new Date(user.lastLoginAt).toLocaleString('en-IN') : undefined} />
-                  <InfoRow label="Member Since" value={fmt(user.createdAt)} />
-                </dl>
-              </div>
-
-              <div className="bg-white dark:bg-white/[0.02] rounded-2xl border border-gray-100 dark:border-white/[0.06] p-5">
-                <h3 className="font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
-                  <Phone size={15} className="text-purple-500" />Contact Details
-                </h3>
-                <dl>
-                  <InfoRow label="Mobile Number" value={user.mobileNumber ? String(user.mobileNumber) : undefined} />
-                  <InfoRow label="Email" value={user.email} />
-                  <InfoRow label="Aadhar / PAN" value={user.aadharOrPanNumber} />
-                </dl>
-              </div>
-            </div>
-
-            {/* ── Assigned Centres ── */}
-            <div className="lg:col-span-2">
-              <div className="bg-white dark:bg-white/[0.02] rounded-2xl border border-gray-100 dark:border-white/[0.06] p-5">
-                <div className="flex items-center justify-between mb-5">
-                  <h3 className="font-semibold text-gray-900 dark:text-white flex items-center gap-2">
-                    <Building2 size={15} className="text-emerald-500" />Assigned Centres
-                  </h3>
-                  <span className="text-xs text-gray-400 bg-gray-100 dark:bg-white/[0.05] px-2.5 py-1 rounded-full">
-                    {assignedCentres.length} centre{assignedCentres.length !== 1 ? 's' : ''}
-                  </span>
-                </div>
-
-                {assignedCentres.length === 0 ? (
-                  <div className="py-12 text-center">
-                    <Building2 size={32} className="mx-auto mb-2 text-gray-200 dark:text-gray-700" />
-                    <p className="text-gray-400 text-sm">No centres assigned to this user.</p>
-                  </div>
-                ) : (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    {assignedCentres.map((centre: any) => (
-                      <CentreCard key={centre._id} centre={centre} />
-                    ))}
+                {user.loginId && (
+                  <div className="flex items-center gap-1.5">
+                    <Hash size={12} /> ID: <span className="font-mono text-gray-900 dark:text-white">{user.loginId}</span>
                   </div>
                 )}
+                <div className="flex items-center gap-1.5">
+                  <Calendar size={12} /> Member Since {fmt(user.createdAt)}
+                </div>
               </div>
+            </div>
 
-              {/* ── Branches & Regions ── */}
-              {((user.branchIds?.length ?? 0) > 0 || (user.regionIds?.length ?? 0) > 0) && (
-                <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  {user.branchIds?.length > 0 && (
-                    <div className="bg-white dark:bg-white/[0.02] rounded-2xl border border-gray-100 dark:border-white/[0.06] p-5">
-                      <h3 className="font-semibold text-gray-900 dark:text-white mb-3 flex items-center gap-2 text-sm">
-                        <MapPin size={14} className="text-amber-500" />Branches
-                      </h3>
-                      <div className="space-y-2">
-                        {user.branchIds.map((b: any) => (
-                          <div key={b._id} className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
-                            <span className="w-1.5 h-1.5 rounded-full bg-amber-400 flex-shrink-0" />
-                            {b.name ?? b}
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                  {user.regionIds?.length > 0 && (
-                    <div className="bg-white dark:bg-white/[0.02] rounded-2xl border border-gray-100 dark:border-white/[0.06] p-5">
-                      <h3 className="font-semibold text-gray-900 dark:text-white mb-3 flex items-center gap-2 text-sm">
-                        <MapPin size={14} className="text-violet-500" />Regions
-                      </h3>
-                      <div className="space-y-2">
-                        {user.regionIds.map((r: any) => (
-                          <div key={r._id} className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
-                            <span className="w-1.5 h-1.5 rounded-full bg-violet-400 flex-shrink-0" />
-                            {r.name ?? r}
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
+            {/* Action Group */}
+            <div className="hidden md:flex gap-3 pb-1">
+               <div className="bg-indigo-50 dark:bg-indigo-900/20 border border-indigo-100 dark:border-indigo-800/30 px-3 py-2 rounded-xl">
+                  <div className="text-[10px] uppercase font-bold text-indigo-500 tracking-tight leading-none mb-1">Centres</div>
+                  <div className="text-lg font-black text-indigo-700 dark:text-indigo-400 leading-none">{assignedCentres.length}</div>
+               </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* ── Stats Grid ── */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        {[
+          { label: 'Assigned Centres', value: assignedCentres.length, icon: <Building2 size={18} />, color: 'text-indigo-600', bg: 'bg-indigo-50 dark:bg-indigo-900/20' },
+          { label: 'Active Today', value: user.activeCount ?? 0, icon: <CheckCircle2 size={18} />, color: 'text-emerald-500', bg: 'bg-emerald-50 dark:bg-emerald-900/10' },
+          { label: 'Inactive Today', value: user.inactiveCount ?? 0, icon: <XCircle size={18} />, color: 'text-rose-500', bg: 'bg-rose-50 dark:bg-rose-900/10' },
+          { label: 'Branches', value: user.branchIds?.length ?? 0, icon: <MapPin size={18} />, color: 'text-amber-500', bg: 'bg-amber-50 dark:bg-amber-900/10' },
+        ].map(s => (
+          <div key={s.label} className="bg-white dark:bg-[#1A1A1A] p-4 rounded-[1.5rem] border border-gray-100 dark:border-white/[0.06] flex items-center gap-3 transition-colors shadow-sm">
+            <div className={`p-2 rounded-xl ${s.bg} ${s.color}`}>
+              {s.icon}
+            </div>
+            <div>
+              <div className="text-[10px] font-bold uppercase text-gray-400 tracking-wider leading-none">{s.label}</div>
+              <div className="text-lg font-black text-gray-900 dark:text-white mt-1">{s.value}</div>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* ── Content Body ── */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+        
+        {/* Left Column: Personal Information (Col 4) */}
+        <div className="lg:col-span-4 space-y-6">
+          <section className="bg-white dark:bg-[#1A1A1A] rounded-[1.5rem] border border-gray-100 dark:border-white/[0.06] p-6 shadow-sm">
+            <div className="flex items-center gap-3 mb-5">
+              <div className="w-8 h-8 rounded-xl bg-indigo-500/10 flex items-center justify-center text-indigo-500">
+                <User size={16} />
+              </div>
+              <h2 className="text-sm font-bold uppercase tracking-wider text-gray-900 dark:text-white leading-none">Personal Information</h2>
+            </div>
+            <div className="space-y-1">
+              <InfoRow label="Full Name" value={user.name} />
+              <InfoRow label="Role" value={user.role} />
+              <InfoRow label="Login ID" value={<span className="font-mono">{user.loginId}</span>} />
+              <InfoRow label="Last Login" value={user.lastLoginAt ? new Date(user.lastLoginAt).toLocaleString('en-IN') : 'Never'} />
+              <InfoRow label="Member Since" value={fmt(user.createdAt)} />
+            </div>
+          </section>
+
+          <section className="bg-white dark:bg-[#1A1A1A] rounded-[1.5rem] border border-gray-100 dark:border-white/[0.06] p-6 shadow-sm">
+            <div className="flex items-center gap-3 mb-5">
+              <div className="w-8 h-8 rounded-xl bg-purple-500/10 flex items-center justify-center text-purple-500">
+                <Phone size={16} />
+              </div>
+              <h2 className="text-sm font-bold uppercase tracking-wider text-gray-900 dark:text-white leading-none">Contact Details</h2>
+            </div>
+            <div className="space-y-1">
+              <InfoRow label="Mobile Number" value={user.mobileNumber ? String(user.mobileNumber) : undefined} />
+              <InfoRow label="Email" value={user.email} />
+              <InfoRow label="Aadhar / PAN" value={user.aadharOrPanNumber} />
+            </div>
+          </section>
+        </div>
+
+        {/* Right Column: Assigned Centres (Col 8) */}
+        <div className="lg:col-span-8 space-y-6">
+          
+          <section className="bg-white dark:bg-[#1A1A1A] rounded-[1.5rem] border border-gray-100 dark:border-white/[0.06] p-6 shadow-sm">
+            <div className="flex items-center justify-between mb-6">
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 rounded-xl bg-emerald-500/10 flex items-center justify-center text-emerald-500">
+                  <Building2 size={16} />
+                </div>
+                <h2 className="text-sm font-bold uppercase tracking-wider text-gray-900 dark:text-white leading-none">Assigned Centres</h2>
+              </div>
+              <span className="text-[10px] font-bold uppercase text-gray-400 px-3 py-1 bg-gray-50 dark:bg-white/[0.03] rounded-full border border-gray-200/50 dark:border-white/5">
+                {assignedCentres.length} Centre{assignedCentres.length !== 1 ? 's' : ''}
+              </span>
+            </div>
+
+            {assignedCentres.length === 0 ? (
+              <div className="py-16 text-center border-2 border-dashed border-gray-100 dark:border-white/[0.05] rounded-[1.5rem]">
+                <Building2 size={32} className="mx-auto mb-3 text-gray-200 dark:text-gray-800" />
+                <p className="text-gray-400 font-bold uppercase tracking-widest text-[10px]">No centres assigned</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {assignedCentres.map((centre: any) => (
+                  <CentreCard key={centre._id} centre={centre} />
+                ))}
+              </div>
+            )}
+          </section>
+
+          {/* Regional & Branch Access */}
+          {((user.branchIds?.length ?? 0) > 0 || (user.regionIds?.length ?? 0) > 0) && (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {user.branchIds?.length > 0 && (
+                <div className="bg-white dark:bg-[#1A1A1A] rounded-[1.5rem] border border-gray-100 dark:border-white/[0.06] p-6 shadow-sm">
+                  <h3 className="text-[10px] font-bold uppercase text-amber-500 tracking-widest mb-4">Branches</h3>
+                  <div className="flex flex-wrap gap-2">
+                    {user.branchIds.map((b: any) => (
+                      <span key={b._id} className="px-3 py-1 bg-amber-50 dark:bg-amber-900/10 text-amber-600 dark:text-amber-400 text-xs font-bold rounded-lg border border-amber-100 dark:border-amber-800/30">
+                        {b.name ?? b}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {user.regionIds?.length > 0 && (
+                <div className="bg-white dark:bg-[#1A1A1A] rounded-[1.5rem] border border-gray-100 dark:border-white/[0.06] p-6 shadow-sm">
+                  <h3 className="text-[10px] font-bold uppercase text-violet-500 tracking-widest mb-4">Regions</h3>
+                  <div className="flex flex-wrap gap-2">
+                    {user.regionIds.map((r: any) => (
+                      <span key={r._id} className="px-3 py-1 bg-violet-50 dark:bg-violet-900/10 text-violet-600 dark:text-violet-400 text-xs font-bold rounded-lg border border-violet-100 dark:border-violet-800/30">
+                        {r.name ?? r}
+                      </span>
+                    ))}
+                  </div>
                 </div>
               )}
             </div>
-          </div>
-        </>
-      )}
+          )}
+        </div>
+      </div>
     </div>
   );
 }

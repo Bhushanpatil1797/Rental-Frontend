@@ -5,6 +5,9 @@ import { useSidebar } from "@/context/SidebarContext";
 import { useRouter, usePathname } from "next/navigation";
 import React, { useState, useEffect, useRef } from "react";
 
+import Link from "next/link";
+import Image from "next/image";
+
 const AppHeader: React.FC = () => {
   const [canGoBack, setCanGoBack] = useState(false);
 
@@ -28,21 +31,6 @@ const AppHeader: React.FC = () => {
     }
   };
 
-  const inputRef = useRef<HTMLInputElement>(null);
-
-  useEffect(() => {
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if ((event.metaKey || event.ctrlKey) && event.key === "k") {
-        event.preventDefault();
-        inputRef.current?.focus();
-      }
-    };
-    document.addEventListener("keydown", handleKeyDown);
-    return () => {
-      document.removeEventListener("keydown", handleKeyDown);
-    };
-  }, []);
-
   useEffect(() => {
     const isHomePage =
       pathname === "/" || pathname === "/dashboard" || pathname === "/home";
@@ -51,8 +39,8 @@ const AppHeader: React.FC = () => {
 
   return (
     <header className="sticky top-0 z-[99999] flex h-14 w-full items-center border-b border-gray-200 bg-white px-4 dark:border-gray-800 dark:bg-[#121212] sm:h-16 sm:px-6">
-      {/* ── Left: hamburger (+ optional back) ── */}
-      <div className="flex items-center gap-2 flex-shrink-0">
+      {/* ── Left: hamburger + Logo ── */}
+      <div className="flex items-center gap-4 flex-shrink-0">
         {/* Hamburger / sidebar toggle */}
         <button
           onClick={handleToggle}
@@ -63,6 +51,17 @@ const AppHeader: React.FC = () => {
             <path fillRule="evenodd" clipRule="evenodd" d="M3 6.75A.75.75 0 013.75 6h16.5a.75.75 0 010 1.5H3.75A.75.75 0 013 6.75zm0 5.25a.75.75 0 01.75-.75h16.5a.75.75 0 010 1.5H3.75A.75.75 0 013 12zm0 5.25a.75.75 0 01.75-.75H20.25a.75.75 0 010 1.5H3.75a.75.75 0 01-.75-.75z" fill="currentColor" />
           </svg>
         </button>
+
+        {/* Logo */}
+        <Link href="/dashboard" className="flex items-center gap-2.5 group">
+           <div className="w-8 h-8 rounded-lg bg-indigo-600 flex items-center justify-center text-white shadow-lg shadow-indigo-500/20 group-hover:scale-110 transition-transform">
+              <span className="font-bold text-lg">R</span>
+           </div>
+           <div className="flex flex-col leading-none">
+              <span className="text-sm font-bold text-gray-900 dark:text-white tracking-tight">ACE Rental</span>
+              <span className="text-[10px] text-gray-400 font-medium uppercase tracking-[0.2em] mt-0.5">Admin</span>
+           </div>
+        </Link>
 
         {/* Back button — only shows when not on home pages */}
         {canGoBack && (
@@ -78,31 +77,8 @@ const AppHeader: React.FC = () => {
         )}
       </div>
 
-      {/* ── Center: Search bar ── */}
-      <div className="flex-1 min-w-0 px-3 sm:px-6">
-        <form onSubmit={(e) => e.preventDefault()}>
-          <div className="relative w-full max-w-xl">
-            {/* Search icon */}
-            <span className="pointer-events-none absolute inset-y-0 left-3 flex items-center">
-              <svg className="fill-gray-400 dark:fill-gray-500" width="18" height="18" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path fillRule="evenodd" clipRule="evenodd" d="M3.04175 9.37363C3.04175 5.87693 5.87711 3.04199 9.37508 3.04199C12.8731 3.04199 15.7084 5.87693 15.7084 9.37363C15.7084 12.8703 12.8731 15.7053 9.37508 15.7053C5.87711 15.7053 3.04175 12.8703 3.04175 9.37363ZM9.37508 1.54199C5.04902 1.54199 1.54175 5.04817 1.54175 9.37363C1.54175 13.6991 5.04902 17.2053 9.37508 17.2053C11.2674 17.2053 13.003 16.5344 14.357 15.4176L17.177 18.238C17.4699 18.5309 17.9448 18.5309 18.2377 18.238C18.5306 17.9451 18.5306 17.4703 18.2377 17.1774L15.418 14.3573C16.5365 13.0033 17.2084 11.2669 17.2084 9.37363C17.2084 5.04817 13.7011 1.54199 9.37508 1.54199Z" fill="" />
-              </svg>
-            </span>
-            <input
-              ref={inputRef}
-              type="text"
-              placeholder="Search or type command..."
-              className="h-10 w-full rounded-lg border border-gray-200 bg-gray-50 pl-10 pr-16 text-sm text-gray-800 placeholder:text-gray-400 focus:border-brand-300 focus:bg-white focus:outline-none focus:ring-2 focus:ring-brand-500/10 dark:border-gray-700 dark:bg-white/[0.04] dark:text-white/90 dark:placeholder:text-gray-500 dark:focus:border-brand-700 dark:focus:bg-white/[0.06]"
-            />
-            {/* ⌘K badge */}
-            <span className="pointer-events-none absolute inset-y-0 right-3 flex items-center">
-              <kbd className="inline-flex items-center gap-0.5 rounded border border-gray-200 bg-white px-1.5 py-0.5 text-[10px] font-medium text-gray-500 dark:border-gray-700 dark:bg-white/[0.06] dark:text-gray-400">
-                <span>⌘</span><span>K</span>
-              </kbd>
-            </span>
-          </div>
-        </form>
-      </div>
+      {/* ── Spacer (Center) ── */}
+      <div className="flex-1" />
 
       {/* ── Right: theme toggle + user ── */}
       <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0">

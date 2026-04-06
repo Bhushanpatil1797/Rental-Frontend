@@ -96,8 +96,8 @@ export default function OwnerModal({ isOpen, onClose, onSave, initialData }: Own
     if (newBanks.length === 0) setShowBank(false);
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSubmit = (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
     setSaving(true);
 
     const payload = {
@@ -125,7 +125,7 @@ export default function OwnerModal({ isOpen, onClose, onSave, initialData }: Own
           </p>
         </div>
 
-        <form onSubmit={handleSubmit} className="overflow-y-auto p-6 space-y-6 bg-white dark:bg-gray-900 scrollbar-thin">
+        <div className="overflow-y-auto p-6 space-y-6 bg-white dark:bg-gray-900 scrollbar-thin" onKeyDown={(e) => e.key === 'Enter' && handleSubmit(e as any)}>
           {/* Section 1: Personal Details */}
           <div>
             <div className="flex items-center gap-2 mb-4 border-b border-gray-100 dark:border-white/[0.05] pb-2">
@@ -233,11 +233,11 @@ export default function OwnerModal({ isOpen, onClose, onSave, initialData }: Own
 
           <div className="flex justify-end gap-3 pt-4 border-t border-gray-100 dark:border-white/[0.05] flex-shrink-0">
             <Button variant="outline" type="button" onClick={onClose}>Cancel</Button>
-            <Button type="submit" disabled={saving}>
+            <Button type="button" onClick={handleSubmit} disabled={saving}>
               {saving ? "Processing..." : initialData ? "Save All Changes" : "Create Owner Profile"}
             </Button>
           </div>
-        </form>
+        </div>
       </div>
     </Modal>
   );

@@ -191,6 +191,7 @@ const filtered = sites.filter(site => {
   }
 
   const handleSiteClick = async (site: any) => {
+    console.log("Rent Site Clicked:", site);
     setSelectedSite(site)
     await fetchSiteDetails(site._id || site.id)
   }

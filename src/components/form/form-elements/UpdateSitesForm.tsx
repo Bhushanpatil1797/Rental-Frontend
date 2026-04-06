@@ -3,13 +3,14 @@
 
 import React, { useState, useEffect, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { Plus, Trash2, Building2, Users, FileText, Landmark, ChevronDown, ChevronUp, X, RefreshCw, ArrowLeft, Save } from "lucide-react";
+import { Plus, Trash2, Building2, Users, FileText, Landmark, ChevronDown, ChevronUp, X, RefreshCw, ArrowLeft, Save, Zap } from "lucide-react";
 import { toast } from "react-hot-toast";
 import Label from "../Label";
 import Input from "../input/InputField";
 import Select from "../Select";
 import { ChevronDownIcon } from "../../../icons";
 import OwnerModal from "../../owners/OwnerModal";
+import ConsumerSelect from "../../consumers/ConsumerSelect";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 interface Centre { _id: string; name: string; shortCode?: string; }
@@ -118,8 +119,9 @@ export default function UpdateSitesForm() {
   const [expandedAssign, setExpandedAssign] = useState<boolean[]>([]);
   const [removedOwnerIds, setRemovedOwnerIds] = useState<string[]>([]);
 
-  const [electricityConsumers, setElectricityConsumers] = useState<ElectricityConsumer[]>([]);
-  const [removedConsumerIds, setRemovedConsumerIds] = useState<string[]>([]);
+  const [electricityConsumerIds, setElectricityConsumerIds] = useState<string[]>([]);
+  const [initialConsumerIds, setInitialConsumerIds] = useState<string[]>([]);
+  const [allConsumers, setAllConsumers] = useState<any[]>([]);
 
   // ── Fetch Initial Data ──────────────────────────────────────────────────────
   const fetchData = useCallback(async () => {
@@ -137,10 +139,8 @@ export default function UpdateSitesForm() {
         setCentres((user.centreIds || []).map((c: any) => typeof c === "object" ? { _id: c._id, name: c.name, shortCode: c.shortCode } : { _id: c, name: c }));
       }
 
-      // 2. Fetch Owners (all)
-      const oRes = await fetch(`${API}/api/rent/owners/?page=1&limit=200`, { headers: authHeaders() });
-      const oJson = await oRes.json();
-      setAllOwners(oJson.data ?? []);
+      // 2. Fetch Owners and Consumers
+      await Promise.all([fetchOwners(), fetchConsumers()]);
 
       // 3. Fetch Site Details
       const sRes = await fetch(`${API}/api/rent/sites/${siteId}`, { headers: authHeaders() });
@@ -186,7 +186,9 @@ export default function UpdateSitesForm() {
 
       // Map Consumers
       if (siteData.electricityConsumers) {
-        setElectricityConsumers(siteData.electricityConsumers);
+        const ids = siteData.electricityConsumers.map((c: any) => c._id);
+        setElectricityConsumerIds(ids);
+        setInitialConsumerIds(ids);
       }
 
     } catch (err) {
@@ -195,6 +197,26 @@ export default function UpdateSitesForm() {
       setLoading(false);
     }
   }, [params.id]);
+
+  const fetchOwners = async () => {
+    try {
+      const oRes = await fetch(`${API}/api/rent/owners/?page=1&limit=250`, { headers: authHeaders() });
+      const oJson = await oRes.json();
+      setAllOwners(oJson.data ?? []);
+    } catch (e) {
+      console.error("Failed to fetch owners", e);
+    }
+  };
+
+  const fetchConsumers = async () => {
+    try {
+      const cRes = await fetch(`${API}/api/rent/siteConsumer/all?page=1&limit=250`, { headers: authHeaders() });
+      const cJson = await cRes.json();
+      setAllConsumers(cJson.data || cJson || []);
+    } catch (e) {
+      console.error("Failed to fetch consumers", e);
+    }
+  };
 
   useEffect(() => { if (params.id) fetchData(); }, [params.id, fetchData]);
 
@@ -230,15 +252,9 @@ export default function UpdateSitesForm() {
     setAssignments(p => { const c = [...p]; c[idx] = { ...c[idx], [field]: value }; return c; });
   };
 
-  // Consumers
-  const addConsumer = () => setElectricityConsumers(p => [...p, { consumerNo: "", consumerName: "", electricityProvider: "" }]);
-  const removeConsumer = (idx: number) => {
-    const target = electricityConsumers[idx];
-    if (target._id) setRemovedConsumerIds(p => [...p, target._id!]);
-    setElectricityConsumers(p => p.filter((_, i) => i !== idx));
-  };
-  const updateConsumer = (idx: number, field: keyof ElectricityConsumer, value: string) => {
-    setElectricityConsumers(p => { const c = [...p]; c[idx] = { ...c[idx], [field]: value }; return c; });
+  // Consumers logic managed by ConsumerSelect
+  const handleConsumerChange = (ids: string[]) => {
+    setElectricityConsumerIds(ids);
   };
 
   const totalPct = assignments.reduce((sum, a) => sum + (Number(a.ownershipPercentage) || 0), 0);
@@ -292,15 +308,25 @@ export default function UpdateSitesForm() {
       }
 
       // 3. Handle Consumers
-      // Delete removed
-      for (const id of removedConsumerIds) {
-        await fetch(`${API}/api/rent/siteConsumer/${id}`, { method: "DELETE", headers: authHeaders() });
+      // Find added and removed
+      const addedConsumerIds = electricityConsumerIds.filter(id => !initialConsumerIds.includes(id));
+      const removedConsumerIds = initialConsumerIds.filter(id => !electricityConsumerIds.includes(id));
+
+      // Assign added
+      for (const consumerId of addedConsumerIds) {
+        await fetch(`${API}/api/rent/siteConsumer/assign`, {
+          method: "POST",
+          headers: authHeaders(),
+          body: JSON.stringify({ siteId, consumerId })
+        });
       }
-      // Update or Add
-      for (const c of electricityConsumers) {
-        const payload = { ...c, siteId };
-        if (c._id) await fetch(`${API}/api/rent/siteConsumer/${c._id}`, { method: "PUT", headers: authHeaders(), body: JSON.stringify(payload) });
-        else await fetch(`${API}/api/rent/siteConsumer`, { method: "POST", headers: authHeaders(), body: JSON.stringify(payload) });
+      // Remove removed
+      for (const consumerId of removedConsumerIds) {
+        await fetch(`${API}/api/rent/siteConsumer/remove`, {
+          method: "POST",
+          headers: authHeaders(),
+          body: JSON.stringify({ siteId, consumerId })
+        });
       }
 
       toast.success("Site updated successfully!");
@@ -462,17 +488,41 @@ export default function UpdateSitesForm() {
 
         {/* ── Section: Electricity ── */}
         <div className="bg-white dark:bg-white/[0.02] border border-gray-100 dark:border-white/[0.06] rounded-2xl p-6 shadow-sm">
-          <SectionHeader icon={Plus} title="Electricity Consumers" action={ <button type="button" onClick={addConsumer} className="px-3 py-1.5 bg-indigo-600 text-white text-xs font-semibold rounded-lg hover:bg-indigo-700 transition-colors">Add Meter</button> } />
-          <div className="space-y-4">
-            {electricityConsumers.map((c, i) => (
-              <div key={i} className="grid grid-cols-1 sm:grid-cols-3 gap-4 p-4 bg-gray-50 dark:bg-white/[0.02] rounded-xl border border-gray-100 dark:border-white/[0.06] relative">
-                 <button type="button" onClick={() => removeConsumer(i)} className="absolute top-2 right-2 text-gray-400 hover:text-red-500"><X size={14} /></button>
-                 <Field label="Consumer Number *"><Input value={c.consumerNo} onChange={e => updateConsumer(i, "consumerNo", e.target.value)} required /></Field>
-                 <Field label="Consumer Name"><Input value={c.consumerName} onChange={e => updateConsumer(i, "consumerName", e.target.value)} /></Field>
-                 <Field label="Electricity Provider"><Input value={c.electricityProvider} onChange={e => updateConsumer(i, "electricityProvider", e.target.value)} /></Field>
-              </div>
-            ))}
-          </div>
+           <SectionHeader icon={Zap} title="Electricity Consumers" subtitle="Manage consumer assignments for this site" />
+           <ConsumerSelect 
+             selectedConsumerIds={electricityConsumerIds} 
+             onChange={handleConsumerChange} 
+             label="" 
+           />
+           {/* Detailed Cards for selected consumers */}
+           {electricityConsumerIds.length > 0 && (
+             <div className="mt-4 space-y-3">
+               {electricityConsumerIds.map((id) => {
+                 const c = allConsumers.find(item => item._id === id);
+                 if (!c) return null;
+                 return (
+                   <div key={id} className="p-4 border border-gray-100 dark:border-white/[0.08] rounded-xl bg-gray-50/50 dark:bg-white/[0.02] flex items-center justify-between group">
+                     <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-xl bg-indigo-100 dark:bg-indigo-900/30 flex items-center justify-center text-indigo-600 dark:text-indigo-400">
+                           <Zap size={20} fill="currentColor" />
+                        </div>
+                        <div>
+                           <p className="font-bold text-sm text-gray-800 dark:text-white uppercase tracking-tight">{c.consumerNo}</p>
+                           <p className="text-xs text-gray-400 font-medium">{c.consumerName || "Untitled Consumer"} • {c.electricityProvider || "General"}</p>
+                        </div>
+                     </div>
+                     <button
+                       type="button"
+                       onClick={() => handleConsumerChange(electricityConsumerIds.filter(cid => cid !== id))}
+                       className="p-2 text-gray-300 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors opacity-0 group-hover:opacity-100"
+                     >
+                       <Trash2 size={16} />
+                     </button>
+                   </div>
+                 );
+               })}
+             </div>
+           )}
         </div>
 
         {/* ── Footer ── */}
@@ -485,7 +535,7 @@ export default function UpdateSitesForm() {
         </div>
       </form>
 
-      <OwnerModal isOpen={isNewOwnerModalOpen} onClose={() => setIsNewOwnerModalOpen(false)} onSave={() => fetchData()} />
+      <OwnerModal isOpen={isNewOwnerModalOpen} onClose={() => setIsNewOwnerModalOpen(false)} onSave={() => fetchOwners()} />
     </div>
   );
 }

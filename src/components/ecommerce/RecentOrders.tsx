@@ -12,12 +12,12 @@ import { Search } from "lucide-react";
 
 interface RentSite {
   code: number;
-  id: number;
+  id: string; // Updated to string for siteId
   siteName: string;
-  propertyLocation: string;
+  location: string;
   monthlyRent: number;
-  paymentDay: number;
-  paidStatus: "Pending" | "Delivered" | "Canceled" | string | null;
+  paymentDay: string;
+  status: "pending" | "paid" | "partial" | string;
 }
 
 export default function UpcomingRentSitesTable() {
@@ -31,32 +31,41 @@ export default function UpcomingRentSitesTable() {
       setLoading(true);
       setError(null);
       try {
+        const token = localStorage.getItem("token");
         const res = await fetch(
-          `${process.env.NEXT_PUBLIC_API_URL}/api/rental-dashboard/stats`,
+          `${process.env.NEXT_PUBLIC_API_URL}/api/rent/dashboard/upcoming-rents`,
+          {
+            headers: {
+              "Authorization": `Bearer ${token}`,
+              "Content-Type": "application/json"
+            }
+          }
         );
-        console.log("API Response:", res);
-        console.log("API Response Status:", res.status);
+        
         if (!res.ok) throw new Error("Failed to fetch data");
         const data = await res.json();
-       setRentSites(data.data?.upcomingRentSites || []);
+        console.log("Upcoming Rents Response:", data);
+        if (data.success) {
+          setRentSites(data.data || []);
+        }
       } catch (err: unknown) {
         setError(err instanceof Error ? err.message : "Something went wrong");
       } finally {
         setLoading(false);
       }
-
     };
 
     fetchRentSites();
   }, []);
+
   const filteredRentSites = useMemo(() => {
     if (!searchTerm) return rentSites;
     return rentSites.filter((site) =>
       site.siteName.toLowerCase().includes(searchTerm.toLowerCase()) ||
       site.code.toString().includes(searchTerm) ||
-      site.propertyLocation.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      site.location.toLowerCase().includes(searchTerm.toLowerCase()) ||
       site.paymentDay.toString().includes(searchTerm.toLowerCase()) ||
-      (site.paidStatus && site.paidStatus.toLowerCase().includes(searchTerm.toLowerCase()))
+      (site.status && site.status.toLowerCase().includes(searchTerm.toLowerCase()))
     );
   }, [rentSites, searchTerm]);
 
@@ -119,23 +128,23 @@ export default function UpcomingRentSitesTable() {
               </TableRow>
             ) : (
               filteredRentSites.map((site) => (
-                <TableRow key={site.id}>
+                <TableRow key={`${site.id}-${site.code}`}>
                   <TableCell className="py-2 px-2 text-center">{site.code}</TableCell>
                   <TableCell className="py-2 px-2 text-center">{site.siteName}</TableCell>
-                  <TableCell className="py-2 px-2 text-center">{site.propertyLocation}</TableCell>
+                  <TableCell className="py-2 px-2 text-center">{site.location}</TableCell>
                   <TableCell className="py-2 px-2 text-center">{site.paymentDay}</TableCell>
                   <TableCell className="py-2 px-2 text-center">
                     <Badge
                       size="sm"
                       color={
-                        site.paidStatus === "Delivered" || site.paidStatus === "Paid"
+                        site.status === "paid"
                           ? "success"
-                          : site.paidStatus === "Pending"
+                          : site.status === "pending"
                             ? "error"
                             : "warning"
                       }
                     >
-                      {site.paidStatus || "N/A"}
+                      {site.status || "N/A"}
                     </Badge>
                   </TableCell>
                 </TableRow>

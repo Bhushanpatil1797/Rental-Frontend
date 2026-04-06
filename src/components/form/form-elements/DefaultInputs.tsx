@@ -2,13 +2,14 @@
 "use client";
 
 import React, { useState, useEffect, useCallback } from "react";
-import { Plus, Trash2, Building2, Users, FileText, Landmark, ChevronDown, ChevronUp, X, RefreshCw } from "lucide-react";
+import { Plus, Trash2, Building2, Users, FileText, Landmark, ChevronDown, ChevronUp, X, RefreshCw, Zap } from "lucide-react";
 import { toast } from "react-hot-toast";
 import Label from "../Label";
 import Input from "../input/InputField";
 import Select from "../Select";
 import { ChevronDownIcon } from "../../../icons";
 import OwnerModal from "../../owners/OwnerModal";
+import ConsumerSelect from "../../consumers/ConsumerSelect";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 interface Centre { _id: string; name: string; shortCode?: string; }
@@ -104,8 +105,9 @@ export default function AddSiteForm() {
   const [assignments, setAssignments] = useState<OwnerAssignment[]>([]);
   const [expandedAssign, setExpandedAssign] = useState<boolean[]>([]);
 
-  // Electricity Consumers for this site
-  const [electricityConsumers, setElectricityConsumers] = useState<ElectricityConsumer[]>([]);
+  // Consumers
+  const [allConsumers, setAllConsumers] = useState<any[]>([]);
+  const [electricityConsumerIds, setElectricityConsumerIds] = useState<string[]>([]);
 
   // Form
   const [form, setForm] = useState({
@@ -185,7 +187,21 @@ export default function AddSiteForm() {
     finally { setOwnersLoading(false); }
   }, []);
 
-  useEffect(() => { fetchCentres(); fetchOwners(); }, [fetchCentres, fetchOwners]);
+  useEffect(() => {
+    fetchCentres();
+    fetchOwners();
+    fetchConsumers();
+  }, [fetchCentres, fetchOwners]);
+
+  const fetchConsumers = async () => {
+    try {
+      const response = await fetch(`${API}/api/rent/siteConsumer/all?page=1&limit=500`, { headers: authHeaders() });
+      const json = await response.json();
+      setAllConsumers(json.data || json || []);
+    } catch (e) {
+      console.error("Failed to fetch consumers", e);
+    }
+  };
 
   // ── Form field helper ───────────────────────────────────────────────────────
   const setField = (field: string) => (e: React.ChangeEvent<HTMLInputElement>) =>
@@ -235,21 +251,9 @@ export default function AddSiteForm() {
     });
   };
 
-  // ── Electricity Consumer Management ──────────────────────────────────────────
-  const addElectricityConsumer = () => {
-    setElectricityConsumers((prev) => [...prev, { consumerNo: "", consumerName: "", electricityProvider: "" }]);
-  };
-
-  const removeElectricityConsumer = (idx: number) => {
-    setElectricityConsumers((prev) => prev.filter((_, i) => i !== idx));
-  };
-
-  const updateElectricityConsumer = (idx: number, field: keyof ElectricityConsumer, value: string) => {
-    setElectricityConsumers((prev) => {
-      const copy = [...prev];
-      copy[idx] = { ...copy[idx], [field]: value };
-      return copy;
-    });
+  // ── Electricity Consumer Management managed via ConsumerSelect ──
+  const handleConsumerChange = (ids: string[]) => {
+    setElectricityConsumerIds(ids);
   };
 
   // Total ownership percent
@@ -319,14 +323,18 @@ export default function AddSiteForm() {
         });
       }
 
-      // Step 3: Create Electricity Consumers
-      for (const consumer of electricityConsumers) {
-        if (!consumer.consumerNo) continue;
-        await fetch(`${API}/api/rent/siteConsumer`, {
-          method: "POST",
-          headers: authHeaders(),
-          body: JSON.stringify({ ...consumer, siteId }),
-        });
+      // Step 3: Create Electricity Consumer Assignments
+      for (const consumerId of electricityConsumerIds) {
+        try {
+          const assignRes = await fetch(`${API}/api/rent/siteConsumer/assign`, {
+            method: "POST",
+            headers: authHeaders(),
+            body: JSON.stringify({ siteId, consumerId }),
+          });
+          if (!assignRes.ok) console.error("Failed to assign consumer:", consumerId);
+        } catch (err) {
+          console.error("Error assigning consumer:", err);
+        }
       }
 
       toast.success("Site created and details assigned successfully!");
@@ -342,7 +350,7 @@ export default function AddSiteForm() {
         authorisedPersonCommission: "", paymentDay: "", status: "active",
       });
       setAssignments([]);
-      setElectricityConsumers([]);
+      setElectricityConsumerIds([]);
       setExpandedAssign([]);
     } catch (err: any) {
       toast.error(err.message ?? "Something went wrong");
@@ -487,44 +495,40 @@ export default function AddSiteForm() {
 
         {/* ── Section: Electricity Consumers ── */}
         <div className="bg-white dark:bg-white/[0.02] border border-gray-100 dark:border-white/[0.06] rounded-2xl p-6 shadow-sm">
-          <SectionHeader
-            icon={Plus}
-            title="Electricity Consumers"
-            subtitle="Add electricity meters for this site"
-            action={
-              <button type="button" onClick={addElectricityConsumer}
-                className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold rounded-lg transition-colors">
-                <Plus size={12} /> Add Consumer
-              </button>
-            }
+          <SectionHeader icon={Zap} title="Electricity Consumers" subtitle="Manage consumer assignments for this site" />
+          <ConsumerSelect 
+            selectedConsumerIds={electricityConsumerIds} 
+            onChange={handleConsumerChange} 
+            label="" 
           />
 
-          {electricityConsumers.length === 0 ? (
-            <div className="py-8 text-center border-2 border-dashed border-gray-100 dark:border-white/[0.05] rounded-xl">
-              <p className="text-sm text-gray-400">No electricity consumers added yet</p>
-            </div>
-          ) : (
-            <div className="space-y-4">
-              {electricityConsumers.map((consumer, idx) => (
-                <div key={idx} className="grid grid-cols-1 sm:grid-cols-3 gap-4 p-4 bg-gray-50 dark:bg-white/[0.02] rounded-xl border border-gray-100 dark:border-white/[0.06] relative">
-                  <button type="button" onClick={() => removeElectricityConsumer(idx)}
-                    className="absolute top-2 right-2 p-1 text-gray-400 hover:text-red-500 transition-colors">
-                    <X size={14} />
-                  </button>
-                  <div>
-                    <Label>Consumer Number *</Label>
-                    <Input type="text" value={consumer.consumerNo} onChange={(e) => updateElectricityConsumer(idx, "consumerNo", e.target.value)} placeholder="e.g. 123456789" required />
+          {/* Detailed Cards for selected consumers */}
+          {electricityConsumerIds.length > 0 && (
+            <div className="mt-4 space-y-3">
+              {electricityConsumerIds.map((id) => {
+                const c = allConsumers.find(item => item._id === id);
+                if (!c) return null;
+                return (
+                  <div key={id} className="p-4 border border-gray-100 dark:border-white/[0.08] rounded-xl bg-gray-50/50 dark:bg-white/[0.02] flex items-center justify-between group">
+                    <div className="flex items-center gap-3">
+                       <div className="w-10 h-10 rounded-xl bg-indigo-100 dark:bg-indigo-900/30 flex items-center justify-center text-indigo-600 dark:text-indigo-400">
+                          <Zap size={20} fill="currentColor" />
+                       </div>
+                       <div>
+                          <p className="font-bold text-sm text-gray-800 dark:text-white uppercase tracking-tight">{c.consumerNo}</p>
+                          <p className="text-xs text-gray-400 font-medium">{c.consumerName || "Untitled Consumer"} • {c.electricityProvider || "General"}</p>
+                       </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => handleConsumerChange(electricityConsumerIds.filter(cid => cid !== id))}
+                      className="p-2 text-gray-300 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors opacity-0 group-hover:opacity-100"
+                    >
+                      <Trash2 size={16} />
+                    </button>
                   </div>
-                  <div>
-                    <Label>Consumer Name</Label>
-                    <Input type="text" value={consumer.consumerName} onChange={(e) => updateElectricityConsumer(idx, "consumerName", e.target.value)} placeholder="e.g. Main Meter" />
-                  </div>
-                  <div>
-                    <Label>Electricity Provider</Label>
-                    <Input type="text" value={consumer.electricityProvider} onChange={(e) => updateElectricityConsumer(idx, "electricityProvider", e.target.value)} placeholder="e.g. MSEB" />
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </div>

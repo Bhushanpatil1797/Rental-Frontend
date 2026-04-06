@@ -9,36 +9,55 @@ import {
   HorizontaLDots,
   ListIcon,
 } from "../icons/index";
-import { BuildingIcon, FileTextIcon, FolderIcon, PlusCircleIcon, ZapIcon } from "lucide-react";
+import { BuildingIcon, FileTextIcon, FolderIcon, PlusCircleIcon, ZapIcon, Wrench, LayoutDashboard } from "lucide-react";
 
 type NavItem = {
   name: string;
   icon: React.ReactNode;
   path?: string;
+  subtitle?: string;
   subItems?: { name: string; path: string; pro?: boolean; new?: boolean }[];
 };
 
 export const navItems: NavItem[] = [
-
+  {
+    name: "Dashboard",
+    icon: <LayoutDashboard />,
+    path: "/dashboard",
+  },
+  {
+    icon: <PlusCircleIcon />,
+    name: "Create",
+    subtitle: "site/owner/consumer",
+    subItems: [
+      { name: "Add Site", path: "/form-elements" },
+      { name: "Add Owner", path: "/owners" },
+      { name: "Add Consumer", path: "/consumers" },
+    ],
+  },
   {
     icon: <FileTextIcon />,
-    name: "Rent Payment's",
-    path: "/blank",
+    name: "Rent Payment",
+    subItems: [
+      { name: "Rent Payment", path: "/blank" },
+      { name: "Rent Transaction", path: "/rent-transactions" },
+    ],
   },
   {
     icon: <ZapIcon />,
     name: "Electricity Bill",
-    path: "/electricity",
+    subItems: [
+      { name: "Electricity Bill", path: "/electricity" },
+      { name: "Electricity Bill's", path: "/electricity-bills" },
+    ],
   },
   {
-    icon: <ListIcon />,
-    name: "Rent Transaction's",
-    path: "/rent-transactions",
-  },
-  {
-    icon: <ListIcon />,
-    name: "Electricity Bill's",
-    path: "/electricity-bills",
+    icon: <Wrench />,
+    name: "Maintenance",
+    subItems: [
+      { name: "Maintenance", path: "/maintenance" },
+      { name: "Maintenance Transaction's", path: "/maintenance-transactions" },
+    ],
   },
   {
     name: "All Sites",
@@ -50,25 +69,6 @@ export const navItems: NavItem[] = [
     icon: <FolderIcon />,
     path: "/master-tables",
   },
-  {
-    name: "Owners",
-    icon: <FolderIcon />,
-    path: "/owners",
-  },
-  {
-    icon: <PlusCircleIcon />,
-    name: "Add Site's",
-    path: "/form-elements",
-  },
-  // {
-  //   name: "Pages",
-  //   icon: <PageIcon />,
-  //   subItems: [
-  //     // { name: "Blank Page", path: "/blank", pro: false },
-  //     { name: "404 Error", path: "/error-404", pro: false },
-  //     // { name: "Rent Transaction's", path: "/rent-transactions", pro: false },
-  //   ],
-  // },
 ];
 
 // Commented out the Others section
@@ -114,11 +114,19 @@ const AppSidebar: React.FC = () => {
     // Fetch the stats (same as EcommerceMetrics)
     const fetchStats = async () => {
       try {
-        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/rental-dashboard/stats?daysAhead=10`);
+        const token = localStorage.getItem("token");
+        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/rent/dashboard/stats`, {
+          headers: {
+            "Authorization": `Bearer ${token}`,
+            "Content-Type": "application/json"
+          }
+        });
         const data = await res.json();
-        setSiteCount(data.totalSites ?? 0);
-        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        if (data.success) {
+          setSiteCount(data.data?.sites?.total ?? 0);
+        }
       } catch (error) {
+        console.error("Sidebar site count fetch failed:", error);
         setSiteCount(null);
       }
     };
@@ -152,7 +160,14 @@ const AppSidebar: React.FC = () => {
                 {nav.icon}
               </span>
               {(isExpanded || isHovered || isMobileOpen) && (
-                <span className="menu-item-text">{nav.name}</span>
+                <div className="flex flex-col items-start gap-0.5 overflow-hidden">
+                  <span className="menu-item-text leading-tight">{nav.name}</span>
+                  {nav.subtitle && (
+                    <span className="text-[10px] text-gray-400 font-medium leading-none truncate w-full">
+                      {nav.subtitle}
+                    </span>
+                  )}
+                </div>
               )}
               {(isExpanded || isHovered || isMobileOpen) && (
                 <ChevronDownIcon
@@ -168,6 +183,7 @@ const AppSidebar: React.FC = () => {
             nav.path && (
               <Link
                 href={nav.path}
+                onClick={() => setOpenSubmenu(null)}
                 className={`menu-item group ${isActive(nav.path) ? "menu-item-active" : "menu-item-inactive"
                   }`}
               >
@@ -180,15 +196,22 @@ const AppSidebar: React.FC = () => {
                   {nav.icon}
                 </span>
                 {(isExpanded || isHovered || isMobileOpen) && (
-                  <span className="menu-item-text flex items-center">
-                    {nav.name}
-                    {/* Show badge for All Sites */}
-                    {nav.name === "All Sites" && siteCount !== null && (
-                      <span className="ml-2 inline-flex items-center justify-center px-2 py-0.5 text-xs font-semibold rounded-full bg-emerald-500 text-white">
-                        {siteCount}
+                  <div className="flex flex-col items-start gap-0.5 overflow-hidden">
+                    <span className="menu-item-text flex items-center leading-tight">
+                      {nav.name}
+                      {/* Show badge for All Sites */}
+                      {nav.name === "All Sites" && siteCount !== null && (
+                        <span className="ml-2 inline-flex items-center justify-center px-2 py-0.5 text-xs font-semibold rounded-full bg-emerald-500 text-white">
+                          {siteCount}
+                        </span>
+                      )}
+                    </span>
+                    {nav.subtitle && (
+                      <span className="text-[10px] text-gray-400 font-medium leading-none truncate w-full">
+                        {nav.subtitle}
                       </span>
                     )}
-                  </span>
+                  </div>
                 )}
               </Link>
             )
@@ -208,7 +231,7 @@ const AppSidebar: React.FC = () => {
               }}
             >
               <ul className="mt-2 space-y-1 ml-9">
-                {nav.subItems.map((subItem) => (
+                {nav.subItems.map((subItem: { name: string; path: string; pro?: boolean; new?: boolean }) => (
                   <li key={subItem.name}>
                     <Link
                       href={subItem.path}
@@ -268,7 +291,7 @@ const AppSidebar: React.FC = () => {
       const items = navItems;
       items.forEach((nav, index) => {
         if (nav.subItems) {
-          nav.subItems.forEach((subItem) => {
+          nav.subItems.forEach((subItem: { name: string; path: string; pro?: boolean; new?: boolean }) => {
             if (isActive(subItem.path)) {
               setOpenSubmenu({
                 type: menuType as "main",
@@ -313,7 +336,7 @@ const AppSidebar: React.FC = () => {
 
   return (
     <aside
-      className={`fixed mt-16 flex flex-col lg:mt-0 top-0 px-5 left-0 bg-white dark:bg-[#121212] dark:border-gray-800 text-gray-900 h-screen transition-all duration-300 ease-in-out z-50 border-r border-gray-200 
+      className={`fixed mt-16 flex flex-col top-0 px-5 left-0 bg-white dark:bg-[#121212] dark:border-gray-800 text-gray-900 h-screen transition-all duration-300 ease-in-out z-50 border-r border-gray-200 
         ${isExpanded || isMobileOpen
           ? "w-[240px]"
           : isHovered
@@ -325,39 +348,7 @@ const AppSidebar: React.FC = () => {
       onMouseEnter={() => !isExpanded && setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >
-      <div
-        className={`py-8 flex ${!isExpanded && !isHovered ? "lg:justify-center" : "justify-start"
-          }`}
-      >
-        <Link href="/dashboard" className="flex items-center gap-2">
-          {isExpanded || isHovered || isMobileOpen ? (
-            <>
-              <Image
-                className="dark:hidden"
-                src="/images/logo/logo-new.svg"
-                alt="Logo"
-                width={150}
-                height={40}
-              />
-              <Image
-                className="hidden dark:block"
-                src="/images/logo/logo-dark-new.svg"
-                alt="Logo"
-                width={150}
-                height={40}
-              />
-            </>
-          ) : (
-            <Image
-              src="/images/logo/logo-icon.svg"
-              alt="Logo"
-              width={32}
-              height={32}
-            />
-          )}
-        </Link>
-      </div>
-      <div className="flex flex-col overflow-y-auto duration-300 ease-linear no-scrollbar">
+      <div className="flex flex-col pt-4 overflow-y-auto duration-300 ease-linear no-scrollbar">
         <nav className="mb-6">
           <div className="flex flex-col gap-4">
             <div>

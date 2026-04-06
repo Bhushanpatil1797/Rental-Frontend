@@ -4,629 +4,349 @@
 
 "use client";
 import React, { useState, ChangeEvent } from 'react';
-import ComponentCard from '../../common/ComponentCard';
+import { toast } from 'react-hot-toast';
+import { Zap, Calendar, CreditCard, Camera, Send, FileText, Trash2 } from 'lucide-react';
+import DatePicker from '@/components/form/date-picker';
 import Label from '../Label';
 import Input from '../input/InputField';
 import Select from '../Select';
-import DatePicker from '@/components/form/date-picker';
-import { toast } from 'react-hot-toast';
-
-// Payment type options
-const paymentTypeOptions = [
-    { value: "Rent", label: "Rent" },
-    { value: "Electricity", label: "Electricity" },
-];
 
 // Paid status options
 const paidStatusOptions = [
-    { value: "Paid", label: "Paid" },
-    { value: "Unpaid", label: "Unpaid" },
-    { value: "Partial", label: "Partially Paid" },
+    { value: "paid", label: "Paid" },
+    { value: "pending", label: "Pending" },
+    { value: "partial", label: "Partially Paid" },
 ];
 
-// Form data interfaces
-interface RentPaymentFormData {
-    site_id: number;
-    month_year: string;
-    monthly_rent: number;
-    payment_type: string;
-    payment_date: string;
-    owner_name: string;
-    payment_amount: string;
-    utr_number: string;
-    paid_status: 'Paid' | 'Unpaid' | 'Partial';
-}
-
-interface ElectricityPaymentForm {
-    site_id: number;
-    month_year: string;
-    payment_date: string;
-    payment_amount: string;
-    paid_status: 'Paid' | 'Unpaid' | 'Partial';
-    units: string;
-    electricity_charges: string;
-    electricity_consumerno: string;
-    payment_type: string;
-}
-
-interface RentPaymentFormProps {
-    siteId: number;
-    owners: Array<{
-        id?: number;
+interface ElectricityPaymentFormProps {
+    siteId: string | number;
+    owners?: Array<{
+        id?: string | number;
         owner_name: string;
         owner_monthly_rent: number;
     }>;
-    currentMonthlyRent: number;
+    currentMonthlyRent?: number;
+    consumers?: Array<{ _id?: string; consumerNo: string; consumerName?: string }>;
 }
 
-export default function RentPaymentForm({ siteId, owners, currentMonthlyRent }: RentPaymentFormProps) {
-    const [paymentType, setPaymentType] = useState<string>('');
-    const [rentImage, setRentImage] = useState<File | null>(null);
-    const [electricityImage, setElectricityImage] = useState<File | null>(null);
-    // Rent payment form data
-    const [rentFormData, setRentFormData] = useState<RentPaymentFormData>({
-        site_id: siteId,
-        month_year: '',
-        monthly_rent: currentMonthlyRent,
-        payment_type: 'Rent',
-        payment_date: new Date().toISOString().split('T')[0],
-        owner_name: '',
-        payment_amount: '',
-        utr_number: '',
-        paid_status: 'Paid'
-    });
-
-    // Electricity payment form data
-    const [electricityFormData, setElectricityFormData] = useState<ElectricityPaymentForm>({
-        site_id: siteId,
-        month_year: '',
-        payment_date: new Date().toISOString().split('T')[0],
-        payment_amount: '',
-        paid_status: 'Paid',
-        units: '',
-        electricity_charges: '',
-        electricity_consumerno: '',
-        payment_type: 'Electricity'
-    });
-
+export default function ElectricityPaymentForm({ siteId, owners = [], currentMonthlyRent = 0, consumers = [] }: ElectricityPaymentFormProps) {
     const [isLoading, setIsLoading] = useState(false);
+    const [proofImage, setProofImage] = useState<File | null>(null);
 
-    // Handle rent form input changes
-    const handleRentInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        setRentFormData({
-            ...rentFormData,
-            [e.target.name]: e.target.value
-        });
-    };
+    // Form data
+    const [formData, setFormData] = useState({
+        siteId: siteId,
+        monthYear: '',
+        paymentDate: new Date().toISOString().split('T')[0],
+        paymentAmount: '',
+        paidStatus: 'paid' as 'paid' | 'pending' | 'partial',
+        units: '',
+        electricityCharges: '',
+        electricityConsumerNo: consumers[0]?.consumerNo || '',
+        electricityConsumerId: consumers[0]?._id || '',
+        paymentType: 'Online'
+    });
 
-    // Handle electricity form input changes
-    const handleElectricityInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        setElectricityFormData({
-            ...electricityFormData,
-            [e.target.name]: e.target.value
-        });
-    };
-
-    // Handle select changes for rent form
-    const handleRentSelectChange = (name: string, value: string) => {
-        setRentFormData({
-            ...rentFormData,
-            [name]: value
-        });
-    };
-
-    // Handle select changes for electricity form
-    const handleElectricitySelectChange = (name: string, value: string) => {
-        setElectricityFormData({
-            ...electricityFormData,
-            [name]: value
-        });
-    };
-
-    // Handle image input change
-    const handleRentImageChange = (e: ChangeEvent<HTMLInputElement>) => {
-        if (e.target.files && e.target.files[0]) {
-            setRentImage(e.target.files[0]);
+    // Auto-select consumer if available and not set
+    React.useEffect(() => {
+        if (consumers.length > 0 && !formData.electricityConsumerId) {
+            setFormData(prev => ({
+                ...prev,
+                electricityConsumerNo: consumers[0].consumerNo,
+                electricityConsumerId: consumers[0]._id || ''
+            }));
         }
-    };
-    const handleElectricityImageChange = (e: ChangeEvent<HTMLInputElement>) => {
-        if (e.target.files && e.target.files[0]) {
-            setElectricityImage(e.target.files[0]);
-        }
+    }, [consumers]);
+
+    const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const { name, value } = e.target;
+        setFormData(prev => ({ ...prev, [name]: value }));
     };
 
-    // Handle date changes for rent form
-    const handleRentDateChange = (name: string, dateObj: Date[] | null) => {
+    const handleSelectChange = (name: string, value: string) => {
+        setFormData(prev => ({ ...prev, [name]: value }));
+    };
+
+    const handleDateChange = (name: string, dateObj: Date[] | null) => {
         if (dateObj && dateObj[0]) {
-            const formattedDate = new Date(dateObj[0]).toISOString().split('T')[0];
-            setRentFormData(prev => ({
-                ...prev,
-                [name]: formattedDate
-            }));
+            // Ensure it's a local date in YYYY-MM-DD format
+            const d = dateObj[0];
+            const formattedDate = [
+                d.getFullYear(),
+                String(d.getMonth() + 1).padStart(2, '0'),
+                String(d.getDate()).padStart(2, '0')
+            ].join('-');
+            setFormData(prev => ({ ...prev, [name]: formattedDate }));
         }
     };
 
-    // Handle date changes for electricity form
-    const handleElectricityDateChange = (name: string, dateObj: Date[] | null) => {
-        if (dateObj && dateObj[0]) {
-            const formattedDate = new Date(dateObj[0]).toISOString().split('T')[0];
-            setElectricityFormData(prev => ({
-                ...prev,
-                [name]: formattedDate
-            }));
+    const handleImageChange = (e: ChangeEvent<HTMLInputElement>) => {
+        if (e.target.files && e.target.files[0]) {
+            setProofImage(e.target.files[0]);
         }
     };
 
-    // Submit rent payment
-    const handleRentSubmit = async () => {
-        try {
-            if (!rentFormData.site_id || !rentFormData.month_year || !rentFormData.payment_amount || !rentFormData.owner_name) {
-                throw new Error('Please fill in all required fields');
-            }
-
-            const payload = {
-                siteId: rentFormData.site_id,
-                monthYear: rentFormData.month_year,
-                monthlyRent: rentFormData.monthly_rent,
-                paymentType: rentFormData.payment_type,
-                paymentDate: rentFormData.payment_date || new Date().toISOString().split('T')[0],
-                ownerName: rentFormData.owner_name,
-                paymentAmount: rentFormData.payment_amount,
-                utrNumber: rentFormData.utr_number,
-                paidStatus: rentFormData.paid_status,
-                ownerId: rentFormData.site_id // Assuming site_id used as placeholder for ownerId if not specific
-            };
-
-            console.log("Submitting Rent Payment Payload:", payload);
-
-            const formData = new FormData();
-            Object.entries(payload).forEach(([key, value]) => formData.append(key, String(value)));
-
-            if (rentImage) {
-                formData.append('image', rentImage);
-            }
-
-            const url = `${process.env.NEXT_PUBLIC_API_URL}/api/rent/renttransactions`;
-            console.log("Submitting Rent Payment to:", url);
-
-            const response = await fetch(url, {
-                method: 'POST',
-                headers: {
-                    'Authorization': `Bearer ${localStorage.getItem('token')}`
-                },
-                body: formData
-            });
-
-            console.log("Rent Payment API Response Status:", response.status);
-            const data = await response.json();
-            console.log("Rent Payment API Response Data:", data);
-
-            if (!response.ok) {
-                switch (response.status) {
-                    case 409:
-                        throw new Error(`A payment record already exists for ${rentFormData.owner_name} for ${rentFormData.month_year}`);
-                    case 404:
-                        throw new Error('Owner not found or not associated with this site');
-                    case 400:
-                        throw new Error(data.message || 'Invalid payment details');
-                    default:
-                        throw new Error(data.message || 'Something went wrong');
-                }
-            }
-
-            toast.success(
-                `Rent Payment Success! ₹${rentFormData.payment_amount} recorded for ${rentFormData.owner_name} (${rentFormData.month_year})`,
-                {
-                    duration: 4000,
-                    position: 'top-center',
-                    style: {
-                        background: '#10B981',
-                        color: 'white',
-                        fontWeight: '500',
-                    }
-                }
-            );
-
-            setRentFormData(prev => ({
-                ...prev,
-                payment_amount: '',
-                owner_name: '',
-                paid_status: 'Paid',
-                month_year: '',
-                payment_date: new Date().toISOString().split('T')[0],
-                utr_number: ''
-            }));
-            setRentImage(null);
-
-        } catch (error) {
-            toast.error(error instanceof Error ? error.message : 'Failed to record rent payment', {
-                duration: 4000,
-                position: 'top-center',
-                style: {
-                    background: '#EF4444',
-                    color: 'white',
-                    fontWeight: '500',
-                }
-            });
-        }
-    };
-
-    // Submit electricity payment
-    const handleElectricitySubmit = async () => {
-        try {
-            if (!electricityFormData.site_id || !electricityFormData.month_year || !electricityFormData.payment_amount ||
-                !electricityFormData.units || !electricityFormData.electricity_charges || !electricityFormData.electricity_consumerno) {
-                throw new Error('Please fill in all required fields');
-            }
-
-            const payload = {
-                siteId: electricityFormData.site_id,
-                monthYear: electricityFormData.month_year.toUpperCase(),
-                paymentDate: electricityFormData.payment_date,
-                paymentAmount: electricityFormData.payment_amount,
-                paidStatus: electricityFormData.paid_status,
-                units: electricityFormData.units,
-                electricityCharges: electricityFormData.electricity_charges,
-                electricityConsumerNo: electricityFormData.electricity_consumerno,
-                paymentType: electricityFormData.payment_type
-            };
-
-            console.log("Submitting Electricity Payment Payload:", payload);
-
-            const formData = new FormData();
-            Object.entries(payload).forEach(([key, value]) => formData.append(key, String(value)));
-
-            if (electricityImage) {
-                formData.append('image', electricityImage);
-            }
-
-            const url = `${process.env.NEXT_PUBLIC_API_URL}/api/rent/electricitytransactions`;
-            console.log("Submitting Electricity Payment to:", url);
-
-            const response = await fetch(url, {
-                method: 'POST',
-                headers: {
-                    'Authorization': `Bearer ${localStorage.getItem('token')}`
-                },
-                body: formData
-            });
-
-            console.log("Electricity Payment API Response Status:", response.status);
-            const data = await response.json();
-            console.log("Electricity Payment API Response Data:", data);
-
-            if (!response.ok) {
-                throw new Error(data.message || 'Failed to record electricity payment');
-            }
-
-            toast.success(
-                `Electricity Payment Success! ₹${electricityFormData.payment_amount} recorded for ${electricityFormData.month_year}`,
-                {
-                    duration: 4000,
-                    position: 'top-center',
-                    style: {
-                        background: '#10B981',
-                        color: 'white',
-                        fontWeight: '500',
-                    }
-                }
-            );
-
-            setElectricityFormData(prev => ({
-                ...prev,
-                payment_amount: '',
-                units: '',
-                electricity_charges: '',
-                electricity_consumerno: '',
-                paid_status: 'Paid',
-                month_year: '',
-                payment_date: new Date().toISOString().split('T')[0]
-            }));
-            setElectricityImage(null);
-
-        } catch (error) {
-            toast.error(error instanceof Error ? error.message : 'Failed to record electricity payment', {
-                duration: 4000,
-                position: 'top-center',
-                style: {
-                    background: '#EF4444',
-                    color: 'white',
-                    fontWeight: '500',
-                }
-            });
-        }
-    };
-
-    // Main form submit handler
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
+        
+        console.log("📝 [Electricity Transaction] Form State:", formData);
+        
+        const requiredFields = [
+            { field: 'monthYear', label: 'Billing Month' },
+            { field: 'paymentAmount', label: 'Amount Paid' },
+            { field: 'electricityConsumerId', label: 'Consumer selection' },
+            { field: 'units', label: 'Units Consumed' }
+        ];
+
+        const missing = requiredFields.filter(f => !formData[f.field as keyof typeof formData]);
+        
+        if (missing.length > 0) {
+            console.warn("⚠️ Validation Failed. Missing fields:", missing.map(m => m.label));
+            toast.error(`Please provide: ${missing.map(m => m.label).join(', ')}`, {
+                style: { background: '#EF4444', color: 'white' }
+            });
+            return;
+        }
+
         setIsLoading(true);
 
         try {
-            if (paymentType === 'Rent') {
-                await handleRentSubmit();
-            } else if (paymentType === 'Electricity') {
-                await handleElectricitySubmit();
-            } else {
-                throw new Error('Please select a payment type');
+            const token = localStorage.getItem('token');
+            if (!token) throw new Error("Authentication session expired. Please login again.");
+
+            const submitData = new FormData();
+            
+            // Standardizing to camelCase consistent with Rent Payments
+            submitData.append('siteId', String(formData.siteId));
+            submitData.append('monthYear', formData.monthYear.toUpperCase());
+            submitData.append('paymentDate', formData.paymentDate);
+            submitData.append('paymentAmount', formData.paymentAmount);
+            submitData.append('paidStatus', formData.paidStatus);
+            submitData.append('units', formData.units);
+            submitData.append('electricityCharges', formData.electricityCharges || formData.paymentAmount);
+            submitData.append('electricityConsumerNo', formData.electricityConsumerNo);
+            submitData.append('electricityConsumerId', formData.electricityConsumerId);
+            submitData.append('paymentType', formData.paymentType);
+
+            if (proofImage) {
+                submitData.append('image', proofImage);
             }
+
+            // Debug payload
+            console.log("🚀 [Electricity Transaction] Sending Payload:");
+            for (let [key, value] of (submitData as any).entries()) {
+                console.log(`${key}:`, value instanceof File ? `File: ${value.name}` : value);
+            }
+
+            console.log("⚡ [Electricity Transaction] Submitting...");
+
+            // Updated endpoint to match working siteTransaction pattern
+            const url = `${process.env.NEXT_PUBLIC_API_URL}/api/rent/siteTransaction/electricity-transaction`;
+            const response = await fetch(url, {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${token}` },
+                body: submitData
+            });
+
+            const data = await response.json();
+            console.log("⚡ [Electricity Transaction] Response:", data);
+
+            if (!response.ok) {
+                throw new Error(data.message || 'Verification failed on server');
+            }
+
+            toast.success(
+                `Payment Success! ₹${formData.paymentAmount} recorded for ${formData.monthYear}`,
+                {
+                    duration: 4000,
+                    style: { background: '#10B981', color: 'white', fontWeight: '500' }
+                }
+            );
+
+            // Reset form
+            setFormData(prev => ({
+                ...prev,
+                paymentAmount: '',
+                units: '',
+                electricityCharges: '',
+                monthYear: '',
+                paymentDate: new Date().toISOString().split('T')[0]
+            }));
+            setProofImage(null);
+
+        } catch (error: any) {
+            console.error("❌ Submission Error:", error);
+            toast.error(error.message || "Failed to record payment", {
+                style: { background: '#EF4444', color: 'white' }
+            });
         } finally {
             setIsLoading(false);
         }
     };
 
     return (
-        <ComponentCard title="Record Payment">
-            <form onSubmit={handleSubmit} className="space-y-6">
-                {/* Payment Type Selection */}
-                <div>
-                    <Label htmlFor="payment_type">Payment Type*</Label>
-                    <Select
-                        options={paymentTypeOptions}
-                        value={paymentType}
-                        onChange={(value) => setPaymentType(value)}
-                        required
-                    />
+        <div className="bg-white dark:bg-white/[0.03] border border-gray-100 dark:border-white/[0.06] rounded-2xl p-6 shadow-sm">
+            <div className="flex items-center gap-3 mb-6">
+                <div className="p-2 bg-yellow-500 rounded-xl shadow-lg shadow-yellow-500/20 text-white">
+                    <Zap size={20} fill="currentColor" />
                 </div>
+                <div>
+                    <h2 className="text-lg font-bold text-gray-800 dark:text-white leading-tight">Record Electricity Payment</h2>
+                    <p className="text-xs text-gray-400 mt-0.5">Electricity payout will be recorded in the general ledger</p>
+                </div>
+            </div>
 
-                {/* Rent Payment Form */}
-                {paymentType === 'Rent' && (
-                    <div className="grid grid-cols-2 gap-4">
-                        <div>
-                            <Label htmlFor="month_year">Payment Month*</Label>
-                            <Input
-                                type="text"
-                                id="month_year"
-                                name="month_year"
-                                value={rentFormData.month_year}
-                                onChange={handleRentInputChange}
-                                placeholder="e.g., JUNE 2025"
-                                required
-                            />
-                        </div>
+            <form onSubmit={handleSubmit} className="space-y-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                    <div className="space-y-1.5">
+                        <Label htmlFor="monthYear" className="text-xs font-bold uppercase tracking-wider text-gray-400">Billing Month*</Label>
+                        <Input
+                            type="text"
+                            id="monthYear"
+                            name="monthYear"
+                            value={formData.monthYear}
+                            onChange={handleInputChange}
+                            placeholder="e.g., JUNE 2025"
+                            required
+                            className="h-10 text-sm"
+                        />
+                    </div>
 
-                        <div>
-                            <Label htmlFor="owner_name">Owner Name*</Label>
+                    <div className="space-y-1.5">
+                        <Label htmlFor="electricityConsumerNo" className="text-xs font-bold uppercase tracking-wider text-gray-400">Consumer No*</Label>
+                        {consumers.length > 0 ? (
                             <Select
-                                options={owners.map(owner => ({
-                                    value: owner.owner_name,
-                                    label: `${owner.owner_name} (₹${owner.owner_monthly_rent || 0})`
+                                options={consumers.map(c => ({
+                                    value: c._id || '',
+                                    label: c.consumerName ? `${c.consumerNo} (${c.consumerName})` : c.consumerNo
                                 }))}
-                                value={rentFormData.owner_name}
-                                onChange={(value) => {
-                                    const selectedOwner = owners.find(o => o.owner_name === value);
-                                    setRentFormData(prev => ({
+                                value={formData.electricityConsumerId}
+                                placeholder="Choose Consumer"
+                                onChange={(val) => {
+                                    const selected = consumers.find(c => c._id === val);
+                                    setFormData(prev => ({
                                         ...prev,
-                                        owner_name: value,
-                                        payment_amount: selectedOwner?.owner_monthly_rent?.toString() || '',
-                                        monthly_rent: selectedOwner?.owner_monthly_rent || 0
+                                        electricityConsumerId: val,
+                                        electricityConsumerNo: selected?.consumerNo || ''
                                     }));
                                 }}
+                                className="h-10 text-sm"
                             />
-                        </div>
-
-                        <div>
-                            <Label htmlFor="payment_amount">Payment Amount*</Label>
-                            <Input
-                                type="number"
-                                step={0.01}
-                                id="payment_amount"
-                                name="payment_amount"
-                                value={rentFormData.payment_amount}
-                                onChange={handleRentInputChange}
-                                required
-                            />
-                        </div>
-
-                        <div>
-                            <Label htmlFor="image">Upload Payment Proof/Image</Label>
-                            <div className="flex items-center space-x-3">
-                                <label
-                                    htmlFor="image"
-                                    className="cursor-pointer px-4 py-2 bg-blue-50 text-blue-700 border border-blue-300 rounded hover:bg-blue-100 transition"
-                                >
-                                    Choose File
-                                    <input
-                                        type="file"
-                                        id="image"
-                                        name="image"
-                                        accept="image/*"
-                                        onChange={handleRentImageChange}
-                                        className="hidden"
-                                    />
-                                </label>
-                                {rentImage && (
-                                    <span className="text-xs text-green-600 truncate max-w-xs">
-                                        Selected: {rentImage.name}
-                                    </span>
-                                )}
+                        ) : (
+                            <div className="h-10 px-3 flex items-center bg-red-50 dark:bg-red-500/10 border border-red-100 dark:border-red-500/20 rounded-lg text-[10px] text-red-500 font-bold uppercase tracking-tighter">
+                                Wait! No Consumers Linked to this Site.
                             </div>
-                            <p className="text-xs text-gray-400 mt-1">Accepted formats: JPG, PNG, GIF, etc.</p>
-                        </div>
-                        <div>
-                            <Label htmlFor="utr_number">UTR No.*</Label>
-                            <Input
-                                type="text"
-                                id="utr_number"
-                                name="utr_number"
-                                value={rentFormData.utr_number}
-                                onChange={handleRentInputChange}
-                                required
-                            />
-                        </div>
+                        )}
+                    </div>
 
-                        <div>
-                            <Label htmlFor="payment_date">Payment Date</Label>
-                            <DatePicker
-                                id="payment_date"
-                                value={new Date(rentFormData.payment_date)}
-                                onChange={(date) => handleRentDateChange('payment_date', date)}
-                            />
-                        </div>
+                    <div className="space-y-1.5">
+                        <Label htmlFor="paymentAmount" className="text-xs font-bold uppercase tracking-wider text-gray-400">Amount Paid*</Label>
+                        <Input
+                            type="number"
+                            id="paymentAmount"
+                            name="paymentAmount"
+                            value={formData.paymentAmount}
+                            onChange={handleInputChange}
+                            placeholder="0.00"
+                            required
+                            className="h-10 text-sm"
+                        />
+                    </div>
 
-                        <div>
-                            <Label htmlFor="paid_status">Payment Status</Label>
-                            <Select
-                                options={paidStatusOptions}
-                                value={rentFormData.paid_status}
-                                onChange={(value) => handleRentSelectChange('paid_status', value)}
-                            />
+                    <div className="space-y-1.5">
+                        <Label htmlFor="units" className="text-xs font-bold uppercase tracking-wider text-gray-400">Units Consumed*</Label>
+                        <Input
+                            type="number"
+                            id="units"
+                            name="units"
+                            value={formData.units}
+                            onChange={handleInputChange}
+                            placeholder="e.g. 450"
+                            required
+                            className="h-10 text-sm"
+                        />
+                    </div>
+
+                    <div className="space-y-1.5">
+                        <Label htmlFor="electricityCharges" className="text-xs font-bold uppercase tracking-wider text-gray-400">Base Charges</Label>
+                        <Input
+                            type="number"
+                            id="electricityCharges"
+                            name="electricityCharges"
+                            value={formData.electricityCharges}
+                            onChange={handleInputChange}
+                            placeholder="Optional"
+                            className="h-10 text-sm"
+                        />
+                    </div>
+
+                    <div className="space-y-1.5">
+                        <Label htmlFor="paidStatus" className="text-xs font-bold uppercase tracking-wider text-gray-400">Status*</Label>
+                        <Select
+                            options={paidStatusOptions}
+                            value={formData.paidStatus}
+                            onChange={(value) => handleSelectChange('paidStatus', value)}
+                            className="h-10 text-sm"
+                        />
+                    </div>
+
+                    <div className="space-y-1.5">
+                        <Label htmlFor="paymentDate" className="text-xs font-bold uppercase tracking-wider text-gray-400">Payment Date*</Label>
+                        <DatePicker
+                            id="paymentDate"
+                            value={new Date(formData.paymentDate)}
+                            onChange={(date) => handleDateChange('paymentDate', date)}
+                        />
+                    </div>
+
+                    <div className="col-span-1 lg:col-span-2 space-y-1.5">
+                        <Label htmlFor="image" className="text-xs font-bold uppercase tracking-wider text-gray-400">Proof of Payment</Label>
+                        <div className="flex items-center gap-3">
+                            <label
+                                htmlFor="image"
+                                className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-gray-50 dark:bg-white/[0.03] border border-dashed border-gray-200 dark:border-white/[0.1] rounded-xl hover:bg-gray-100 dark:hover:bg-white/[0.05] transition-all cursor-pointer group"
+                            >
+                                <span className="text-sm font-medium text-gray-600 dark:text-gray-400 group-hover:text-yellow-500 transition-colors">
+                                    {proofImage ? proofImage.name : "Click to upload bill image or PDF"}
+                                </span>
+                                <input
+                                    type="file"
+                                    id="image"
+                                    name="image"
+                                    accept="image/*,.pdf"
+                                    onChange={handleImageChange}
+                                    className="hidden"
+                                />
+                            </label>
+                            {proofImage && (
+                                <button type="button" onClick={() => setProofImage(null)} className="p-2 text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-lg transition-colors">
+                                    <Trash2 size={16} />
+                                </button>
+                            )}
                         </div>
                     </div>
-                )}
+                </div>
 
-                {/* Electricity Payment Form */}
-                {paymentType === 'Electricity' && (
-                    <div className="grid grid-cols-2 gap-4">
-                        <div>
-                            <Label htmlFor="month_year_electricity">Payment Month*</Label>
-                            <Input
-                                type="text"
-                                id="month_year_electricity"
-                                name="month_year"
-                                value={electricityFormData.month_year}
-                                onChange={handleElectricityInputChange}
-                                placeholder="e.g., JUNE 2025"
-                                required
-                            />
-                        </div>
-
-                        <div>
-                            <Label htmlFor="electricity_consumerno">Consumer Number*</Label>
-                            <Input
-                                type="text"
-                                id="electricity_consumerno"
-                                name="electricity_consumerno"
-                                value={electricityFormData.electricity_consumerno}
-                                onChange={handleElectricityInputChange}
-                                required
-                            />
-                        </div>
-
-                        <div>
-                            <Label htmlFor="unit">Units Consumed*</Label>
-                            <Input
-                                type="number"
-                                step={0.01}
-                                id="unit"
-                                name="units"
-                                value={electricityFormData.units}
-                                onChange={handleElectricityInputChange}
-                                required
-                            />
-                        </div>
-
-                        <div>
-                            <Label htmlFor="electricity_charges">Electricity Charges*</Label>
-                            <Input
-                                type="number"
-                                step={0.01}
-                                id="electricity_charges"
-                                name="electricity_charges"
-                                value={electricityFormData.electricity_charges}
-                                onChange={handleElectricityInputChange}
-                                required
-                            />
-                        </div>
-                        <div>
-                            <Label htmlFor="image">Upload Payment Proof/Image</Label>
-                            <div className="flex items-center space-x-3">
-                                <label
-                                    htmlFor="image"
-                                    className="cursor-pointer px-4 py-2 bg-blue-50 text-blue-700 border border-blue-300 rounded hover:bg-blue-100 transition"
-                                >
-                                    Choose File
-                                    <input
-                                        type="file"
-                                        id="image"
-                                        name="image"
-                                        accept="image/*"
-                                        onChange={handleElectricityImageChange}
-                                        className="hidden"
-                                    />
-                                </label>
-                                {electricityImage && (
-                                    <span className="text-xs text-green-600 truncate max-w-xs">
-                                        Selected: {electricityImage.name}
-                                    </span>
-                                )}
-                            </div>
-                            <p className="text-xs text-gray-400 mt-1">Accepted formats: JPG, PNG, GIF, etc.</p>
-                        </div>
-
-                        <div>
-                            <Label htmlFor="payment_amount_electricity">Payment Amount*</Label>
-                            <Input
-                                type="number"
-                                step={0.01}
-                                id="payment_amount_electricity"
-                                name="payment_amount"
-                                value={electricityFormData.payment_amount}
-                                onChange={handleElectricityInputChange}
-                                required
-                            />
-                        </div>
-
-                        <div>
-                            <Label htmlFor="payment_date_electricity">Payment Date</Label>
-                            <DatePicker
-                                id="payment_date_electricity"
-                                value={new Date(electricityFormData.payment_date)}
-                                onChange={(date) => handleElectricityDateChange('payment_date', date)}
-                            />
-                        </div>
-
-                        <div>
-                            <Label htmlFor="paid_status_electricity">Payment Status</Label>
-                            <Select
-                                options={paidStatusOptions}
-                                value={electricityFormData.paid_status}
-                                onChange={(value) => handleElectricitySelectChange('paid_status', value)}
-                            />
-                        </div>
-                    </div>
-                )}
-
-                <div className="flex justify-end space-x-4">
-                    <button
-                        type="button"
-                        className="px-4 py-2 text-gray-700 bg-gray-100 rounded hover:bg-gray-200"
-                        onClick={() => {
-                            setPaymentType('');
-                            // Reset both forms
-                            setRentFormData(prev => ({
-                                ...prev,
-                                payment_amount: '',
-                                owner_name: '',
-                                paid_status: 'Paid',
-                                month_year: '',
-                                payment_date: new Date().toISOString().split('T')[0],
-                                utr_number: ''
-                            }));
-                            setElectricityFormData(prev => ({
-                                ...prev,
-                                payment_amount: '',
-                                units: '',
-                                electricity_charges: '',
-                                electricity_consumerno: '',
-                                paid_status: 'Paid',
-                                month_year: '',
-                                payment_date: new Date().toISOString().split('T')[0]
-                            }));
-                        }}
-                    >
-                        Cancel
-                    </button>
+                <div className="flex justify-end pt-4 border-t border-gray-100 dark:border-white/[0.05]">
                     <button
                         type="submit"
-                        className="px-4 py-2 text-white bg-blue-500 rounded hover:bg-blue-600 disabled:bg-blue-300"
-                        disabled={isLoading || !paymentType}
+                        disabled={isLoading}
+                        className="px-8 py-2.5 bg-yellow-500 text-white text-sm font-bold rounded-xl hover:bg-yellow-600 transition-all shadow-lg shadow-yellow-500/20 active:scale-95 disabled:opacity-50 disabled:active:scale-100 flex items-center gap-2"
                     >
-                        {isLoading ? 'Recording Payment...' : 'Record Payment'}
+                        {isLoading ? (
+                            <>
+                                <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                <span>Recording...</span>
+                            </>
+                        ) : (
+                            <>
+                                <Send size={16} />
+                                <span>Record Payment</span>
+                            </>
+                        )}
                     </button>
                 </div>
             </form>
-        </ComponentCard>
+        </div>
     );
 }
-

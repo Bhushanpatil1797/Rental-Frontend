@@ -3,7 +3,7 @@
 
 import React, { useState, useEffect, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { Building2, Users, FileText, Landmark, ChevronDown, ChevronUp, ArrowLeft, Edit, Trash2, Globe, MapPin, ExternalLink } from "lucide-react";
+import { Building2, Users, FileText, Landmark, ChevronDown, ChevronUp, ArrowLeft, Edit, Trash2, Globe, MapPin, ExternalLink, Zap } from "lucide-react";
 import { toast } from "react-hot-toast";
 import Label from "../Label";
 import { ChevronDownIcon } from "../../../icons";
@@ -82,6 +82,7 @@ export default function EditSiteForm() {
   const [owners, setOwners] = useState<OwnerAssignment[]>([]);
   const [consumers, setConsumers] = useState<ElectricityConsumer[]>([]);
   const [expandedOwners, setExpandedOwners] = useState<boolean[]>([]);
+  const [expandedConsumers, setExpandedConsumers] = useState<boolean[]>([]);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
@@ -117,6 +118,7 @@ export default function EditSiteForm() {
       // Map consumers
       if (siteData.electricityConsumers) {
         setConsumers(siteData.electricityConsumers);
+        setExpandedConsumers(siteData.electricityConsumers.map(() => false));
       }
     } catch (err: any) {
       toast.error(err.message);
@@ -352,23 +354,39 @@ export default function EditSiteForm() {
 
           {/* ── Section: Electricity ── */}
           <div className="bg-white dark:bg-white/[0.02] border border-gray-100 dark:border-white/[0.06] rounded-2xl p-6 shadow-sm">
-            <SectionHeader icon={Landmark} title="Electricity Meters" subtitle={`${consumers.length} registered consumer(s)`} />
+            <SectionHeader icon={Landmark} title="Electricity Consumers" subtitle={`${consumers.length} registered consumer(s)`} />
             {consumers.length === 0 ? (
               <div className="py-4 text-center border-2 border-dashed border-gray-100 dark:border-white/[0.05] rounded-xl">
-                 <p className="text-xs text-gray-400 font-medium">No electricity meters found.</p>
+                 <p className="text-xs text-gray-400 font-medium">No electricity consumers found.</p>
               </div>
             ) : (
-              <div className="grid grid-cols-1 gap-3">
+              <div className="space-y-3">
                 {consumers.map((c, i) => (
-                  <div key={i} className="p-4 bg-gray-50 dark:bg-white/[0.02] rounded-xl border border-gray-100 dark:border-white/[0.06] flex items-center justify-between">
-                    <div>
-                      <p className="text-[10px] font-black text-indigo-500 uppercase tracking-[0.2em] mb-1">Consumer #{i + 1}</p>
-                      <h4 className="text-sm font-bold text-gray-800 dark:text-white uppercase">{c.consumerNo}</h4>
-                      <p className="text-xs text-gray-400 font-medium mt-0.5">{c.consumerName} • {c.electricityProvider}</p>
+                  <div key={i} className="border border-gray-100 dark:border-white/[0.06] rounded-xl overflow-hidden group/consumer">
+                    <div className="flex items-center justify-between px-4 py-3 bg-gray-50/50 dark:bg-white/[0.01] cursor-pointer hover:bg-gray-50 dark:hover:bg-white/[0.03] transition-colors"
+                      onClick={() => setExpandedConsumers(prev => { const n = [...prev]; n[i] = !n[i]; return n; })}>
+                      <div className="flex items-center gap-3">
+                        <div className="w-9 h-9 rounded-xl bg-indigo-100 dark:bg-indigo-900/30 flex items-center justify-center text-indigo-600 dark:text-indigo-400 font-bold text-xs shadow-sm group-hover/consumer:rotate-6 transition-transform">
+                          <Zap size={18} fill="currentColor" />
+                        </div>
+                        <div>
+                          <p className="font-bold text-sm text-gray-800 dark:text-white uppercase tracking-tight">{c.consumerNo}</p>
+                          <p className="text-[10px] text-indigo-500 font-bold uppercase tracking-widest">{c.electricityProvider || "General Meter"}</p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-4">
+                        <div className={`p-1.5 rounded-lg transition-colors ${expandedConsumers[i] ? 'bg-indigo-50 text-indigo-600' : 'text-gray-400'}`}>
+                          {expandedConsumers[i] ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                        </div>
+                      </div>
                     </div>
-                    <div className="p-2 bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 dark:text-indigo-400 rounded-lg">
-                      <Landmark size={18} />
-                    </div>
+                    {expandedConsumers[i] && (
+                      <div className="p-4 bg-white dark:bg-gray-900/50 grid grid-cols-1 sm:grid-cols-2 gap-4 animate-in slide-in-from-top-2 duration-200">
+                        <ViewField label="Consumer Name" value={c.consumerName} />
+                        <ViewField label="Meter Number" value={c.consumerNo} />
+                        <ViewField label="Provider" value={c.electricityProvider} span2 />
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>
