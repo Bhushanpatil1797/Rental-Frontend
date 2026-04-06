@@ -56,13 +56,13 @@ export default function MaintenanceTransactionsTable() {
     const [searchTerm, setSearchTerm] = useState("");
     const [filters, setFilters] = useState<FilterParams>({});
     const [totalCount, setTotalCount] = useState(0);
-    
+
     // UI States
     const [selectedTransaction, setSelectedTransaction] = useState<MaintenanceTransaction | null>(null);
     const [viewImage, setViewImage] = useState<string | null>(null);
     const [isUpdateModalOpen, setIsUpdateModalOpen] = useState(false);
     const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
-    
+
     const [updateFormData, setUpdateFormData] = useState({
         paymentAmount: "",
         paidStatus: "",
@@ -94,9 +94,9 @@ export default function MaintenanceTransactionsTable() {
                 if (value) queryParams.append(key, value);
             });
 
-            // Correct base path is /api/rent/maintenance as seen in r.txt and maintenanceController.js
-            const url = `${process.env.NEXT_PUBLIC_API_URL}/api/rent/maintenance/site/all${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
-            
+            // Correct path with pluralization and capital T
+            const url = `${process.env.NEXT_PUBLIC_API_URL}/api/rent/maintenanceTransactions/site/all${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
+
             const response = await fetch(url, {
                 headers: {
                     Authorization: `Bearer ${token}`,
@@ -110,7 +110,7 @@ export default function MaintenanceTransactionsTable() {
 
             const json = await response.json();
             const dataArray = json.data || (Array.isArray(json) ? json : []);
-            
+
             const normalized = dataArray.map((t: any) => ({
                 ...t,
                 id: t._id || t.id,
@@ -280,7 +280,7 @@ export default function MaintenanceTransactionsTable() {
                 const errorData = await res.json();
                 throw new Error(errorData.message || `Update failed (Status: ${res.status})`);
             }
-            
+
             toast.success("Transaction updated successfully");
             setIsUpdateModalOpen(false);
             fetchMaintenanceTransactions();
@@ -304,7 +304,7 @@ export default function MaintenanceTransactionsTable() {
             });
 
             if (!res.ok) throw new Error("Delete failed");
-            
+
             toast.success("Transaction deleted");
             setIsDeleteModalOpen(false);
             fetchMaintenanceTransactions();
@@ -502,18 +502,18 @@ export default function MaintenanceTransactionsTable() {
                             <div className="flex space-x-4">
                                 <div className="flex-1">
                                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Amount</label>
-                                    <input type="text" value={updateFormData.paymentAmount} onChange={(e) => setUpdateFormData({...updateFormData, paymentAmount: e.target.value})} className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md dark:bg-gray-700 dark:text-white" />
+                                    <input type="text" value={updateFormData.paymentAmount} onChange={(e) => setUpdateFormData({ ...updateFormData, paymentAmount: e.target.value })} className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md dark:bg-gray-700 dark:text-white" />
                                 </div>
                                 <div className="flex-1">
                                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Status</label>
-                                    <select value={updateFormData.paidStatus} onChange={(e) => setUpdateFormData({...updateFormData, paidStatus: e.target.value})} className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md dark:bg-gray-700 dark:text-white">
+                                    <select value={updateFormData.paidStatus} onChange={(e) => setUpdateFormData({ ...updateFormData, paidStatus: e.target.value })} className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md dark:bg-gray-700 dark:text-white">
                                         <option value="paid">Paid</option>
                                         <option value="pending">Pending</option>
                                         <option value="partial">Partial</option>
                                     </select>
                                 </div>
                             </div>
-                            
+
                             <div className="flex space-x-4">
                                 <div className="flex-1">
                                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Payment Date</label>
@@ -526,19 +526,19 @@ export default function MaintenanceTransactionsTable() {
                                 </div>
                                 <div className="flex-1">
                                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Month / Year</label>
-                                    <input type="text" value={updateFormData.monthYear} onChange={(e) => setUpdateFormData({...updateFormData, monthYear: e.target.value})} className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md dark:bg-gray-700 dark:text-white" placeholder="e.g. April-2026" />
+                                    <input type="text" value={updateFormData.monthYear} onChange={(e) => setUpdateFormData({ ...updateFormData, monthYear: e.target.value })} className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md dark:bg-gray-700 dark:text-white" placeholder="e.g. April-2026" />
                                 </div>
                             </div>
 
                             <div className="space-y-1">
                                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Description</label>
-                                <textarea className="w-full p-3 text-sm bg-gray-50 dark:bg-white/[0.02] border border-gray-300 dark:border-white/[0.1] rounded-xl outline-none min-h-[80px] dark:text-white" value={updateFormData.maintenanceDescription} onChange={(e) => setUpdateFormData({...updateFormData, maintenanceDescription: e.target.value})} />
+                                <textarea className="w-full p-3 text-sm bg-gray-50 dark:bg-white/[0.02] border border-gray-300 dark:border-white/[0.1] rounded-xl outline-none min-h-[80px] dark:text-white" value={updateFormData.maintenanceDescription} onChange={(e) => setUpdateFormData({ ...updateFormData, maintenanceDescription: e.target.value })} />
                             </div>
 
                             <div className="flex space-x-4">
                                 <div className="flex-1">
                                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">UTR Number</label>
-                                    <input type="text" value={updateFormData.utrNumber} onChange={(e) => setUpdateFormData({...updateFormData, utrNumber: e.target.value})} className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md dark:bg-gray-700 dark:text-white" />
+                                    <input type="text" value={updateFormData.utrNumber} onChange={(e) => setUpdateFormData({ ...updateFormData, utrNumber: e.target.value })} className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md dark:bg-gray-700 dark:text-white" />
                                 </div>
                                 <div className="flex-1">
                                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Update Proof</label>

@@ -82,7 +82,7 @@ export default function ElectricityTransactionsTable() {
                 if (value) queryParams.append(key, value);
             });
 
-            const url = `${process.env.NEXT_PUBLIC_API_URL}/api/rent/electricitytransactions/site/all${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
+            const url = `${process.env.NEXT_PUBLIC_API_URL}/api/rent/electricityTransactions/site/all${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
             console.log("Fetching electricity transactions from:", url);
 
             const response = await fetch(url, {
@@ -405,6 +405,7 @@ export default function ElectricityTransactionsTable() {
                                                 { width: "w-32", label: "Electricity Charges" },
                                                 { width: "w-24", label: "Status" },
                                                 { width: "w-32", label: "Consumer Number" },
+                                                { width: "w-32", label: "UTR Number" },
                                                 { width: "w-34", label: "Image" },
                                                 { width: "w-28", label: "Actions" }
                                             ].map(({ width, label }) => (
@@ -454,6 +455,9 @@ export default function ElectricityTransactionsTable() {
                                                     </Badge>
                                                 </TableCell>
                                                 <TableCell className="w-32 px-6 py-4 text-gray-900 dark:text-gray-100">{item.electricityConsumerNo || '-'}</TableCell>
+                                                <TableCell className="w-32 px-6 py-4 text-gray-900 dark:text-gray-100 font-mono text-xs">
+                                                    {item.utrNumber || (item as any).utr_number || '-'}
+                                                </TableCell>
                                                 <TableCell className="w-24 px-6 py-4 text-gray-900 dark:text-gray-100">
                                                     {item.image ? (
                                                         <>

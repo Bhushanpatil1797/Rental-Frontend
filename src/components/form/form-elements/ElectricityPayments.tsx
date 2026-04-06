@@ -44,7 +44,8 @@ export default function ElectricityPaymentForm({ siteId, owners = [], currentMon
         electricityCharges: '',
         electricityConsumerNo: consumers[0]?.consumerNo || '',
         electricityConsumerId: consumers[0]?._id || '',
-        paymentType: 'Online'
+        paymentType: 'Online',
+        utrNumber: ''
     });
 
     // Auto-select consumer if available and not set
@@ -127,6 +128,7 @@ export default function ElectricityPaymentForm({ siteId, owners = [], currentMon
             submitData.append('electricityConsumerNo', formData.electricityConsumerNo);
             submitData.append('electricityConsumerId', formData.electricityConsumerId);
             submitData.append('paymentType', formData.paymentType);
+            submitData.append('utrNumber', formData.utrNumber);
 
             if (proofImage) {
                 submitData.append('image', proofImage);
@@ -170,7 +172,8 @@ export default function ElectricityPaymentForm({ siteId, owners = [], currentMon
                 units: '',
                 electricityCharges: '',
                 monthYear: '',
-                paymentDate: new Date().toISOString().split('T')[0]
+                paymentDate: new Date().toISOString().split('T')[0],
+                utrNumber: ''
             }));
             setProofImage(null);
 
@@ -298,8 +301,22 @@ export default function ElectricityPaymentForm({ siteId, owners = [], currentMon
                             onChange={(date) => handleDateChange('paymentDate', date)}
                         />
                     </div>
+                    
+                    <div className="space-y-1.5">
+                        <Label htmlFor="utrNumber" className="text-xs font-bold uppercase tracking-wider text-gray-400">UTR Number*</Label>
+                        <Input
+                            type="text"
+                            id="utrNumber"
+                            name="utrNumber"
+                            value={formData.utrNumber}
+                            onChange={handleInputChange}
+                            placeholder="Transaction ID"
+                            required
+                            className="h-10 text-sm"
+                        />
+                    </div>
 
-                    <div className="col-span-1 lg:col-span-2 space-y-1.5">
+                    <div className="col-span-1 lg:col-span-3 space-y-1.5">
                         <Label htmlFor="image" className="text-xs font-bold uppercase tracking-wider text-gray-400">Proof of Payment</Label>
                         <div className="flex items-center gap-3">
                             <label

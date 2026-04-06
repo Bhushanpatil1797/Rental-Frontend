@@ -114,7 +114,7 @@ export const EcommerceMetrics = () => {
           />
         </div>
 
-        <div onClick={() => window.location.href = "/electricity"} className="cursor-pointer">
+        <div onClick={() => window.location.href = "/pending-payment"} className="cursor-pointer">
           <MetricCard
             icon={ReceiptCentIcon}
             title="Pending Payments"
@@ -125,7 +125,7 @@ export const EcommerceMetrics = () => {
           />
         </div>
 
-        <div onClick={() => window.location.href = "/electricity"} className="cursor-pointer">
+        <div onClick={() => window.location.href = "/total-paid"} className="cursor-pointer">
           <MetricCard
             icon={ReceiptCentIcon}
             title="Total Paid"
