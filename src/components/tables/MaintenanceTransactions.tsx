@@ -110,7 +110,6 @@ export default function MaintenanceTransactionsTable() {
     const [formErrors, setFormErrors] = useState<Record<string, string>>({});
     const [updateLoading, setUpdateLoading] = useState(false);
     const [deleteLoading, setDeleteLoading] = useState(false);
-    const [selectedFormat, setSelectedFormat] = useState<"excel" | "pdf">("excel");
     const [viewProofTransaction, setViewProofTransaction] = useState<MaintenanceTransaction | null>(null);
     const [newImageFile, setNewImageFile] = useState<File | null>(null);
     const [removeImageFlag, setRemoveImageFlag] = useState(false);
@@ -132,6 +131,7 @@ export default function MaintenanceTransactionsTable() {
             const uniqueSiteIds = Array.from(new Set(needingResolution.map(t => t.siteId?._id)));
             const token = localStorage.getItem("token");
             const ownerMap: Record<string, string> = {};
+            const skippedSites = new Set<string>(); // Minor cache for the effect
             
             await Promise.all(uniqueSiteIds.map(async (sid) => {
                 if (!sid) return;
@@ -139,6 +139,10 @@ export default function MaintenanceTransactionsTable() {
                     const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/rent/sites/${sid}`, {
                         headers: { Authorization: `Bearer ${token}` }
                     });
+                    if (res.status === 404) {
+                        skippedSites.add(sid);
+                        return;
+                    }
                     if (res.ok) {
                         const json = await res.json();
                         const siteData = json.data || json;
@@ -179,9 +183,12 @@ export default function MaintenanceTransactionsTable() {
             if (!token) throw new Error("Authentication session expired.");
 
             const queryParams = new URLSearchParams();
-            Object.entries(filters).forEach(([key, value]) => {
-                if (value) queryParams.append(key, value);
-            });
+            if (filters.start_date && filters.end_date) {
+                queryParams.append("startDate", filters.start_date);
+                queryParams.append("endDate", filters.end_date);
+            }
+            if (filters.site_id) queryParams.append("siteId", filters.site_id);
+            if (filters.paidStatus) queryParams.append("paidStatus", filters.paidStatus);
 
             // Correct path with pluralization and capital T
             const url = `${process.env.NEXT_PUBLIC_API_URL}/api/rent/maintenanceTransactions/site/all${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
@@ -271,14 +278,15 @@ export default function MaintenanceTransactionsTable() {
         try {
             const token = localStorage.getItem("token");
             const queryParams = new URLSearchParams();
-            queryParams.append("model", "rent/maintenenceTransaction");
-
-            Object.entries(filters).forEach(([key, value]) => {
-                if (value) queryParams.append(key, value);
-            });
+            
+            if (filters.start_date && filters.end_date) {
+                queryParams.append("startDate", filters.start_date);
+                queryParams.append("endDate", filters.end_date);
+            }
+            if (filters.site_id) queryParams.append("siteId", filters.site_id);
 
             const response = await fetch(
-                `${process.env.NEXT_PUBLIC_API_URL}/api/rent/export/ledger?${queryParams.toString()}`,
+                `${process.env.NEXT_PUBLIC_API_URL}/api/rent/maintenanceTransactions/export/ledger?${queryParams.toString()}`,
                 {
                     headers: { Authorization: `Bearer ${token}` },
                 }
@@ -294,6 +302,7 @@ export default function MaintenanceTransactionsTable() {
             document.body.appendChild(a);
             a.click();
             a.remove();
+            window.URL.revokeObjectURL(url);
         } catch (error) {
             console.error("Error downloading Excel:", error);
             toast.error(error instanceof Error ? error.message : "Failed to download Excel");
@@ -329,11 +338,7 @@ export default function MaintenanceTransactionsTable() {
     };
 
     const handleDownload = () => {
-        if (selectedFormat === "excel") {
-            handleDownloadExcel();
-        } else {
-            handleDownloadPDF();
-        }
+        handleDownloadExcel();
     };
 
     const handleUpdateClick = (t: MaintenanceTransaction) => {
@@ -486,22 +491,13 @@ export default function MaintenanceTransactionsTable() {
                         </button>
                     )}
 
-                    <div className="relative inline-block text-left w-full sm:w-auto">
-                        <button
-                            onClick={handleDownload}
-                            className="w-full flex items-center justify-center px-4 py-2 text-sm font-medium bg-green-600 text-white rounded-lg hover:bg-green-700 transition-shadow shadow-sm"
-                        >
-                            📥 Ledger ({selectedFormat.toUpperCase()})
-                        </button>
-                        <select
-                            value={selectedFormat}
-                            onChange={(e) => setSelectedFormat(e.target.value as "excel" | "pdf")}
-                            className="absolute top-0 right-0 h-full w-full opacity-0 cursor-pointer"
-                        >
-                            <option value="excel">excel</option>
-                            <option value="pdf">pdf</option>
-                        </select>
-                    </div>
+                    <button
+                        onClick={handleDownload}
+                        className="w-full sm:w-auto flex items-center justify-center px-4 py-2 text-sm font-medium bg-green-600 text-white rounded-lg hover:bg-green-700 transition-shadow shadow-sm whitespace-nowrap"
+                        title="Download Excel Ledger"
+                    >
+                        📥 Ledger (EXCEL)
+                    </button>
                 </div>
             </div>
 

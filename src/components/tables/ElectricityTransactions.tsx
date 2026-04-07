@@ -102,7 +102,6 @@ export default function ElectricityTransactionsTable() {
     const [formErrors, setFormErrors] = useState<Record<string, string>>({});
     const [updateLoading, setUpdateLoading] = useState(false);
     const [deleteLoading, setDeleteLoading] = useState(false);
-    const [selectedFormat, setSelectedFormat] = useState<"excel" | "pdf">("excel");
 
     useEffect(() => {
         fetchElectricityTransactions();
@@ -125,6 +124,7 @@ export default function ElectricityTransactionsTable() {
             
             const token = localStorage.getItem("token");
             const ownerMap: Record<string, string> = {};
+            const skippedSites = new Set<string>(); // Minor cache for the effect
             
             await Promise.all(uniqueSiteIds.map(async (sid) => {
                 if (!sid) return;
@@ -132,6 +132,10 @@ export default function ElectricityTransactionsTable() {
                     const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/rent/sites/${sid}`, {
                         headers: { Authorization: `Bearer ${token}` }
                     });
+                    if (res.status === 404) {
+                        skippedSites.add(sid);
+                        return;
+                    }
                     if (res.ok) {
                         const json = await res.json();
                         const siteData = json.data || json;
@@ -172,9 +176,12 @@ export default function ElectricityTransactionsTable() {
             if (!token) throw new Error("Authentication token not found");
 
             const queryParams = new URLSearchParams();
-            Object.entries(filters).forEach(([key, value]) => {
-                if (value) queryParams.append(key, value);
-            });
+            if (filters.start_date && filters.end_date) {
+                queryParams.append("startDate", filters.start_date);
+                queryParams.append("endDate", filters.end_date);
+            }
+            if (filters.site_id) queryParams.append("siteId", filters.site_id);
+            if (filters.paid_status) queryParams.append("paidStatus", filters.paid_status);
 
             const url = `${process.env.NEXT_PUBLIC_API_URL}/api/rent/electricityTransactions/site/all${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
             console.log("Fetching electricity transactions from:", url);
@@ -431,14 +438,15 @@ export default function ElectricityTransactionsTable() {
             if (!token) throw new Error("Authentication token not found");
 
             const queryParams = new URLSearchParams();
-            queryParams.append("model", "rent/electricityTransaction");
-
-            Object.entries(filters).forEach(([key, value]) => {
-                if (value) queryParams.append(key, value);
-            });
+            
+            if (filters.start_date && filters.end_date) {
+                queryParams.append("startDate", filters.start_date);
+                queryParams.append("endDate", filters.end_date);
+            }
+            if (filters.site_id) queryParams.append("siteId", filters.site_id);
 
             const response = await fetch(
-                `${process.env.NEXT_PUBLIC_API_URL}/api/rent/export/ledger?${queryParams.toString()}`,
+                `${process.env.NEXT_PUBLIC_API_URL}/api/rent/electricityTransactions/export/ledger?${queryParams.toString()}`,
                 {
                     headers: { Authorization: `Bearer ${token}` },
                 }
@@ -454,6 +462,7 @@ export default function ElectricityTransactionsTable() {
             document.body.appendChild(a);
             a.click();
             a.remove();
+            window.URL.revokeObjectURL(url);
         } catch (error) {
             console.error("Error downloading Excel:", error);
             alert(error instanceof Error ? error.message : "Failed to download Excel");
@@ -489,11 +498,7 @@ export default function ElectricityTransactionsTable() {
     };
 
     const handleDownload = async () => {
-        if (selectedFormat === "excel") {
-            await handleDownloadExcel();
-        } else {
-            await handleDownloadPDF();
-        }
+        await handleDownloadExcel();
     };
 
     if (loading) {
@@ -562,22 +567,13 @@ export default function ElectricityTransactionsTable() {
                         </button>
                     )}
 
-                    <div className="relative inline-block text-left w-full sm:w-auto">
-                        <button
-                            onClick={handleDownload}
-                            className="w-full flex items-center justify-center px-4 py-2 text-sm font-medium bg-green-600 text-white rounded-lg hover:bg-green-700 transition-shadow shadow-sm"
-                        >
-                            📥 Ledger ({selectedFormat.toUpperCase()})
-                        </button>
-                        <select
-                            value={selectedFormat}
-                            onChange={(e) => setSelectedFormat(e.target.value as "excel" | "pdf")}
-                            className="absolute top-0 right-0 h-full w-full opacity-0 cursor-pointer"
-                        >
-                            <option value="excel">excel</option>
-                            <option value="pdf">pdf</option>
-                        </select>
-                    </div>
+                    <button
+                        onClick={handleDownload}
+                        className="w-full sm:w-auto flex items-center justify-center px-4 py-2 text-sm font-medium bg-green-600 text-white rounded-lg hover:bg-green-700 transition-shadow shadow-sm whitespace-nowrap"
+                        title="Download Excel Ledger"
+                    >
+                        📥 Ledger (EXCEL)
+                    </button>
                 </div>
             </div>
 
