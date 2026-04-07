@@ -19,7 +19,7 @@ interface TableBodyProps {
 }
 
 // Props for TableRow
-interface TableRowProps extends React.HTMLAttributes<HTMLTableRowElement> {
+interface TableRowProps {
   children: ReactNode; // Cells (th or td)
   className?: string; // Optional className for styling
 }
@@ -35,11 +35,7 @@ interface TableCellProps
 
 // Table Component
 const Table: React.FC<TableProps> = ({ children, className }) => {
-  return (
-    <div className="w-full overflow-x-auto custom-scrollbar">
-      <table className={`min-w-full ${className ?? ""}`}>{children}</table>
-    </div>
-  );
+  return <table className={`min-w-full ${className ?? ""}`}>{children}</table>;
 };
 
 // TableHeader Component
@@ -53,8 +49,8 @@ const TableBody: React.FC<TableBodyProps> = ({ children, className }) => {
 };
 
 // TableRow Component
-const TableRow: React.FC<TableRowProps> = ({ children, className, ...rest }) => {
-  return <tr className={className} {...rest}>{children}</tr>;
+const TableRow: React.FC<TableRowProps> = ({ children, className }) => {
+  return <tr className={className}>{children}</tr>;
 };
 
 // TableCell Component

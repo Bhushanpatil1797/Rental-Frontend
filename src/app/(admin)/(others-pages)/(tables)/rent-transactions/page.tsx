@@ -14,6 +14,7 @@ export const metadata: Metadata = {
 export default function BasicTables() {
   return (
     <div>
+      <PageBreadcrumb pageTitle="All Sites" />
       <div className="space-y-6">
         <ComponentCard title="Rent Sites">
           <RentTransactionsTable />
@@ -22,3 +23,4 @@ export default function BasicTables() {
     </div>
   );
 }
+

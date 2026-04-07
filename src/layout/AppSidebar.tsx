@@ -9,65 +9,36 @@ import {
   HorizontaLDots,
   ListIcon,
 } from "../icons/index";
-import { 
-  BuildingIcon, 
-  FileTextIcon, 
-  FolderIcon, 
-  PlusCircleIcon, 
-  ZapIcon, 
-  Wrench, 
-  LayoutDashboard, 
-  CreditCard, 
-  ArrowRightLeft,
-  UserPlus,
-  Wallet,
-  History,
-  Plus
-} from "lucide-react";
+import { BuildingIcon, FileTextIcon, FolderIcon, PlusCircleIcon, ZapIcon } from "lucide-react";
 
 type NavItem = {
   name: string;
   icon: React.ReactNode;
   path?: string;
-  subtitle?: string;
-  subItems?: { name: string; path: string; icon?: React.ReactNode; pro?: boolean; new?: boolean }[];
+  subItems?: { name: string; path: string; pro?: boolean; new?: boolean }[];
 };
 
 export const navItems: NavItem[] = [
+
   {
-    name: "Dashboard",
-    icon: <LayoutDashboard />,
-    path: "/dashboard",
+    icon: <FileTextIcon />,
+    name: "Rent Payment's",
+    path: "/blank",
   },
   {
-    icon: <PlusCircleIcon />,
-    name: "Create",
-    subtitle: "site/owner/consumer",
-    subItems: [
-      { name: "Add Site", path: "/form-elements", icon: <Plus size={14} /> },
-      { name: "Add/Owner", path: "/owners", icon: <UserPlus size={14} /> },
-      { name: "Add/Consumer", path: "/consumers", icon: <ZapIcon size={14} /> },
-    ],
+    icon: <ZapIcon />,
+    name: "Electricity Bill",
+    path: "/electricity",
   },
   {
-    icon: <CreditCard />,
-    name: "Payments",
-    subtitle: "rent/elec/maint",
-    subItems: [
-      { name: "Rent Payment", path: "/blank", icon: <Wallet size={14} /> },
-      { name: "Electricity Payment", path: "/electricity", icon: <ZapIcon size={14} /> },
-      { name: "Maintenance Payment", path: "/maintenance", icon: <Wrench size={14} /> },
-    ],
+    icon: <ListIcon />,
+    name: "Rent Transaction's",
+    path: "/rent-transactions",
   },
   {
-    icon: <ArrowRightLeft />,
-    name: "Transactions",
-    subtitle: "history/ledger",
-    subItems: [
-      { name: "Rent Transactions", path: "/rent-transactions", icon: <History size={14} /> },
-      { name: "Electricity Transactions", path: "/electricity-bills", icon: <ZapIcon size={14} /> },
-      { name: "Maintenance Transactions", path: "/maintenance-transactions", icon: <History size={14} /> },
-    ],
+    icon: <ListIcon />,
+    name: "Electricity Bill's",
+    path: "/electricity-bills",
   },
   {
     name: "All Sites",
@@ -79,6 +50,20 @@ export const navItems: NavItem[] = [
     icon: <FolderIcon />,
     path: "/master-tables",
   },
+  {
+    name: "Add Sites's",
+    icon: <PlusCircleIcon />,
+    path: "/form-elements",
+  },
+  // {
+  //   name: "Pages",
+  //   icon: <PageIcon />,
+  //   subItems: [
+  //     // { name: "Blank Page", path: "/blank", pro: false },
+  //     { name: "404 Error", path: "/error-404", pro: false },
+  //     // { name: "Rent Transaction's", path: "/rent-transactions", pro: false },
+  //   ],
+  // },
 ];
 
 // Commented out the Others section
@@ -124,19 +109,11 @@ const AppSidebar: React.FC = () => {
     // Fetch the stats (same as EcommerceMetrics)
     const fetchStats = async () => {
       try {
-        const token = localStorage.getItem("token");
-        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/rent/dashboard/stats`, {
-          headers: {
-            "Authorization": `Bearer ${token}`,
-            "Content-Type": "application/json"
-          }
-        });
+        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/rental-dashboard/stats?daysAhead=10`);
         const data = await res.json();
-        if (data.success) {
-          setSiteCount(data.data?.sites?.total ?? 0);
-        }
+        setSiteCount(data.totalSites ?? 0);
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
       } catch (error) {
-        console.error("Sidebar site count fetch failed:", error);
         setSiteCount(null);
       }
     };
@@ -154,8 +131,8 @@ const AppSidebar: React.FC = () => {
             <button
               onClick={() => handleSubmenuToggle(index, menuType)}
               className={`menu-item group ${openSubmenu?.type === menuType && openSubmenu?.index === index
-                ? "menu-item-active"
-                : "menu-item-inactive"
+                  ? "menu-item-active"
+                  : "menu-item-inactive"
                 } cursor-pointer ${!isExpanded && !isHovered
                   ? "lg:justify-center"
                   : "lg:justify-start"
@@ -163,28 +140,21 @@ const AppSidebar: React.FC = () => {
             >
               <span
                 className={`${openSubmenu?.type === menuType && openSubmenu?.index === index
-                  ? "menu-item-icon-active"
-                  : "menu-item-icon-inactive"
+                    ? "menu-item-icon-active"
+                    : "menu-item-icon-inactive"
                   }`}
               >
                 {nav.icon}
               </span>
               {(isExpanded || isHovered || isMobileOpen) && (
-                <div className="flex flex-col items-start gap-0.5 overflow-hidden">
-                  <span className="menu-item-text leading-tight">{nav.name}</span>
-                  {nav.subtitle && (
-                    <span className="text-[10px] text-gray-400 font-medium leading-none truncate w-full">
-                      {nav.subtitle}
-                    </span>
-                  )}
-                </div>
+                <span className="menu-item-text">{nav.name}</span>
               )}
               {(isExpanded || isHovered || isMobileOpen) && (
                 <ChevronDownIcon
                   className={`ml-auto w-5 h-5 transition-transform duration-200 ${openSubmenu?.type === menuType &&
-                    openSubmenu?.index === index
-                    ? "rotate-180 text-brand-500"
-                    : ""
+                      openSubmenu?.index === index
+                      ? "rotate-180 text-brand-500"
+                      : ""
                     }`}
                 />
               )}
@@ -193,35 +163,27 @@ const AppSidebar: React.FC = () => {
             nav.path && (
               <Link
                 href={nav.path}
-                onClick={() => setOpenSubmenu(null)}
                 className={`menu-item group ${isActive(nav.path) ? "menu-item-active" : "menu-item-inactive"
                   }`}
               >
                 <span
                   className={`${isActive(nav.path)
-                    ? "menu-item-icon-active"
-                    : "menu-item-icon-inactive"
+                      ? "menu-item-icon-active"
+                      : "menu-item-icon-inactive"
                     }`}
                 >
                   {nav.icon}
                 </span>
                 {(isExpanded || isHovered || isMobileOpen) && (
-                  <div className="flex flex-col items-start gap-0.5 overflow-hidden">
-                    <span className="menu-item-text flex items-center leading-tight">
-                      {nav.name}
-                      {/* Show badge for All Sites */}
-                      {nav.name === "All Sites" && siteCount !== null && (
-                        <span className="ml-2 inline-flex items-center justify-center px-2 py-0.5 text-xs font-semibold rounded-full bg-emerald-500 text-white">
-                          {siteCount}
-                        </span>
-                      )}
-                    </span>
-                    {nav.subtitle && (
-                      <span className="text-[10px] text-gray-400 font-medium leading-none truncate w-full">
-                        {nav.subtitle}
+                  <span className="menu-item-text flex items-center">
+                    {nav.name}
+                    {/* Show badge for All Sites */}
+                    {nav.name === "All Sites" && siteCount !== null && (
+                      <span className="ml-2 inline-flex items-center justify-center px-2 py-0.5 text-xs font-semibold rounded-full bg-emerald-500 text-white">
+                        {siteCount}
                       </span>
                     )}
-                  </div>
+                  </span>
                 )}
               </Link>
             )
@@ -240,28 +202,23 @@ const AppSidebar: React.FC = () => {
                     : "0px",
               }}
             >
-              <ul className="mt-2 space-y-1 ml-6">
-                {nav.subItems.map((subItem: { name: string; path: string; icon?: React.ReactNode; pro?: boolean; new?: boolean }) => (
+              <ul className="mt-2 space-y-1 ml-9">
+                {nav.subItems.map((subItem) => (
                   <li key={subItem.name}>
                     <Link
                       href={subItem.path}
-                      className={`menu-dropdown-item flex items-center gap-3 ${isActive(subItem.path)
-                        ? "menu-dropdown-item-active"
-                        : "menu-dropdown-item-inactive"
+                      className={`menu-dropdown-item ${isActive(subItem.path)
+                          ? "menu-dropdown-item-active"
+                          : "menu-dropdown-item-inactive"
                         }`}
                     >
-                      {subItem.icon && (
-                        <span className="flex-shrink-0 text-gray-400 group-hover:text-brand-500 transition-colors">
-                          {subItem.icon}
-                        </span>
-                      )}
-                      <span className="truncate">{subItem.name}</span>
-                      <span className="flex items-center gap-1 ml-auto font-medium">
+                      {subItem.name}
+                      <span className="flex items-center gap-1 ml-auto">
                         {subItem.new && (
                           <span
                             className={`ml-auto ${isActive(subItem.path)
-                              ? "menu-dropdown-badge-active"
-                              : "menu-dropdown-badge-inactive"
+                                ? "menu-dropdown-badge-active"
+                                : "menu-dropdown-badge-inactive"
                               } menu-dropdown-badge`}
                           >
                             new
@@ -270,8 +227,8 @@ const AppSidebar: React.FC = () => {
                         {subItem.pro && (
                           <span
                             className={`ml-auto ${isActive(subItem.path)
-                              ? "menu-dropdown-badge-active"
-                              : "menu-dropdown-badge-inactive"
+                                ? "menu-dropdown-badge-active"
+                                : "menu-dropdown-badge-inactive"
                               } menu-dropdown-badge`}
                           >
                             pro
@@ -306,7 +263,7 @@ const AppSidebar: React.FC = () => {
       const items = navItems;
       items.forEach((nav, index) => {
         if (nav.subItems) {
-          nav.subItems.forEach((subItem: { name: string; path: string; pro?: boolean; new?: boolean }) => {
+          nav.subItems.forEach((subItem) => {
             if (isActive(subItem.path)) {
               setOpenSubmenu({
                 type: menuType as "main",
@@ -351,7 +308,7 @@ const AppSidebar: React.FC = () => {
 
   return (
     <aside
-      className={`fixed mt-16 flex flex-col top-0 px-5 left-0 bg-white dark:bg-[#121212] dark:border-gray-800 text-gray-900 h-screen transition-all duration-300 ease-in-out z-50 border-r border-gray-200 
+      className={`fixed mt-16 flex flex-col lg:mt-0 top-0 px-5 left-0 bg-white dark:bg-[#121212] dark:border-gray-800 text-gray-900 h-screen transition-all duration-300 ease-in-out z-50 border-r border-gray-200 
         ${isExpanded || isMobileOpen
           ? "w-[240px]"
           : isHovered
@@ -363,14 +320,46 @@ const AppSidebar: React.FC = () => {
       onMouseEnter={() => !isExpanded && setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >
-      <div className="flex flex-col pt-4 overflow-y-auto duration-300 ease-linear no-scrollbar">
+      <div
+        className={`py-8 flex ${!isExpanded && !isHovered ? "lg:justify-center" : "justify-start"
+          }`}
+      >
+        <Link href="/dashboard" className="flex items-center gap-2">
+          {isExpanded || isHovered || isMobileOpen ? (
+            <>
+              <Image
+                className="dark:hidden"
+                src="/images/logo/logo-new.svg"
+                alt="Logo"
+                width={150}
+                height={40}
+              />
+              <Image
+                className="hidden dark:block"
+                src="/images/logo/logo-dark-new.svg"
+                alt="Logo"
+                width={150}
+                height={40}
+              />
+            </>
+          ) : (
+            <Image
+              src="/images/logo/logo-icon.svg"
+              alt="Logo"
+              width={32}
+              height={32}
+            />
+          )}
+        </Link>
+      </div>
+      <div className="flex flex-col overflow-y-auto duration-300 ease-linear no-scrollbar">
         <nav className="mb-6">
           <div className="flex flex-col gap-4">
             <div>
               <h2
                 className={`mb-4 text-xs uppercase flex leading-[20px] text-gray-400 ${!isExpanded && !isHovered
-                  ? "lg:justify-center"
-                  : "justify-start"
+                    ? "lg:justify-center"
+                    : "justify-start"
                   }`}
               >
                 {isExpanded || isHovered || isMobileOpen ? "Menu" : <HorizontaLDots />}

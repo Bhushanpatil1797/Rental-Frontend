@@ -18,11 +18,8 @@ import "react-datepicker/dist/react-datepicker.css";
 
 interface RentTransaction {
   id: string;
-  _id?: string;
-  siteOwnerId?: string;
-  siteId: any | null;
-  ownerId?: any;
-  ownerName?: string;
+  siteOwnerId: string;
+  siteId: string | null;
   siteCode: string;
   siteName: string;
   category: string;
@@ -55,8 +52,8 @@ interface FilterParams {
   site_id?: string;
   owner_name?: string;
   paidStatus?: string;
-  startDate?: string;
-  endDate?: string;
+  start_date?: string;
+  end_date?: string;
   paymentType?: string;
   paymentAmount?: string;
   utr_number?: string;
@@ -80,15 +77,14 @@ export default function RentTransactionsTable() {
     paymentAmount: "",
     utrNumber: "",
     monthYear: "",
-    ownerName: "",
   });
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
   const [updateLoading, setUpdateLoading] = useState(false);
   const [deleteLoading, setDeleteLoading] = useState(false);
+  const [selectedFormat, setSelectedFormat] = useState<"excel" | "pdf">("excel");
   const [viewProofTransaction, setViewProofTransaction] = useState<RentTransaction | null>(null);
   const [newImageFile, setNewImageFile] = useState<File | null>(null);
   const [removeImageFlag, setRemoveImageFlag] = useState(false);
-  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
 
   useEffect(() => {
     fetchRentTransactions();
@@ -101,31 +97,12 @@ export default function RentTransactionsTable() {
       if (!token) throw new Error("Authentication token not found");
 
       const queryParams = new URLSearchParams();
-      const hasFullDateRange = !!(filters.startDate && filters.endDate);
-      let baseUrl = "rentTransactions/site/all";
-
-      if (filters.paidStatus && !hasFullDateRange) {
-        // Status filter uses renttransactions/status/:status path - ONLY if no full date range is selected
-        baseUrl = `renttransactions/status/${filters.paidStatus.toLowerCase()}`;
-      }
-
       Object.entries(filters).forEach(([key, value]) => {
-        if (value) {
-          // If we're on the status-specific endpoint, the paidStatus is already in the path
-          if (key === "paidStatus" && baseUrl.includes("status/")) return;
-
-          // Ensure startDate and endDate are only added if both are present to avoid 400 error
-          if (key === "startDate" && !filters.endDate) return;
-          if (key === "endDate" && !filters.startDate) return;
-
-          queryParams.append(key, value as string);
-        }
+        if (value) queryParams.append(key, value);
       });
 
-      const endpoint = `${process.env.NEXT_PUBLIC_API_URL}/api/rent/${baseUrl}${queryParams.toString() ? `?${queryParams.toString()}&` : '?'}t=${Date.now()}`;
-      console.log("Fetching transactions from:", endpoint);
       const response = await fetch(
-        endpoint,
+        `${process.env.NEXT_PUBLIC_API_URL}/api/rent/`,
         {
           headers: {
             Authorization: `Bearer ${token}`,
@@ -139,23 +116,8 @@ export default function RentTransactionsTable() {
       }
 
       const data = await response.json();
-      const transactionsList = data.data || data.rentPayments || [];
-      const normalizedTransactions = transactionsList.map((t: any) => ({
-        ...t,
-        id: t._id || t.id,
-        siteCode: t.siteId?.code || t.siteCode,
-        siteName: t.siteId?.siteName || t.siteName,
-        site: t.siteId ? {
-          ...t.siteId,
-          site_name: t.siteId.siteName || t.siteName,
-          code: t.siteId.code || t.siteCode,
-        } : t.site,
-        ownerId: t.ownerId?._id || t.ownerId,
-        ownerName: t.ownerId?.ownerName || t.ownerName,
-      }));
-
-      setTransactions(normalizedTransactions);
-      setTotalCount(data.total || data.count || normalizedTransactions.length);
+      setTransactions(data.rentPayments);
+      setTotalCount(data.count);
       setError(null);
     } catch (error) {
       console.error("Error fetching rent transactions:", error);
@@ -178,8 +140,8 @@ export default function RentTransactionsTable() {
   const getTransactionMonthYear = (item: RentTransaction): string => {
     if (!item.monthYear) return "";
 
-    // Format: "April 2026"
-    const namedMonthMatch = item.monthYear.match(/^([A-Za-z]+)\s(\d{4})$/);
+    // Format: "April-2026"
+    const namedMonthMatch = item.monthYear.match(/^([A-Za-z]+)-(\d{4})$/);
     if (namedMonthMatch) {
       const months: Record<string, string> = {
         January: "01", February: "02", March: "03", April: "04",
@@ -205,14 +167,11 @@ export default function RentTransactionsTable() {
 
   const filteredTransactions = transactions
     .filter((item) => {
-      // Local Date Filter - removed as it's now handled server-side to avoid discrepancies
-
       const searchString = searchTerm.toLowerCase();
       return (
         (item.site?.site_name?.toLowerCase() || "").includes(searchString) ||
         (item.site?.property_location?.toLowerCase() || "").includes(searchString) ||
         (item.site?.code?.toLowerCase() || "").includes(searchString) ||
-        (item.ownerName?.toLowerCase() || "").includes(searchString) ||
         (item.paymentType?.toLowerCase() || "").includes(searchString) ||
         (item.paidStatus?.toLowerCase() || "").includes(searchString) ||
         (item.utrNumber?.toLowerCase() || "").includes(searchString) ||
@@ -256,15 +215,12 @@ export default function RentTransactionsTable() {
       paymentType: transaction.paymentType || "",
       paidStatus: transaction.paidStatus || "",
       paymentDate: formatDateForInput(transaction.paymentDate),
-      paymentAmount: transaction.paymentAmount?.toString() || "",
+      paymentAmount: transaction.paymentAmount || "",
       utrNumber: transaction.utrNumber || "",
       monthYear: transaction.monthYear || "",
-      ownerName: transaction.ownerName || "",
     });
     setNewImageFile(null);
     setRemoveImageFlag(false);
-    setPreviewUrl(transaction.image || null);
-
     setIsUpdateModalOpen(true);
   };
 
@@ -314,43 +270,35 @@ export default function RentTransactionsTable() {
       const token = localStorage.getItem("token");
       if (!token) throw new Error("Authentication token not found");
 
-      const endpoint = `${process.env.NEXT_PUBLIC_API_URL}/api/rent/siteTransaction/${selectedTransaction.id}`;
-
       const formData = new FormData();
-
-      formData.append("paymentAmount", String(Number(updateFormData.paymentAmount) || 0));
-      formData.append("paidStatus", updateFormData.paidStatus);
-      formData.append("paymentType", updateFormData.paymentType);
-      formData.append("utrNumber", updateFormData.utrNumber);
-      formData.append("paymentDate", updateFormData.paymentDate);
-      formData.append("monthlyRent", String(Number(updateFormData.monthlyRent) || 0));
-      formData.append("ownerName", updateFormData.ownerName);
-      formData.append("monthYear", updateFormData.monthYear);
-
-      // ✅ send image if selected
+      formData.append("monthly_rent", updateFormData.monthlyRent);
+      formData.append("payment_type", updateFormData.paymentType);
+      formData.append("paid_status", updateFormData.paidStatus);
+      formData.append("payment_date", updateFormData.paymentDate);
+      formData.append("payment_amount", updateFormData.paymentAmount);
+      formData.append("utr_number", updateFormData.utrNumber);
+      formData.append("month_year", updateFormData.monthYear);
+      formData.append("removeImage", removeImageFlag ? "true" : "false");
       if (newImageFile) {
         formData.append("image", newImageFile);
       }
 
-      // ✅ remove image flag
-      if (removeImageFlag) {
-        formData.append("removeImage", "true");
-      }
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL}/api/rent/${selectedTransaction.id}`,
+        {
+          method: "PUT",
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+          body: formData,
+        }
+      );
 
-      console.log("Updating via JSON to:", endpoint, formData);
-
-      const response = await fetch(endpoint, {
-        method: "PUT",
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-        body: formData,
-      });
-
-      const responseData = await response.json();
-
-      if (!response.ok || !responseData.success) {
-        throw new Error(responseData.message || `HTTP error! status: ${response.status}`);
+      console.log("Response:", response)
+      if (!response.ok) {
+        const errorData = await response.json();
+        console.log("Error data:",errorData);
+        throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
       }
 
       await fetchRentTransactions();
@@ -358,10 +306,10 @@ export default function RentTransactionsTable() {
       setRemoveImageFlag(false);
       setSelectedTransaction(null);
       setIsUpdateModalOpen(false);
-      alert("Transaction updated successfully");
+      alert("Rent payment updated successfully");
     } catch (error) {
-      console.error("Error updating rent transaction:", error);
-      alert(error instanceof Error ? error.message : "Failed to update transaction");
+      console.error("Error updating rent payment:", error);
+      alert(error instanceof Error ? error.message : "Failed to update rent payment");
     } finally {
       setUpdateLoading(false);
     }
@@ -375,7 +323,7 @@ export default function RentTransactionsTable() {
       if (!token) throw new Error("Authentication token not found");
 
       const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/api/rent/siteTransaction/${selectedTransaction.id}`,
+        `${process.env.NEXT_PUBLIC_API_URL}/api/rent/${selectedTransaction.id}`,
         {
           method: "DELETE",
           headers: {
@@ -409,15 +357,11 @@ export default function RentTransactionsTable() {
 
       const queryParams = new URLSearchParams();
       Object.entries(filters).forEach(([key, value]) => {
-        if (value) {
-          if (key === "startDate" && !filters.endDate) return;
-          if (key === "endDate" && !filters.startDate) return;
-          queryParams.append(key, value as string);
-        }
+        if (value) queryParams.append(key, value);
       });
 
       const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/api/rent/renttransactions/export/ledger?${queryParams.toString()}`,
+        `${process.env.NEXT_PUBLIC_API_URL}/api/rent/ledger?${queryParams.toString()}`,
         {
           headers: { Authorization: `Bearer ${token}` },
         }
@@ -439,6 +383,42 @@ export default function RentTransactionsTable() {
     }
   };
 
+  const handleDownloadPDF = async () => {
+    try {
+      const token = localStorage.getItem("token");
+      const queryParams = new URLSearchParams(filters as any).toString();
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL}/api/rent/ledger.pdf?${queryParams}`,
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        }
+      );
+
+      if (!response.ok) throw new Error("Failed to download PDF");
+
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `RentPayments_${Date.now()}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error("PDF download failed:", error);
+      alert("PDF download failed");
+    }
+  };
+
+  const handleDownload = () => {
+    if (selectedFormat === "excel") {
+      handleDownloadExcel();
+    } else {
+      handleDownloadPDF();
+    }
+  };
+
   if (loading) return <div className="p-4 text-center">Loading...</div>;
   if (error) return <div className="p-4 text-center text-red-500">Error: {error}</div>;
 
@@ -456,7 +436,7 @@ export default function RentTransactionsTable() {
             placeholder="Search..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-40 px-2 py-1.5 text-sm rounded border border-gray-300 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:bg-white/[0.05] dark:border-white/[0.1] dark:text-white"
+            className="w-40 px-2 py-1 text-sm rounded border border-gray-300 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:bg-white/[0.05] dark:border-white/[0.1] dark:text-white"
           />
 
           <select
@@ -470,10 +450,20 @@ export default function RentTransactionsTable() {
             <option value="Partial">Partial</option>
           </select>
 
+          <select
+            value={filters.paymentType || ""}
+            onChange={(e) => handleFilterChange("paymentType", e.target.value)}
+            className="w-32 px-2 py-1 text-sm rounded border border-gray-300 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:bg-white/[0.05] dark:border-white/[0.1] dark:text-white [&>option]:dark:text-black"
+          >
+            <option value="">All Types</option>
+            <option value="Rent">Rent</option>
+            <option value="Electricity">Electricity</option>
+          </select>
+
           <DatePicker
-            selected={filters.startDate ? new Date(filters.startDate) : null}
+            selected={filters.start_date ? new Date(filters.start_date) : null}
             onChange={(date: Date | null) =>
-              handleFilterChange("startDate", date ? date.toLocaleDateString("en-CA") : "")
+              handleFilterChange("start_date", date ? date.toLocaleDateString("en-CA") : "")
             }
             dateFormat="yyyy-MM-dd"
             placeholderText="Start Date"
@@ -481,9 +471,9 @@ export default function RentTransactionsTable() {
           />
 
           <DatePicker
-            selected={filters.endDate ? new Date(filters.endDate) : null}
+            selected={filters.end_date ? new Date(filters.end_date) : null}
             onChange={(date: Date | null) =>
-              handleFilterChange("endDate", date ? date.toLocaleDateString("en-CA") : "")
+              handleFilterChange("end_date", date ? date.toLocaleDateString("en-CA") : "")
             }
             dateFormat="yyyy-MM-dd"
             placeholderText="End Date"
@@ -496,13 +486,23 @@ export default function RentTransactionsTable() {
           >
             Clear
           </button>
-          <button
-            onClick={handleDownloadExcel}
-            className="px-3 py-1 text-sm bg-green-600 text-white rounded hover:bg-green-700 transition-colors"
-          >
-            📥 Download Excel
-          </button>
 
+          <div className="relative inline-block text-left">
+            <button
+              onClick={handleDownload}
+              className="px-3 py-1 text-sm bg-green-600 text-white rounded hover:bg-green-700 transition-colors"
+            >
+              📥 Ledger ({selectedFormat.toUpperCase()})
+            </button>
+            <select
+              value={selectedFormat}
+              onChange={(e) => setSelectedFormat(e.target.value as "excel" | "pdf")}
+              className="absolute top-0 right-0 h-full opacity-0 cursor-pointer"
+            >
+              <option value="excel">excel</option>
+              <option value="pdf">pdf</option>
+            </select>
+          </div>
         </div>
       </div>
 
@@ -519,7 +519,6 @@ export default function RentTransactionsTable() {
                         // { width: "w-10",  label: "ID" },
                         { width: "w-16", label: "Site Code" },
                         { width: "w-24", label: "Site Name" },
-                        { width: "w-20", label: "Owner Name" },
                         { width: "w-20", label: "Category" },
                         { width: "w-32", label: "Rent Amount" },
                         { width: "w-32", label: "Payment Date" },
@@ -561,11 +560,6 @@ export default function RentTransactionsTable() {
                           {item.site
                             ? (item.site.site_name || "-")
                             : (item.siteName || "-")}
-                        </TableCell>
-
-                        {/* Owner Name */}
-                        <TableCell className="w-20 px-6 py-4 text-gray-900 dark:text-gray-100 truncate max-w-48">
-                          {item.ownerName || "-"}
                         </TableCell>
 
                         {/* Category */}
@@ -738,9 +732,9 @@ export default function RentTransactionsTable() {
                         } rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white`}
                     >
                       <option value="">Select Payment Type</option>
-                      <option value="online">Online</option>
-                      <option value="cash">Cash</option>
-                      <option value="cheque">Cheque</option>
+                      <option value="Rent">Rent</option>
+                      <option value="Electricity">Electricity</option>
+                      <option value="Bank Transfer">Bank Transfer</option>
                     </select>
                     {formErrors.paymentType && (
                       <p className="mt-1 text-sm text-red-500">{formErrors.paymentType}</p>
@@ -824,67 +818,85 @@ export default function RentTransactionsTable() {
                   </div>
                 </div>
 
-                {/* Row 4: Rent Period & Update Proof */}
+                {/* Row 4: Rent Period & Proof File */}
                 <div className="flex space-x-4">
                   <div className="flex-1">
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                      Rent Period (e.g. April 2026)
+                      Rent Period (e.g. April-2026)
                     </label>
                     <input
                       type="text"
                       name="monthYear"
                       value={updateFormData.monthYear}
                       onChange={handleInputChange}
-                      placeholder="e.g. April 2026"
+                      placeholder="e.g. April-2026"
                       className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
                     />
                   </div>
                   <div className="flex-1">
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                      Update Proof
+                      Proof File
                     </label>
-                    <input
-                      type="file"
-                      onChange={(e) => {
-                        if (e.target.files && e.target.files[0]) {
-                          const file = e.target.files[0];
-                          setNewImageFile(file);
-                          setPreviewUrl(URL.createObjectURL(file));
-                          setRemoveImageFlag(false);
-                        }
-                      }}
-                      className="block w-full text-xs text-gray-500 file:mr-2 file:py-1 file:px-2 file:rounded-md file:border-0 file:bg-blue-600 file:text-white mt-1"
-                    />
-                    {previewUrl && (
-                      <div className="mt-3 relative">
-                        {previewUrl.endsWith(".pdf") ? (
-                          <iframe
-                            src={previewUrl}
-                            title="Preview"
-                            className="w-full h-40 border rounded"
+
+                    {!removeImageFlag && !newImageFile && selectedTransaction?.image &&(
+                      <div className="mb-2">
+                        {selectedTransaction.image.match(/\.(jpeg|jpg|gif|png|svg|webp|bmp)$/i) ? (
+                          <img
+                            src={selectedTransaction.image}
+                            alt="Existing proof"
+                            className="max-w-xs max-h-48 object-contain rounded-md border border-gray-300"
                           />
                         ) : (
-                          <img
-                            src={previewUrl}
-                            alt="Preview"
-                            className="h-32 rounded border object-contain"
-                          />
+                          <a
+                            href={selectedTransaction.image}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-blue-600 underline break-all"
+                          >
+                            View existing file
+                          </a>
                         )}
-
-                        {/* Remove Button */}
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setPreviewUrl(null);
-                            setNewImageFile(null);
-                            setRemoveImageFlag(true); // 🔥 important for backend
-                          }}
-                          className="absolute top-1 right-1 bg-red-600 text-white text-xs px-2 py-1 rounded"
-                        >
-                          Remove
-                        </button>
                       </div>
                     )}
+
+                    {selectedTransaction?.image && (
+                      <label className="inline-flex items-center space-x-2 text-gray-700 dark:text-gray-300">
+                        <input
+                          type="checkbox"
+                          checked={removeImageFlag}
+                          onChange={(e) => {
+                            setRemoveImageFlag(e.target.checked);
+                            if (e.target.checked) setNewImageFile(null);
+                          }}
+                          className="form-checkbox"
+                        />
+                        <span>Remove existing file</span>
+                      </label>
+                    )}
+
+                    <div className="mt-2">
+                      <input
+                        type="file"
+                        accept="*/*"
+                        onChange={(e) => {
+                          if (e.target.files && e.target.files.length > 0) {
+                            setNewImageFile(e.target.files[0]);
+                            setRemoveImageFlag(false);
+                          }
+                        }}
+                        disabled={removeImageFlag}
+                        className="block w-full text-sm text-gray-500 dark:text-gray-300 file:border file:border-gray-300 file:rounded-md file:bg-gray-50 dark:file:bg-gray-800 file:p-2 file:cursor-pointer"
+                      />
+                     {newImageFile && (
+                          <div className="mt-3">
+                            <img
+                              src={URL.createObjectURL(newImageFile)}
+                              alt="New Preview"
+                              className="w-24 h-24 object-cover rounded-md border border-gray-300 shadow"
+                            />
+                          </div>
+                        )}
+                    </div>
                   </div>
                 </div>
               </div>

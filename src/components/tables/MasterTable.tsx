@@ -13,12 +13,12 @@ import {
 } from "../ui/table";
 import Badge from "../ui/badge/Badge";
 
-import { Pencil, Trash2, Search, Plus, Calendar, MapPin, Building2, User } from "lucide-react";
+import { Pencil, Trash2 } from "lucide-react";
 import Button from "../ui/button/Button";
 
 interface MasterData {
-  _id?: string; // Correct ID field name
   srNo: number;
+  id?: number; // Adding id field for API operations
   cityName: string;
   spaName: string;
   area: string;
@@ -98,7 +98,7 @@ const EditModal: React.FC<EditModalProps> = ({ isOpen, onClose, data, onSave, mo
         <h2 className="text-xl font-semibold mb-2">{mode === "add" ? "Add New Record" : "Edit Record"}</h2>
         <form onSubmit={handleSubmit} className="space-y-2">
           {/* ...existing form fields... */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div className="grid grid-cols-2 gap-2">
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">SPA Name</label>
               <input
@@ -235,7 +235,7 @@ const EditModal: React.FC<EditModalProps> = ({ isOpen, onClose, data, onSave, mo
             />
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Agreement</label>
               <input
@@ -278,41 +278,6 @@ const EditModal: React.FC<EditModalProps> = ({ isOpen, onClose, data, onSave, mo
   );
 };
 
-const SiteOwnerCell = ({ siteId }: { siteId?: string }) => {
-  const [ownerName, setOwnerName] = useState<string>("Loading...");
-
-  useEffect(() => {
-    if (!siteId) {
-      setOwnerName("-");
-      return;
-    }
-
-    const fetchOwner = async () => {
-      try {
-        const token = localStorage.getItem("token");
-        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/rent/sites/${siteId}`, {
-          headers: { Authorization: `Bearer ${token}` }
-        });
-        if (!res.ok) throw new Error();
-        const json = await res.json();
-        const siteData = json.data || json;
-        if (siteData.owners && siteData.owners.length > 0) {
-          const names = siteData.owners.map((o: any) => o.ownerId?.ownerName || "Unknown").join(", ");
-          setOwnerName(names);
-        } else {
-          setOwnerName("-");
-        }
-      } catch (err) {
-        setOwnerName("-");
-      }
-    };
-
-    fetchOwner();
-  }, [siteId]);
-
-  return <span>{ownerName}</span>;
-};
-
 export default function MasterTable() {
   const [masterData, setMasterData] = useState<MasterData[]>([]);
   const [loading, setLoading] = useState(true);
@@ -337,7 +302,7 @@ export default function MasterTable() {
       const token = localStorage.getItem("token");
       if (!token) throw new Error("Authentication token not found");
 
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/rent/master/`, {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/masters/`, {
         headers: {
           Authorization: `Bearer ${token}`,
           "Content-Type": "application/json",
@@ -354,14 +319,7 @@ export default function MasterTable() {
 
       const data = await response.json();
       console.log("data",data)
-      
-      // Inject SR NO if not provided by backend to ensure table is populated and CRUD logic works
-      const mappedData = (data.data || []).map((item: any, index: number) => ({
-        ...item,
-        srNo: item.srNo || index + 1
-      }));
-      
-      setMasterData(mappedData);
+      setMasterData(data.data);
       setError(null);
     } catch (error) {
       console.error("Error fetching master data:", error);
@@ -382,14 +340,14 @@ export default function MasterTable() {
       if (!token) throw new Error("Authentication token not found");
 
       const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/api/rent/master/`,
+        `${process.env.NEXT_PUBLIC_API_URL}/api/masters/`,
         {
           method: "POST",
           headers: {
             Authorization: `Bearer ${token}`,
             "Content-Type": "application/json",
           },
-          body: JSON.stringify(newData) // Use flat object
+          body: JSON.stringify({ data: newData })
         }
       );
 
@@ -405,7 +363,6 @@ export default function MasterTable() {
       });
       setTimeout(() => setUpdateStatus({ message: '', type: null }), 3000);
       setIsAddModalOpen(false);
-      fetchMasterData(); // Refresh to ensure correct sorting/srNo from backend
     } catch (error) {
       setUpdateStatus({
         message: error instanceof Error ? error.message : "Failed to add record",
@@ -428,18 +385,20 @@ export default function MasterTable() {
       const token = localStorage.getItem("token");
       if (!token) throw new Error("Authentication token not found");
 
-      // Use _id for the API call
-      const recordId = updatedData._id;
+      // Use Sr_No for the API call if id isn't available
+      const recordId = updatedData.id || updatedData.srNo;
+
+      console.log("Record ID:", updatedData.id, updatedData.srNo);
 
       const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/api/rent/master/${recordId}`,
+        `${process.env.NEXT_PUBLIC_API_URL}/api/masters/${recordId}`,
         {
           method: "PUT",
           headers: {
             Authorization: `Bearer ${token}`,
             "Content-Type": "application/json",
           },
-          body: JSON.stringify(updatedData), // Use flat object
+          body: JSON.stringify({ data: updatedData }),
         }
       );
 
@@ -470,7 +429,6 @@ export default function MasterTable() {
       }, 3000);
 
       handleCloseModal();
-      fetchMasterData(); // Refresh to ensure data integrity
     } catch (error) {
       console.error("Error updating record:", error);
       setUpdateStatus({
@@ -488,9 +446,9 @@ export default function MasterTable() {
       const token = localStorage.getItem("token");
       if (!token) throw new Error("Authentication token not found");
 
-      const recordId = record._id;
+      const recordId = record.id || record.srNo;
       const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/api/rent/master/${recordId}`,
+        `${process.env.NEXT_PUBLIC_API_URL}/api/masters/${recordId}`,
         {
           method: "DELETE",
           headers: {
@@ -513,7 +471,6 @@ export default function MasterTable() {
         type: "success",
       });
       setTimeout(() => setUpdateStatus({ message: '', type: null }), 3000);
-      fetchMasterData(); // Refresh to ensure correct srNo count
     } catch (error) {
       setUpdateStatus({
         message: error instanceof Error ? error.message : "Failed to delete record",
@@ -557,24 +514,21 @@ export default function MasterTable() {
         </div>
       )}
       {/* Add New Button */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between px-3 py-4 border-b border-gray-200 dark:border-gray-700 gap-4">
-        <div className="relative w-full sm:max-w-sm">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
-          <input
-            type="text"
-            placeholder="Search records..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-9 pr-3 py-2 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500/20 dark:bg-white/[0.05] dark:border-white/[0.1] dark:text-white text-sm shadow-sm"
-          />
-        </div>
+      <div className="flex items-center justify-between px-3 py-2 border-b border-gray-200 dark:border-gray-700">
+        <input
+          type="text"
+          placeholder="Search..."
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          className="w-full max-w-sm px-3 py-1.5 rounded-lg border border-gray-300 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:bg-white/[0.05] dark:border-white/[0.1] dark:text-white text-sm"
+        />
         <Button
           variant="primary"
           onClick={handleAddClick}
-          className="flex w-full sm:w-auto items-center justify-center gap-1.5 text-xs py-2 px-4 rounded-lg shadow-md transition-all hover:shadow-lg active:scale-95"
+          className="flex items-center justify-center gap-1 text-xs py-1 px-2.5 rounded-lg shadow-sm transition-all hover:shadow"
           size="sm"
         >
-          <Plus size={14} strokeWidth={2.5} />
+          <span className="font-medium">+</span>
           <span>Add New</span>
         </Button>
       </div>
@@ -617,7 +571,7 @@ export default function MasterTable() {
                   <TableBody className="divide-y divide-gray-200 dark:divide-gray-700">
                     {filteredData.map((item) => (
                       <TableRow
-                        key={item._id || item.srNo}
+                        key={item.srNo}
                         className="hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors"
                       >
                         <TableCell className="w-16 px-6 py-4 text-gray-900 dark:text-gray-100">{item.srNo}</TableCell>
@@ -625,9 +579,7 @@ export default function MasterTable() {
                         <TableCell className="w-16 px-6 py-4 text-gray-900 dark:text-gray-100">{item.spaName}</TableCell>
                         <TableCell className="w-16 px-6 py-4 text-gray-900 dark:text-gray-100">{item.cityName}</TableCell>
                         <TableCell className="w-16 px-6 py-4 text-gray-900 dark:text-gray-100">{item.area}</TableCell>
-                        <TableCell className="w-16 px-6 py-4 text-gray-900 dark:text-gray-100 font-medium">
-                          <SiteOwnerCell siteId={item._id} />
-                        </TableCell>
+                        <TableCell className="w-16 px-6 py-4 text-gray-900 dark:text-gray-100">{item.ownerName}</TableCell>
                         <TableCell className="w-16 px-6 py-4 text-gray-900 dark:text-gray-100">
                           {item.openingDate ? new Date(item.openingDate).toLocaleDateString() : '-'}
                         </TableCell>

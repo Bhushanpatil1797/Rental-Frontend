@@ -30,7 +30,7 @@ export default function UserMetaCard() {
   // const { isOpen, openModal, closeModal } = useModal();
   const [token, setToken] = useState<string | null>(null);
   const [userId, setUserId] = useState<string | null>(null);
-
+  
   const [userDetails, setUserDetails] = useState({
     firstName: "",
     lastName: "",
@@ -57,7 +57,7 @@ export default function UserMetaCard() {
   useEffect(() => {
     const storedToken = localStorage.getItem("token");
     setToken(storedToken);
-
+    
     if (storedToken) {
       const user = parseJwt(storedToken);
       if (user && user.id) {
@@ -72,7 +72,7 @@ export default function UserMetaCard() {
         if (!userId || !token) return;
 
         const response = await fetch(
-          `${process.env.NEXT_PUBLIC_API_URL}/api/auth/${userId}`,
+          `${process.env.NEXT_PUBLIC_API_URL}/api/users/user/${userId}`,
           {
             headers: {
               Authorization: `Bearer ${token}`,
@@ -85,10 +85,10 @@ export default function UserMetaCard() {
         }
 
         const data = await response.json();
-
+        
         // Map the API response to our component state structure
         const updatedData = {
-          firstName: data.firstName || data.name || "",
+          firstName: data.name || "",
           lastName: data.lastName || "",
           email: data.userName || data.email || "",
           phone: data.phone || "",
@@ -96,7 +96,7 @@ export default function UserMetaCard() {
           role: data.role || "User",
           location: data.location || "Not Specified"
         };
-
+        
         setUserDetails(updatedData);
         setEditUserDetails({
           ...editUserDetails,
@@ -119,9 +119,9 @@ export default function UserMetaCard() {
   // const handleSave = async () => {
   //   try {
   //     if (!userId || !token) return;
-
+      
   //     console.log("Saving changes...", editUserDetails);
-
+      
   //     const response = await fetch(
   //       `${process.env.NEXT_PUBLIC_API_URL}/api/users/user/${userId}`,
   //       {
@@ -154,7 +154,7 @@ export default function UserMetaCard() {
   //       phone: editUserDetails.phone,
   //       bio: editUserDetails.bio,
   //     });
-
+      
   //     closeModal();
   //   } catch (error) {
   //     console.error("Error updating user details:", error);
@@ -191,7 +191,6 @@ export default function UserMetaCard() {
                 height={80}
                 src="/images/user/user.jpg"
                 alt="user"
-                priority
               />
             </div>
             <div className="order-3 xl:order-2">

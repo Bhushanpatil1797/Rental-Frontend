@@ -99,20 +99,16 @@ export default function SiteRentTransactionsTable({ siteId: propSiteId, site }: 
             const token = localStorage.getItem("token");
             if (!token) throw new Error("Authentication token not found");
 
-            const url = `${process.env.NEXT_PUBLIC_API_URL}/api/rent/rentTransactions?site_id=${siteId}`;
-            console.log("Fetching rent transactions from:", url);
-
-            const response = await fetch(url, {
-                headers: {
-                    Authorization: `Bearer ${token}`,
-                    "Content-Type": "application/json",
-                },
-            });
-
-            console.log("Rent Transactions API Response Status:", response.status);
-
+            const response = await fetch(
+                `${process.env.NEXT_PUBLIC_API_URL}/api/rent/?site_id=${siteId}`,
+                {
+                    headers: {
+                        Authorization: `Bearer ${token}`,
+                        "Content-Type": "application/json",
+                    },
+                }
+            );
             if (!response.ok) {
-                console.error("Rent Transactions Error Response:", response);
                 // Safely parse error — server may return HTML on 404
                 const text = await response.text();
                 let message = `HTTP error! status: ${response.status}`;

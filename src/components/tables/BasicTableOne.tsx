@@ -19,7 +19,6 @@ interface Owner {
 
 interface Site {
   id: string;
-  _id?: string;
   siteName: string;
   code: string;
   propertyLocation: string;
@@ -29,43 +28,7 @@ interface Site {
   isActive: boolean;
   centreId: string;
   owners: Owner[];
-  status: string;
 }
-
-const SiteOwnerCell = ({ siteId }: { siteId?: string }) => {
-    const [ownerName, setOwnerName] = useState<string>("Loading...");
-
-    useEffect(() => {
-        if (!siteId) {
-            setOwnerName("-");
-            return;
-        }
-
-        const fetchOwner = async () => {
-            try {
-                const token = localStorage.getItem("token");
-                const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/rent/sites/${siteId}`, {
-                    headers: { Authorization: `Bearer ${token}` }
-                });
-                if (!res.ok) throw new Error();
-                const json = await res.json();
-                const siteData = json.data || json;
-                if (siteData.owners && siteData.owners.length > 0) {
-                    const names = siteData.owners.map((o: any) => o.ownerId?.ownerName || "Unknown").join(", ");
-                    setOwnerName(names);
-                } else {
-                    setOwnerName("-");
-                }
-            } catch (err) {
-                setOwnerName("-");
-            }
-        };
-
-        fetchOwner();
-    }, [siteId]);
-
-    return <span>{ownerName}</span>;
-};
 
 export default function BasicTableOne() {
   const router = useRouter();
@@ -80,27 +43,19 @@ export default function BasicTableOne() {
         const token = localStorage.getItem("token");
         if (!token) throw new Error("Authentication token not found");
 
-        const url = `${process.env.NEXT_PUBLIC_API_URL}/api/rent/sites`;
-        console.log("Fetching sites from:", url);
-        
-        const response = await fetch(url, {
+        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/sites/all-sites`, {
           headers: {
             Authorization: `Bearer ${token}`,
             "Content-Type": "application/json",
           },
         });
 
-        console.log("BasicTableOne API Response Status:", response.status);
-
         if (!response.ok) {
           throw new Error(`HTTP error! status: ${response.status}`);
         }
 
         const data = await response.json();
-        console.log("BasicTableOne Fetched Data:", data);
-        
-        const siteList = data.data || data.sites || (Array.isArray(data) ? data : []);
-        setSites(siteList);
+        setSites(Array.isArray(data.data) ? data.data : []);
         setError(null);
       } catch (error) {
         console.error("Error fetching sites:", error);
@@ -185,7 +140,7 @@ export default function BasicTableOne() {
                   <TableBody className="divide-y divide-gray-200 dark:divide-gray-700">
                     {filteredSites.map((site, index) => (
                       <TableRow
-                        key={site._id || site.id}
+                        key={site.id}
                         className="hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors"
                       >
                         <TableCell className="w-16 px-6 py-4 text-gray-900 dark:text-gray-100">
@@ -200,26 +155,26 @@ export default function BasicTableOne() {
                         <TableCell className="w-40 px-6 py-4 text-gray-900 dark:text-gray-100">
                           {site.propertyLocation}
                         </TableCell>
-                        <TableCell className="w-32 px-6 py-4 text-gray-900 dark:text-gray-100 font-medium">
-                          <SiteOwnerCell siteId={site._id || site.id} />
+                        <TableCell className="w-32 px-6 py-4 text-gray-900 dark:text-gray-100">
+                          {site.owners?.map((o) => o.ownerName).join(', ') ?? 'N/A'}
                         </TableCell>
                         <TableCell className="w-24 px-6 py-4 text-gray-900 dark:text-gray-100">
                           <Badge
                             size="sm"
                             color={
-                              site.status?.toLowerCase() === "active"
+                              site.paidStatus?.toLowerCase() === "paid"
                                 ? "success"
-                                : site.status?.toLowerCase() === "inactive"
+                                : site.paidStatus?.toLowerCase() === "pending"
                                   ? "warning"
                                   : "error"
                             }
                           >
-                            {site.status ?? "N/A"}
+                            {site.paidStatus ?? "N/A"}
                           </Badge>
                         </TableCell>
                         <TableCell className="w-24 px-6 py-4 text-gray-900 dark:text-gray-100">
                           <button
-                            onClick={() => navigateToSite(site._id || site.id)}
+                            onClick={() => navigateToSite(site.id)}
                             className="px-3 py-1 text-xs font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
                           >
                             View

@@ -5,54 +5,62 @@ import React, { useState, useEffect } from "react";
 import { Dropdown } from "../ui/dropdown/Dropdown";
 import { DropdownItem } from "../ui/dropdown/DropdownItem";
 
-// Decode JWT without a library
-function parseJwt(token: string | null) {
-  if (!token) return null;
-  try {
-    const base64 = token.split(".")[1].replace(/-/g, "+").replace(/_/g, "/");
-    return JSON.parse(decodeURIComponent(atob(base64).split("").map(c => "%" + ("00" + c.charCodeAt(0).toString(16)).slice(-2)).join("")));
-  } catch { return null; }
-}
-
 export default function UserDropdown() {
   const [isOpen, setIsOpen] = useState(false);
-  const [userDetails, setUserDetails] = useState({ name: "", email: "", mobileNumber: "", role: "", loginId: "" });
+  const [userDetails, setUserDetails] = useState({
+    name: "",
+    userName: "",
+    email: "",
+    role: "",
+    id: ""
+  });
   const [loading, setLoading] = useState(true);
 
+  // Get user ID and token from localStorage
   useEffect(() => {
-    const token = localStorage.getItem("token");
-    const payload = parseJwt(token);
-    const userId = payload?._id || payload?.id || localStorage.getItem("userId");
-
-    if (!userId || !token) { setLoading(false); return; }
-
-    // Show name immediately from JWT while fetch loads
-    if (payload?.name) {
-      setUserDetails(p => ({ ...p, name: payload.name, role: payload.role || "", loginId: payload.loginId || "" }));
-    }
-
-    const fetchUser = async () => {
+    const token = localStorage.getItem('token');
+    const userId = localStorage.getItem('userId');
+    
+    const fetchUserDetails = async () => {
       try {
-        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/users/${userId}`, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        if (!res.ok) throw new Error();
-        const data = await res.json();
+        setLoading(true);
+        if (!userId || !token) return;
+
+        const response = await fetch(
+          `${process.env.NEXT_PUBLIC_API_URL}/api/users/user/${userId}`,
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          }
+        );
+
+        if (!response.ok) {
+          throw new Error("Failed to fetch user details");
+        }
+
+        const data = await response.json();
+        
+        // Set user details from API response
         setUserDetails({
-          name: data.name || payload?.name || "",
-          email: data.email || "",
-          mobileNumber: data.mobileNumber ? String(data.mobileNumber) : "",
+          name: data.name || "",
+          userName: data.userName || data.email || "",
+          email: data.email || data.userName || "",
           role: data.role || "",
-          loginId: data.loginId || "",
+          id: data.id || userId
         });
-      } catch {
-        // keep JWT data as fallback
+      } catch (error) {
+        console.error("Error fetching user details:", error);
       } finally {
         setLoading(false);
       }
     };
 
-    fetchUser();
+    if (userId && token) {
+      fetchUserDetails();
+    } else {
+      setLoading(false);
+    }
   }, []);
 
   function toggleDropdown(e: { stopPropagation: () => void; }) {
@@ -79,12 +87,11 @@ export default function UserDropdown() {
             height={44}
             src="/images/user/user.jpg"
             alt="User"
-            priority
           />
         </span>
 
         <span className=" block mr-1 font-medium text-theme-sm">
-          {loading ? "…" : (userDetails.name || "User")}
+          {loading ? "Loading..." : (displayName || userDetails.userName)}
         </span>
 
         <svg
@@ -114,10 +121,10 @@ export default function UserDropdown() {
       >
         <div>
           <span className="block font-medium text-gray-700 text-theme-sm dark:text-gray-400">
-            {userDetails.name || "User"}
+            {loading ? "Loading..." : userDetails.name}
           </span>
           <span className="mt-0.5 block text-theme-xs text-gray-500 dark:text-gray-400">
-            {userDetails.email || userDetails.mobileNumber || userDetails.loginId || ""}
+            {loading ? "Loading..." : userDetails.email}
           </span>
           {userDetails.role && (
             <span className="mt-1 inline-block px-2 py-0.5 text-theme-xs rounded-full bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400">
