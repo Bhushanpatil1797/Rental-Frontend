@@ -79,6 +79,7 @@ export default function UserDropdown() {
             height={44}
             src="/images/user/user.jpg"
             alt="User"
+            priority
           />
         </span>
 
