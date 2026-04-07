@@ -36,7 +36,7 @@ const SiteOwnerCell = ({ siteId }: { siteId?: string }) => {
                 console.log(`Fetched site ${siteId} for owner name:`, json);
                 const siteData = json.data || json;
                 if (siteData.owners && siteData.owners.length > 0) {
-                    const names = siteData.owners.map((o: any) => 
+                    const names = siteData.owners.map((o: any) =>
                         o.ownerId?.ownerName || o.ownerName || (typeof o.ownerId === 'string' ? o.ownerId : "Unknown")
                     ).join(", ");
                     setOwnerName(names);
@@ -122,17 +122,17 @@ export default function MaintenanceTransactionsTable() {
     useEffect(() => {
         const resolveOwners = async () => {
             // Find transactions needing owner resolution
-            const needingResolution = transactions.filter(t => 
+            const needingResolution = transactions.filter(t =>
                 t.siteId?._id && (!t.ownerName || t.ownerName === "-" || t.ownerName === "...")
             );
-            
+
             if (needingResolution.length === 0) return;
-            
+
             const uniqueSiteIds = Array.from(new Set(needingResolution.map(t => t.siteId?._id)));
             const token = localStorage.getItem("token");
             const ownerMap: Record<string, string> = {};
             const skippedSites = new Set<string>(); // Minor cache for the effect
-            
+
             await Promise.all(uniqueSiteIds.map(async (sid) => {
                 if (!sid) return;
                 try {
@@ -147,7 +147,7 @@ export default function MaintenanceTransactionsTable() {
                         const json = await res.json();
                         const siteData = json.data || json;
                         if (siteData.owners && siteData.owners.length > 0) {
-                            const names = siteData.owners.map((o: any) => 
+                            const names = siteData.owners.map((o: any) =>
                                 o.ownerId?.ownerName || o.ownerName || (typeof o.ownerId === 'string' ? o.ownerId : "Unknown")
                             ).join(", ");
                             ownerMap[sid] = names;
@@ -159,7 +159,7 @@ export default function MaintenanceTransactionsTable() {
                     console.error(`Error resolving owners for site ${sid}:`, e);
                 }
             }));
-            
+
             if (Object.keys(ownerMap).length > 0) {
                 setTransactions(prev => prev.map(t => {
                     const sid = t.siteId?._id;
@@ -241,7 +241,7 @@ export default function MaintenanceTransactionsTable() {
         })
         .filter((item) => {
             if (filters.paidStatus && item.paidStatus?.toLowerCase() !== filters.paidStatus.toLowerCase()) return false;
-            
+
             // Client-side date range filter (robust)
             if (filters.start_date) {
                 const start = new Date(filters.start_date);
@@ -255,7 +255,7 @@ export default function MaintenanceTransactionsTable() {
                 const current = new Date(item.paymentDate);
                 if (current > end) return false;
             }
-            
+
             return true;
         })
         .sort((a, b) => new Date(b.paymentDate).getTime() - new Date(a.paymentDate).getTime());
@@ -278,7 +278,7 @@ export default function MaintenanceTransactionsTable() {
         try {
             const token = localStorage.getItem("token");
             const queryParams = new URLSearchParams();
-            
+
             if (filters.start_date && filters.end_date) {
                 queryParams.append("startDate", filters.start_date);
                 queryParams.append("endDate", filters.end_date);
@@ -657,9 +657,9 @@ export default function MaintenanceTransactionsTable() {
                             <div className="grid grid-cols-2 gap-4">
                                 <div>
                                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Payment Type</label>
-                                    <select 
-                                        value={updateFormData.paymentType} 
-                                        onChange={(e) => setUpdateFormData({ ...updateFormData, paymentType: e.target.value })} 
+                                    <select
+                                        value={updateFormData.paymentType}
+                                        onChange={(e) => setUpdateFormData({ ...updateFormData, paymentType: e.target.value })}
                                         className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md dark:bg-gray-700 dark:text-white text-sm"
                                     >
                                         <option value="Online">Online</option>
@@ -676,7 +676,7 @@ export default function MaintenanceTransactionsTable() {
 
                             <div>
                                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Proof of Payment</label>
-                                
+
                                 {/* Image Preview / Current Image Area */}
                                 {(selectedTransaction.image || newImageFile) && !removeImageFlag ? (
                                     <div className="relative mb-3 w-full h-40 bg-gray-100 dark:bg-white/[0.03] rounded-xl overflow-hidden border border-gray-200 dark:border-white/[0.1] flex items-center justify-center">
@@ -685,8 +685,8 @@ export default function MaintenanceTransactionsTable() {
                                         ) : (
                                             <img src={selectedTransaction.image} alt="Current Proof" className="h-full w-auto object-contain" />
                                         )}
-                                        <button 
-                                            type="button" 
+                                        <button
+                                            type="button"
                                             onClick={() => {
                                                 setNewImageFile(null);
                                                 setRemoveImageFlag(true);
@@ -710,18 +710,18 @@ export default function MaintenanceTransactionsTable() {
                                 )}
 
                                 <div className="relative group">
-                                    <input 
-                                        type="file" 
+                                    <input
+                                        type="file"
                                         id="update-file-input"
                                         onChange={(e) => {
                                             if (e.target.files && e.target.files[0]) {
                                                 setNewImageFile(e.target.files[0]);
                                                 setRemoveImageFlag(false);
                                             }
-                                        }} 
+                                        }}
                                         className="hidden"
                                     />
-                                    <label 
+                                    <label
                                         htmlFor="update-file-input"
                                         className="flex items-center justify-center gap-2 w-full py-2.5 px-4 bg-gray-100 dark:bg-white/[0.05] border border-gray-200 dark:border-white/[0.1] rounded-xl cursor-pointer hover:bg-gray-200 dark:hover:bg-white/[0.1] transition-all active:scale-[0.98]"
                                     >

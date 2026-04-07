@@ -14,6 +14,7 @@ import {
 import Badge from "../ui/badge/Badge";
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
+import { Upload, X, Trash2, Search, Filter, Download, Eye } from "lucide-react";
 
 
 const SiteOwnerCell = ({ siteId }: { siteId?: string }) => {
@@ -64,6 +65,7 @@ interface ElectricityTransaction {
     units: string;
     electricityCharges: string;
     electricityConsumerNo: string;
+    electricityConsumerId?: any;
     monthly_amount?: number;
     ownerName?: string;
 }
@@ -90,18 +92,26 @@ export default function ElectricityTransactionsTable() {
     const [isUpdateModalOpen, setIsUpdateModalOpen] = useState(false);
     const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
     const [selectedTransaction, setSelectedTransaction] = useState<ElectricityTransaction | null>(null);
+    const [viewProofTransaction, setViewProofTransaction] = useState<ElectricityTransaction | null>(null);
+
     const [updateFormData, setUpdateFormData] = useState({
-        monthly_amount: "",
-        payment_type: "",
-        paid_status: "",
-        payment_date: "",
-        payment_amount: "",
-        utr_number: "",
-        month_year: ""
+        paymentAmount: "",
+        paidStatus: "",
+        paymentDate: "",
+        utrNumber: "",
+        units: "",
+        electricityCharges: "",
+        monthYear: "",
+        paymentType: "",
+        electricityConsumerId: ""
     });
+
+    const [consumers, setConsumers] = useState<any[]>([]);
     const [formErrors, setFormErrors] = useState<Record<string, string>>({});
     const [updateLoading, setUpdateLoading] = useState(false);
     const [deleteLoading, setDeleteLoading] = useState(false);
+    const [newImageFile, setNewImageFile] = useState<File | null>(null);
+    const [removeImageFlag, setRemoveImageFlag] = useState(false);
 
     useEffect(() => {
         fetchElectricityTransactions();
@@ -111,21 +121,21 @@ export default function ElectricityTransactionsTable() {
     useEffect(() => {
         const resolveOwners = async () => {
             // Find transactions needing owner resolution
-            const needingResolution = transactions.filter(t => 
+            const needingResolution = transactions.filter(t =>
                 t.siteId?._id && (!t.ownerName || t.ownerName === "-" || t.ownerName === "...")
             );
-            
+
             if (needingResolution.length === 0) return;
-            
+
             const uniqueSiteIds = Array.from(new Set(needingResolution.map(t => {
                 // siteId can be object or string
                 return typeof t.siteId === 'object' ? t.siteId?._id : t.siteId;
             }).filter(Boolean)));
-            
+
             const token = localStorage.getItem("token");
             const ownerMap: Record<string, string> = {};
             const skippedSites = new Set<string>(); // Minor cache for the effect
-            
+
             await Promise.all(uniqueSiteIds.map(async (sid) => {
                 if (!sid) return;
                 try {
@@ -140,7 +150,7 @@ export default function ElectricityTransactionsTable() {
                         const json = await res.json();
                         const siteData = json.data || json;
                         if (siteData.owners && siteData.owners.length > 0) {
-                            const names = siteData.owners.map((o: any) => 
+                            const names = siteData.owners.map((o: any) =>
                                 o.ownerId?.ownerName || o.ownerName || (typeof o.ownerId === 'string' ? o.ownerId : "Unknown")
                             ).join(", ");
                             ownerMap[sid] = names;
@@ -152,7 +162,7 @@ export default function ElectricityTransactionsTable() {
                     console.error(`Error resolving owners for site ${sid}:`, e);
                 }
             }));
-            
+
             if (Object.keys(ownerMap).length > 0) {
                 setTransactions(prev => prev.map(t => {
                     const sid = typeof t.siteId === 'object' ? t.siteId?._id : t.siteId;
@@ -247,7 +257,7 @@ export default function ElectricityTransactionsTable() {
         })
         .filter((item) => {
             if (filters.paid_status && item.paidStatus?.toLowerCase() !== filters.paid_status.toLowerCase()) return false;
-            
+
             // Client-side date range filter (robust)
             if (filters.start_date) {
                 const start = new Date(filters.start_date);
@@ -261,7 +271,7 @@ export default function ElectricityTransactionsTable() {
                 const current = new Date(item.paymentDate);
                 if (current > end) return false;
             }
-            
+
             return true;
         })
         .sort((a, b) => {
@@ -282,23 +292,67 @@ export default function ElectricityTransactionsTable() {
         }).format(amount);
     };
 
-    const handleUpdateClick = (transaction: ElectricityTransaction) => {
+    const handleUpdateClick = async (transaction: ElectricityTransaction) => {
+        console.log("Opening update modal for transaction:", transaction);
         setSelectedTransaction(transaction);
-        const formatDateForInput = (dateString: string) => {
-            if (!dateString) return '';
-            const date = new Date(dateString);
-            return date.toISOString().split('T')[0];
-        };
+        const siteId = typeof transaction.siteId === 'object' ? transaction.siteId?._id : transaction.siteId;
+        console.log("Extracted siteId for consumer fetch:", siteId);
+
+        // Determine the consumer ID robustly
+        const currentConsumerId = transaction.electricityConsumerId?._id || 
+                                (typeof transaction.electricityConsumerId === 'string' ? transaction.electricityConsumerId : "");
 
         setUpdateFormData({
-            monthly_amount: transaction.monthly_amount?.toString() || "",
-            payment_type: transaction.paymentType || "",
-            paid_status: transaction.paidStatus || "",
-            payment_date: formatDateForInput(transaction.paymentDate),
-            payment_amount: transaction.paymentAmount || "",
-            utr_number: transaction.utrNumber || "",
-            month_year: transaction.monthYear || ""
+            paymentAmount: transaction.paymentAmount?.toString() || "",
+            paidStatus: transaction.paidStatus || "pending",
+            paymentDate: transaction.paymentDate ? new Date(transaction.paymentDate).toISOString().split('T')[0] : "",
+            utrNumber: transaction.utrNumber || "",
+            units: transaction.units?.toString() || "",
+            electricityCharges: transaction.electricityCharges?.toString() || "",
+            monthYear: transaction.monthYear || "",
+            paymentType: transaction.paymentType || "Online",
+            electricityConsumerId: currentConsumerId
         });
+        
+        setNewImageFile(null);
+        setRemoveImageFlag(false);
+        
+        // Populate consumers list with the current one first to ensure it's selectable immediately
+        if (transaction.electricityConsumerId && typeof transaction.electricityConsumerId === 'object') {
+            setConsumers([{
+                _id: transaction.electricityConsumerId._id,
+                consumerNo: transaction.electricityConsumerId.consumerNo,
+                name: transaction.electricityConsumerId.consumerName || transaction.electricityConsumerId.name || ""
+            }]);
+        } else {
+            setConsumers([]);
+        }
+
+        // Fetch all consumers for this site to allow switching
+        if (siteId) {
+            try {
+                const token = localStorage.getItem("token");
+                const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/rent/siteElectricityConsumers/site/${siteId}`, {
+                    headers: { Authorization: `Bearer ${token}` }
+                });
+                if (res.ok) {
+                    const json = await res.json();
+                    const fetchedConsumers = json.data || (Array.isArray(json) ? json : []);
+                    
+                    // Merge current consumer if missing (to avoid UI desync)
+                    setConsumers(prev => {
+                        const existingIds = new Set(fetchedConsumers.map((c: any) => c._id));
+                        const missing = prev.filter(c => !existingIds.has(c._id));
+                        return [...missing, ...fetchedConsumers];
+                    });
+                    
+                    console.log("Updated consumers for site:", fetchedConsumers);
+                }
+            } catch (err) {
+                console.error("Error fetching consumers:", err);
+            }
+        }
+        
         setIsUpdateModalOpen(true);
     };
 
@@ -326,18 +380,11 @@ export default function ElectricityTransactionsTable() {
     const validateForm = () => {
         const errors: Record<string, string> = {};
 
-        if (!updateFormData.monthly_amount) {
-            errors.monthly_amount = "Monthly amount is required";
-        } else if (isNaN(Number(updateFormData.monthly_amount))) {
-            errors.monthly_amount = "Monthly amount must be a number";
+        if (!updateFormData.paymentAmount) {
+            errors.paymentAmount = "Payment amount is required";
         }
-
-        if (!updateFormData.paid_status) {
-            errors.paid_status = "Payment status is required";
-        }
-
-        if (!updateFormData.payment_type) {
-            errors.payment_type = "Payment type is required";
+        if (!updateFormData.paidStatus) {
+            errors.paidStatus = "Status is required";
         }
 
         setFormErrors(errors);
@@ -346,49 +393,53 @@ export default function ElectricityTransactionsTable() {
 
     const handleUpdateSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-
         if (!validateForm()) return;
         if (!selectedTransaction) return;
 
         try {
             setUpdateLoading(true);
             const token = localStorage.getItem("token");
-            if (!token) throw new Error("Authentication token not found");
+            const formData = new FormData();
+            
+            Object.entries(updateFormData).forEach(([key, value]) => {
+                // Diagnostic: Skip electricityConsumerId to test if other fields update without error
+                if (key === "electricityConsumerId") return;
 
-            const id = selectedTransaction._id || selectedTransaction.id;
-            const response = await fetch(
-                `${process.env.NEXT_PUBLIC_API_URL}/api/rent/electricity/${id}`,
-                {
-                    method: "PUT",
-                    headers: {
-                        Authorization: `Bearer ${token}`,
-                        "Content-Type": "application/json",
-                    },
-                    body: JSON.stringify({
-                        monthly_amount: Number(updateFormData.monthly_amount),
-                        payment_type: updateFormData.payment_type,
-                        paid_status: updateFormData.paid_status,
-                        payment_date: updateFormData.payment_date,
-                        payment_amount: updateFormData.payment_amount,
-                        utr_number: updateFormData.utr_number,
-                        month_year: updateFormData.month_year
-                    }),
+                // For other fields, send if they are not undefined/null (allow empty strings to clear fields)
+                if (value !== undefined && value !== null) {
+                    formData.append(key, value as string);
                 }
-            );
+            });
 
-            if (!response.ok) {
-                const errorData = await response.json();
-                throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
+            if (newImageFile) {
+                formData.append("image", newImageFile);
+            } else if (removeImageFlag) {
+                formData.append("removeImage", "true");
             }
 
-            await fetchElectricityTransactions();
-            setIsUpdateModalOpen(false);
-            setSelectedTransaction(null);
-            alert("Electricity payment updated successfully");
+            // DEBUG LOG PAYLOAD
+            console.log("Submitting Electricity Update Payload:");
+            const payloadObject: any = {};
+            formData.forEach((val, key) => { payloadObject[key] = val; });
+            console.log(payloadObject);
 
-        } catch (error) {
-            console.error("Error updating electricity payment:", error);
-            alert(error instanceof Error ? error.message : "Failed to update electricity payment");
+            const id = selectedTransaction._id || selectedTransaction.id;
+            const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/rent/siteTransaction/${id}`, {
+                method: "PUT",
+                headers: { Authorization: `Bearer ${token}` },
+                body: formData,
+            });
+
+            if (!res.ok) {
+                const errorData = await res.json();
+                throw new Error(errorData.message || "Update failed");
+            }
+
+            alert("Electricity record updated successfully");
+            setIsUpdateModalOpen(false);
+            fetchElectricityTransactions();
+        } catch (error: any) {
+            alert(error.message);
         } finally {
             setUpdateLoading(false);
         }
@@ -403,30 +454,18 @@ export default function ElectricityTransactionsTable() {
             if (!token) throw new Error("Authentication token not found");
 
             const id = selectedTransaction._id || selectedTransaction.id;
-            const response = await fetch(
-                `${process.env.NEXT_PUBLIC_API_URL}/api/rent/electricity/${id}`,
-                {
-                    method: "DELETE",
-                    headers: {
-                        Authorization: `Bearer ${token}`,
-                        "Content-Type": "application/json",
-                    },
-                }
-            );
+            const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/rent/siteTransaction/${id}`, {
+                method: "DELETE",
+                headers: { Authorization: `Bearer ${token}` }
+            });
 
-            if (!response.ok) {
-                const errorData = await response.json();
-                throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
-            }
+            if (!res.ok) throw new Error("Delete failed");
 
-            await fetchElectricityTransactions();
+            alert("Electricity record deleted successfully");
             setIsDeleteModalOpen(false);
-            setSelectedTransaction(null);
-            alert("Electricity payment deleted successfully");
-
-        } catch (error) {
-            console.error("Error deleting electricity payment:", error);
-            alert(error instanceof Error ? error.message : "Failed to delete electricity payment");
+            fetchElectricityTransactions();
+        } catch (error: any) {
+            alert(error.message);
         } finally {
             setDeleteLoading(false);
         }
@@ -438,7 +477,7 @@ export default function ElectricityTransactionsTable() {
             if (!token) throw new Error("Authentication token not found");
 
             const queryParams = new URLSearchParams();
-            
+
             if (filters.start_date && filters.end_date) {
                 queryParams.append("startDate", filters.start_date);
                 queryParams.append("endDate", filters.end_date);
@@ -654,35 +693,14 @@ export default function ElectricityTransactionsTable() {
                                                 </TableCell>
                                                 <TableCell className="w-24 px-6 py-4 text-gray-900 dark:text-gray-100">
                                                     {item.image ? (
-                                                        <>
-                                                            <button
-                                                                type="button"
-                                                                className="underline text-blue-600 hover:text-blue-800 text-xs"
-                                                                onClick={() => setSelectedTransaction(item)}
-                                                                title="View Image"
-                                                            >
-                                                                View Image
-                                                            </button>
-                                                            {selectedTransaction?._id === item._id && selectedTransaction.image && !isUpdateModalOpen && !isDeleteModalOpen && (
-                                                                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
-                                                                    <div className="bg-white dark:bg-[#121212] rounded-lg p-4 shadow-lg relative max-w-xs w-full">
-                                                                        <button
-                                                                            className="absolute top-4 right-4 text-3xl text-gray-500 hover:text-gray-800 dark:hover:text-red-500"
-                                                                            onClick={() => setSelectedTransaction(null)}
-                                                                            aria-label="Close"
-                                                                        >
-                                                                            &times;
-                                                                        </button>
-                                                                        <img
-                                                                            src={selectedTransaction.image}
-                                                                            alt="Bill"
-                                                                            className="max-h-80 w-auto mx-auto rounded"
-                                                                            onError={e => (e.currentTarget.style.display = 'none')}
-                                                                        />
-                                                                    </div>
-                                                                </div>
-                                                            )}
-                                                        </>
+                                                        <button
+                                                            type="button"
+                                                            className="underline text-blue-600 hover:text-blue-800 text-xs"
+                                                            onClick={() => setViewProofTransaction(item)}
+                                                            title="View Proof"
+                                                        >
+                                                            View Proof
+                                                        </button>
                                                     ) : (
                                                         "-"
                                                     )}
@@ -712,181 +730,183 @@ export default function ElectricityTransactionsTable() {
                     </div>
                 </div>
 
-                {filteredTransactions.length === 0 && (
-                    <div className="p-4 text-center text-gray-500">
-                        {searchTerm
-                            ? `No results found for "${searchTerm}"`
-                            : "No electricity transactions found"
-                        }
+            {/* Proof Viewer */}
+            {viewProofTransaction && viewProofTransaction.image && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+                    <div className="bg-white dark:bg-[#121212] rounded-lg p-4 shadow-lg relative max-w-lg w-full">
+                        <button
+                            className="absolute top-4 right-4 text-3xl text-gray-500 hover:text-red-500 z-10"
+                            onClick={() => setViewProofTransaction(null)}
+                        >
+                            &times;
+                        </button>
+                        <img src={viewProofTransaction.image} alt="Electricity Proof" className="max-h-[70vh] w-auto mx-auto rounded shadow-xl" />
                     </div>
-                )}
+                </div>
+            )}
             </div>
 
             {/* Update Modal */}
             {isUpdateModalOpen && selectedTransaction && (
-                <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
-                    <div className="bg-white dark:bg-white/[0.03] rounded-lg max-w-md w-full max-h-[90vh] overflow-y-auto p-6">
-                        <h2 className="text-xl font-bold mb-4 text-gray-900 dark:text-white">
-                            Update Electricity Payment
-                        </h2>
-                        <form onSubmit={handleUpdateSubmit}>
-                            <div className="space-y-4">
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                                        Monthly Amount
-                                    </label>
-                                    <input
-                                        type="text"
-                                        name="monthly_amount"
-                                        value={updateFormData.monthly_amount}
-                                        onChange={handleInputChange}
-                                        className={`w-full px-3 py-2 border ${formErrors.monthly_amount ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'} rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white`}
-                                    />
-                                    {formErrors.monthly_amount && (
-                                        <p className="mt-1 text-sm text-red-500">{formErrors.monthly_amount}</p>
-                                    )}
+                <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50 backdrop-blur-sm">
+                    <div className="bg-white dark:bg-[#1f1f1f] rounded-2xl max-w-md w-full max-h-[90vh] overflow-y-auto p-6 shadow-2xl">
+                        <h2 className="text-xl font-bold mb-4 text-gray-900 dark:text-white">Update Electricity Record</h2>
+                        <form onSubmit={handleUpdateSubmit} className="space-y-4">
+                            <div className="flex space-x-4">
+                                <div className="flex-1">
+                                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Paid Amount</label>
+                                    <input type="text" value={updateFormData.paymentAmount} onChange={(e) => setUpdateFormData({ ...updateFormData, paymentAmount: e.target.value })} className={`w-full px-3 py-2 border ${formErrors.paymentAmount ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'} rounded-md dark:bg-gray-700 dark:text-white`} />
+                                    {formErrors.paymentAmount && <p className="text-red-500 text-xs mt-1">{formErrors.paymentAmount}</p>}
                                 </div>
-
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                                        Payment Type
-                                    </label>
-                                    <select
-                                        name="payment_type"
-                                        value={updateFormData.payment_type}
-                                        onChange={handleInputChange}
-                                        className={`w-full px-3 py-2 border ${formErrors.payment_type ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'} rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white`}
-                                    >
-                                        <option value="">Select Payment Type</option>
-                                        <option value="electricity">Electricity</option>
-                                        <option value="other">Other</option>
-                                    </select>
-                                    {formErrors.payment_type && (
-                                        <p className="mt-1 text-sm text-red-500">{formErrors.payment_type}</p>
-                                    )}
-                                </div>
-
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                                        Payment Status
-                                    </label>
-                                    <select
-                                        name="paid_status"
-                                        value={updateFormData.paid_status}
-                                        onChange={handleInputChange}
-                                        className={`w-full px-3 py-2 border ${formErrors.paid_status ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'} rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white`}
-                                    >
-                                        <option value="">Select Status</option>
+                                <div className="flex-1">
+                                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Status</label>
+                                    <select value={updateFormData.paidStatus} onChange={(e) => setUpdateFormData({ ...updateFormData, paidStatus: e.target.value })} className={`w-full px-3 py-2 border ${formErrors.paidStatus ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'} rounded-md dark:bg-gray-700 dark:text-white`}>
                                         <option value="paid">Paid</option>
                                         <option value="pending">Pending</option>
                                         <option value="partial">Partial</option>
                                     </select>
-                                    {formErrors.paid_status && (
-                                        <p className="mt-1 text-sm text-red-500">{formErrors.paid_status}</p>
-                                    )}
+                                    {formErrors.paidStatus && <p className="text-red-500 text-xs mt-1">{formErrors.paidStatus}</p>}
                                 </div>
+                            </div>
 
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                                        Payment Date
-                                    </label>
-                                    <input
-                                        type="date"
-                                        name="payment_date"
-                                        value={updateFormData.payment_date}
-                                        onChange={handleInputChange}
-                                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
-                                    />
+                            <div className="flex space-x-4">
+                                <div className="flex-1">
+                                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Units</label>
+                                    <input type="text" value={updateFormData.units} onChange={(e) => setUpdateFormData({ ...updateFormData, units: e.target.value })} className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md dark:bg-gray-700 dark:text-white" />
                                 </div>
-
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                                        Payment Amount
-                                    </label>
-                                    <input
-                                        type="text"
-                                        name="payment_amount"
-                                        value={updateFormData.payment_amount}
-                                        onChange={handleInputChange}
-                                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
-                                    />
+                                <div className="flex-1">
+                                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Charges</label>
+                                    <input type="text" value={updateFormData.electricityCharges} onChange={(e) => setUpdateFormData({ ...updateFormData, electricityCharges: e.target.value })} className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md dark:bg-gray-700 dark:text-white" />
                                 </div>
+                            </div>
 
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                                        UTR Number
-                                    </label>
-                                    <input
-                                        type="text"
-                                        name="utr_number"
-                                        value={updateFormData.utr_number}
-                                        onChange={handleInputChange}
-                                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
-                                    />
+                            <div className="flex space-x-4">
+                                <div className="flex-1">
+                                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Payment Date</label>
+                                    <input type="date" value={updateFormData.paymentDate} onChange={(e) => setUpdateFormData({ ...updateFormData, paymentDate: e.target.value })} className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md dark:bg-gray-700 dark:text-white" />
                                 </div>
+                                <div className="flex-1">
+                                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Month / Year</label>
+                                    <input type="text" value={updateFormData.monthYear} onChange={(e) => setUpdateFormData({ ...updateFormData, monthYear: e.target.value })} className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md dark:bg-gray-700 dark:text-white" placeholder="e.g. Mar-2026" />
+                                </div>
+                            </div>
 
+                            <div className="grid grid-cols-2 gap-4">
                                 <div>
-                                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                                        Bill Period (Month/Year)
-                                    </label>
+                                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Payment Type</label>
+                                    <select
+                                        value={updateFormData.paymentType}
+                                        onChange={(e) => setUpdateFormData({ ...updateFormData, paymentType: e.target.value })}
+                                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md dark:bg-gray-700 dark:text-white text-sm"
+                                    >
+                                        <option value="Online">Online</option>
+                                        <option value="Cash">Cash</option>
+                                        <option value="Cheque">Cheque</option>
+                                        <option value="Other">Other</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">UTR Number</label>
+                                    <input type="text" value={updateFormData.utrNumber} onChange={(e) => setUpdateFormData({ ...updateFormData, utrNumber: e.target.value })} className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md dark:bg-gray-700 dark:text-white text-sm" />
+                                </div>
+                            </div>
+
+                            {/* Diagnostic: Temporarily removed Consumer Number field to isolate 400 error origins */}
+                            {/* 
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Consumer Number</label>
+                                <select 
+                                    value={updateFormData.electricityConsumerId} 
+                                    onChange={(e) => setUpdateFormData({...updateFormData, electricityConsumerId: e.target.value})} 
+                                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md dark:bg-gray-700 dark:text-white"
+                                >
+                                    <option value="">Select Consumer</option>
+                                    {consumers.map(c => (
+                                        <option key={c._id} value={c._id}>{c.consumerNo} ({c.name || 'No Name'})</option>
+                                    ))}
+                                </select>
+                            </div>
+                            */}
+
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Proof of Payment</label>
+
+                                {(selectedTransaction.image || newImageFile) && !removeImageFlag ? (
+                                    <div className="relative mb-3 w-full h-40 bg-gray-100 dark:bg-white/[0.03] rounded-xl overflow-hidden border border-gray-200 dark:border-white/[0.1] flex items-center justify-center">
+                                        {newImageFile ? (
+                                            <img src={URL.createObjectURL(newImageFile)} alt="Preview" className="h-full w-auto object-contain" />
+                                        ) : (
+                                            <img src={selectedTransaction.image} alt="Current Proof" className="h-full w-auto object-contain" />
+                                        )}
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                setNewImageFile(null);
+                                                setRemoveImageFlag(true);
+                                            }}
+                                            className="absolute top-2 right-2 p-1.5 bg-red-500 text-white rounded-full hover:bg-red-600 shadow-lg transition-colors"
+                                            title="Remove Image"
+                                        >
+                                            <X size={14} />
+                                        </button>
+                                        <div className="absolute bottom-0 left-0 right-0 bg-black/40 backdrop-blur-sm py-1 px-3">
+                                            <span className="text-[10px] text-white font-bold uppercase tracking-wider">
+                                                {newImageFile ? "New Upload Ready" : "Current Proof"}
+                                            </span>
+                                        </div>
+                                    </div>
+                                ) : (
+                                    <div className="mb-3 p-4 border-2 border-dashed border-gray-200 dark:border-white/[0.1] rounded-xl text-center bg-gray-50/50 dark:bg-white/[0.02]">
+                                        <p className="text-xs text-gray-500 italic text-center">No image attached or image scheduled for removal</p>
+                                        {removeImageFlag && <button type="button" onClick={() => setRemoveImageFlag(false)} className="mt-2 text-xs text-blue-600 underline font-bold uppercase tracking-wider">Undo Removal</button>}
+                                    </div>
+                                )}
+
+                                <div className="relative group">
                                     <input
-                                        type="text"
-                                        name="month_year"
-                                        value={updateFormData.month_year}
-                                        onChange={handleInputChange}
-                                        placeholder="e.g. Mar-2026"
-                                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
+                                        type="file"
+                                        id="update-file-input-elec"
+                                        onChange={(e) => {
+                                            if (e.target.files && e.target.files[0]) {
+                                                setNewImageFile(e.target.files[0]);
+                                                setRemoveImageFlag(false);
+                                            }
+                                        }}
+                                        className="hidden"
                                     />
+                                    <label
+                                        htmlFor="update-file-input-elec"
+                                        className="flex items-center justify-center gap-2 w-full py-2.5 px-4 bg-gray-100 dark:bg-white/[0.05] border border-gray-200 dark:border-white/[0.1] rounded-xl cursor-pointer hover:bg-gray-200 dark:hover:bg-white/[0.1] transition-all active:scale-[0.98]"
+                                    >
+                                        <Upload size={14} className="text-blue-600" />
+                                        <span className="text-xs text-gray-700 dark:text-gray-300 font-bold uppercase tracking-wider">
+                                            {newImageFile ? "Change Selection" : selectedTransaction.image && !removeImageFlag ? "Replace Image" : "Upload Image"}
+                                        </span>
+                                    </label>
                                 </div>
                             </div>
 
                             <div className="mt-6 flex justify-end space-x-3">
-                                <button
-                                    type="button"
-                                    onClick={() => setIsUpdateModalOpen(false)}
-                                    className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200 dark:text-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600"
-                                >
-                                    Cancel
-                                </button>
-                                <button
-                                    type="submit"
-                                    disabled={updateLoading}
-                                    className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
-                                >
-                                    {updateLoading ? "Updating..." : "Update"}
-                                </button>
+                                <button type="button" onClick={() => setIsUpdateModalOpen(false)} className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200">Cancel</button>
+                                <button type="submit" disabled={updateLoading} className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 shadow-lg shadow-blue-600/20">{updateLoading ? "Saving..." : "Update"}</button>
                             </div>
                         </form>
                     </div>
                 </div>
             )}
 
-            {/* Delete Confirmation Modal */}
+            {/* Delete Modal */}
             {isDeleteModalOpen && selectedTransaction && (
-                <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
-                    <div className="bg-white dark:bg-white/[0.03] rounded-lg max-w-md w-full p-6">
-                        <h2 className="text-xl font-bold mb-4 text-gray-900 dark:text-white">
-                            Confirm Delete
-                        </h2>
-                        <p className="text-gray-600 dark:text-gray-300 mb-6">
-                            Are you sure you want to delete this electricity payment? This action cannot be undone.
-                        </p>
-                        <div className="flex justify-end space-x-3">
-                            <button
-                                type="button"
-                                onClick={() => setIsDeleteModalOpen(false)}
-                                className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200 dark:text-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600"
-                            >
-                                Cancel
-                            </button>
-                            <button
-                                type="button"
-                                onClick={handleDeleteSubmit}
-                                disabled={deleteLoading}
-                                className="px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 disabled:opacity-50 disabled:cursor-not-allowed"
-                            >
-                                {deleteLoading ? "Deleting..." : "Delete"}
-                            </button>
+                <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50 backdrop-blur-sm">
+                    <div className="bg-white dark:bg-[#1f1f1f] rounded-2xl max-w-sm w-full p-6 text-center border border-gray-200 dark:border-white/[0.08] shadow-2xl">
+                        <div className="w-16 h-16 bg-red-100 dark:bg-red-500/10 rounded-full flex items-center justify-center mx-auto mb-4">
+                            <Trash2 className="text-red-600" size={32} />
+                        </div>
+                        <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-2">Delete Record?</h2>
+                        <p className="text-sm text-gray-600 dark:text-gray-400 mb-6">Are you sure you want to permanently delete this electricity record for {selectedTransaction.siteId?.siteName}?</p>
+                        <div className="flex space-x-3">
+                            <button onClick={() => setIsDeleteModalOpen(false)} className="flex-1 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-xl hover:bg-gray-200">Cancel</button>
+                            <button onClick={handleDeleteSubmit} disabled={deleteLoading} className="flex-1 py-2 text-sm font-medium text-white bg-red-600 rounded-xl hover:bg-red-700 shadow-lg shadow-red-600/20">{deleteLoading ? "Deleting..." : "Yes, Delete"}</button>
                         </div>
                     </div>
                 </div>

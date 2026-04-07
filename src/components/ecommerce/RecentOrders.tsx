@@ -87,17 +87,17 @@ export default function UpcomingRentSitesTable() {
         // Calculate summary categories
         setCategoriesSummary({
           total: combinedData.length,
-          rent: { 
-            count: rentItems.length, 
-            amount: rentItems.reduce((acc: number, item: any) => acc + (item.monthlyRent || 0), 0) 
+          rent: {
+            count: rentItems.length,
+            amount: rentItems.reduce((acc: number, item: any) => acc + (item.pendingAmount || 0), 0)
           },
-          electricity: { 
-            count: elecItems.length, 
-            amount: elecItems.reduce((acc: number, item: any) => acc + (item.monthlyRent || 0), 0) 
+          electricity: {
+            count: elecItems.length,
+            amount: elecItems.reduce((acc: number, item: any) => acc + (item.pendingAmount || 0), 0)
           },
-          maintenance: { 
-            count: maintItems.length, 
-            amount: maintItems.reduce((acc: number, item: any) => acc + (item.monthlyRent || 0), 0) 
+          maintenance: {
+            count: maintItems.length,
+            amount: maintItems.reduce((acc: number, item: any) => acc + (item.pendingAmount || 0), 0)
           }
         });
 
@@ -113,7 +113,7 @@ export default function UpcomingRentSitesTable() {
 
   const filteredData = useMemo(() => {
     let result = data;
-    
+
     // Category Filter
     if (activeCategory !== "All") {
       result = result.filter(item => item.category === activeCategory);
@@ -131,7 +131,7 @@ export default function UpcomingRentSitesTable() {
         site.category.toLowerCase().includes(search)
       );
     }
-    
+
     return result;
   }, [data, searchTerm, activeCategory]);
 
@@ -218,17 +218,16 @@ export default function UpcomingRentSitesTable() {
             className="h-10 w-full sm:w-[400px] rounded-lg border border-gray-100 bg-gray-50/50 dark:bg-white/[0.03] dark:border-gray-800 pl-10 pr-4 text-sm text-gray-800 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500/20"
           />
         </div>
-        
+
         <div className="flex items-center gap-1.5 p-1 bg-gray-100 dark:bg-gray-800 rounded-lg">
           {["All", "Rent", "Electricity", "Maintenance"].map((cat) => (
             <button
               key={cat}
               onClick={() => setActiveCategory(cat)}
-              className={`px-3 py-1.5 text-[10px] font-bold uppercase rounded-md transition-all ${
-                activeCategory === cat 
-                ? "bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm" 
-                : "text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
-              }`}
+              className={`px-3 py-1.5 text-[10px] font-bold uppercase rounded-md transition-all ${activeCategory === cat
+                  ? "bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm"
+                  : "text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
+                }`}
             >
               {cat}
             </button>
