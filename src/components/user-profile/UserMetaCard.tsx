@@ -191,6 +191,7 @@ export default function UserMetaCard() {
                 height={80}
                 src="/images/user/user.jpg"
                 alt="user"
+                priority
               />
             </div>
             <div className="order-3 xl:order-2">
