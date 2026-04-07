@@ -139,13 +139,13 @@ const Page = () => {
 
       {!selectedSite ? (
         /* ─── SEARCH VIEW ─── */
-        <div className="p-6">
-          <div className="mb-6">
-            <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Electricity Payment</h1>
+        <div className="">
+          <div className="">
+            <h1 className="text-xl font-bold text-gray-900 dark:text-white">Electricity Payment</h1>
             <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Search and select a site to record electricity payment</p>
           </div>
 
-          <div className="flex gap-3 mb-5">
+          <div className="flex gap-2 mb-3">
             <div className="relative flex-1">
               <Zap size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
               <input

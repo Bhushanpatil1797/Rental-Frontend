@@ -299,8 +299,8 @@ export default function ElectricityTransactionsTable() {
         console.log("Extracted siteId for consumer fetch:", siteId);
 
         // Determine the consumer ID robustly
-        const currentConsumerId = transaction.electricityConsumerId?._id || 
-                                (typeof transaction.electricityConsumerId === 'string' ? transaction.electricityConsumerId : "");
+        const currentConsumerId = transaction.electricityConsumerId?._id ||
+            (typeof transaction.electricityConsumerId === 'string' ? transaction.electricityConsumerId : "");
 
         setUpdateFormData({
             paymentAmount: transaction.paymentAmount?.toString() || "",
@@ -313,10 +313,10 @@ export default function ElectricityTransactionsTable() {
             paymentType: transaction.paymentType || "Online",
             electricityConsumerId: currentConsumerId
         });
-        
+
         setNewImageFile(null);
         setRemoveImageFlag(false);
-        
+
         // Populate consumers list with the current one first to ensure it's selectable immediately
         if (transaction.electricityConsumerId && typeof transaction.electricityConsumerId === 'object') {
             setConsumers([{
@@ -338,21 +338,21 @@ export default function ElectricityTransactionsTable() {
                 if (res.ok) {
                     const json = await res.json();
                     const fetchedConsumers = json.data || (Array.isArray(json) ? json : []);
-                    
+
                     // Merge current consumer if missing (to avoid UI desync)
                     setConsumers(prev => {
                         const existingIds = new Set(fetchedConsumers.map((c: any) => c._id));
                         const missing = prev.filter(c => !existingIds.has(c._id));
                         return [...missing, ...fetchedConsumers];
                     });
-                    
+
                     console.log("Updated consumers for site:", fetchedConsumers);
                 }
             } catch (err) {
                 console.error("Error fetching consumers:", err);
             }
         }
-        
+
         setIsUpdateModalOpen(true);
     };
 
@@ -400,7 +400,7 @@ export default function ElectricityTransactionsTable() {
             setUpdateLoading(true);
             const token = localStorage.getItem("token");
             const formData = new FormData();
-            
+
             Object.entries(updateFormData).forEach(([key, value]) => {
                 // Diagnostic: Skip electricityConsumerId to test if other fields update without error
                 if (key === "electricityConsumerId") return;
@@ -730,20 +730,20 @@ export default function ElectricityTransactionsTable() {
                     </div>
                 </div>
 
-            {/* Proof Viewer */}
-            {viewProofTransaction && viewProofTransaction.image && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-                    <div className="bg-white dark:bg-[#121212] rounded-lg p-4 shadow-lg relative max-w-lg w-full">
-                        <button
-                            className="absolute top-4 right-4 text-3xl text-gray-500 hover:text-red-500 z-10"
-                            onClick={() => setViewProofTransaction(null)}
-                        >
-                            &times;
-                        </button>
-                        <img src={viewProofTransaction.image} alt="Electricity Proof" className="max-h-[70vh] w-auto mx-auto rounded shadow-xl" />
+                {/* Proof Viewer */}
+                {viewProofTransaction && viewProofTransaction.image && (
+                    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+                        <div className="bg-white dark:bg-[#121212] rounded-lg p-4 shadow-lg relative max-w-lg w-full">
+                            <button
+                                className="absolute top-4 right-4 text-3xl text-gray-500 hover:text-red-500 z-10"
+                                onClick={() => setViewProofTransaction(null)}
+                            >
+                                &times;
+                            </button>
+                            <img src={viewProofTransaction.image} alt="Electricity Proof" className="max-h-[70vh] w-auto mx-auto rounded shadow-xl" />
+                        </div>
                     </div>
-                </div>
-            )}
+                )}
             </div>
 
             {/* Update Modal */}

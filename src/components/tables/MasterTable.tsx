@@ -354,7 +354,14 @@ export default function MasterTable() {
 
       const data = await response.json();
       console.log("data",data)
-      setMasterData(data.data);
+      
+      // Inject SR NO if not provided by backend to ensure table is populated and CRUD logic works
+      const mappedData = (data.data || []).map((item: any, index: number) => ({
+        ...item,
+        srNo: item.srNo || index + 1
+      }));
+      
+      setMasterData(mappedData);
       setError(null);
     } catch (error) {
       console.error("Error fetching master data:", error);
@@ -398,6 +405,7 @@ export default function MasterTable() {
       });
       setTimeout(() => setUpdateStatus({ message: '', type: null }), 3000);
       setIsAddModalOpen(false);
+      fetchMasterData(); // Refresh to ensure correct sorting/srNo from backend
     } catch (error) {
       setUpdateStatus({
         message: error instanceof Error ? error.message : "Failed to add record",
@@ -462,6 +470,7 @@ export default function MasterTable() {
       }, 3000);
 
       handleCloseModal();
+      fetchMasterData(); // Refresh to ensure data integrity
     } catch (error) {
       console.error("Error updating record:", error);
       setUpdateStatus({
@@ -504,6 +513,7 @@ export default function MasterTable() {
         type: "success",
       });
       setTimeout(() => setUpdateStatus({ message: '', type: null }), 3000);
+      fetchMasterData(); // Refresh to ensure correct srNo count
     } catch (error) {
       setUpdateStatus({
         message: error instanceof Error ? error.message : "Failed to delete record",
